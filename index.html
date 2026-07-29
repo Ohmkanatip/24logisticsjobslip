@@ -161,6 +161,7 @@
     </div>
     <div class="topbar-right">
       <button type="button" class="theme-btn" id="userBtn" title="ตั้งชื่อผู้กรอก/เครื่อง (บันทึกติดไปกับทุกใบ)">ผู้กรอก</button>
+      <button type="button" class="theme-btn" id="appBtn" title="รหัสเข้าใช้งานระบบ">🔑 รหัส</button>
       <button type="button" class="theme-btn" id="adminBtn" title="โหมดแอดมิน (แก้ไขใบได้)">แอดมิน</button>
       <button type="button" class="theme-btn" id="themeBtn" title="สลับธีมมืด/สว่าง" aria-label="สลับธีม">
         <span id="themeIcon">🌙</span><span id="themeLabel">มืด</span>
@@ -217,7 +218,7 @@
 
         <div class="field">
           <label>📷 รูปถ่ายตอนจดตู้ <span class="opt" style="font-weight:400;color:var(--line-strong)">(แนบได้หลายรูป · ไม่บังคับ · ถ่ายจากมือถือได้)</span></label>
-          <input type="file" id="f_photos" accept="image/*" multiple capture="environment" style="padding:7px;font-size:13px">
+          <input type="file" id="f_photos" accept="image/*" multiple style="padding:7px;font-size:13px">
           <div id="photoPrev" style="display:flex;flex-wrap:wrap;gap:6px;margin-top:6px"></div>
         </div>
 
@@ -660,8 +661,38 @@ epUrl.addEventListener('input',()=>{
   epDot.classList.toggle('on',v.startsWith('http'));
   try{ localStorage.setItem(EPKEY,v); }catch(e){}
 });
-epUrl.addEventListener('change',fetchMaster); // วาง/แก้ URL แล้วดึง master ทันที
+epUrl.addEventListener('change',async ()=>{ await ensureAppAccess(); fetchMaster(); }); // วาง/แก้ URL → เช็กรหัส แล้วดึง master
+/* ปุ่มรหัสเข้าใช้งาน: ตั้ง/เปลี่ยน/ล้าง */
+document.getElementById('appBtn').onclick=()=>{
+  const t=prompt('รหัสเข้าใช้งานระบบ (เว้นว่าง=ล้างรหัสในเครื่องนี้)', appToken);
+  if(t===null) return;
+  setAppToken(t.trim());
+  flash(t.trim()?'ตั้งรหัสในเครื่องนี้แล้ว':'ล้างรหัสแล้ว','ok');
+  if(endpoint().startsWith('http')) fetchMaster();
+};
 const endpoint=()=>epUrl.value.trim();
+
+/* ---- รหัสเข้าใช้งานระบบ (กันคนนอก) — แนบไปกับทุกคำขอ ---- */
+let appToken=(()=>{ try{ return localStorage.getItem('jobform_app')||''; }catch(e){ return ''; } })();
+function setAppToken(t){ appToken=t||''; try{ appToken?localStorage.setItem('jobform_app',appToken):localStorage.removeItem('jobform_app'); }catch(e){} }
+const APPQS=()=>appToken?('&app='+encodeURIComponent(appToken)):''; // ต่อท้าย query string ของ GET
+/* ตรวจรหัสตอนเปิดเว็บ: ถ้า backend บังคับรหัสแต่ยังไม่มี/ไม่ถูก → ให้ใส่ */
+async function ensureAppAccess(){
+  const url=endpoint(); if(!url.startsWith('http')) return true;
+  try{
+    let r=await fetch(url+(url.includes('?')?'&':'?')+'verifyapp='+encodeURIComponent(appToken||''));
+    let j=await r.json();
+    if(j.ok) return true;
+    let code=prompt('🔑 ใส่รหัสเข้าใช้งานระบบ (ขอจากเจ้าของ)');
+    while(code!==null){
+      r=await fetch(url+(url.includes('?')?'&':'?')+'verifyapp='+encodeURIComponent(code.trim()));
+      j=await r.json();
+      if(j.ok){ setAppToken(code.trim()); flash('เข้าใช้งานได้แล้ว','ok'); return true; }
+      code=prompt('รหัสไม่ถูกต้อง ลองใหม่ (หรือกดยกเลิก)');
+    }
+    flash('ต้องมีรหัสจึงจะใช้งานได้','err'); return false;
+  }catch(e){ return true; } // เน็ตล่ม/ยังไม่ deploy = ปล่อยผ่าน ใช้ cache
+}
 
 /* ============================================================
    MASTER DATA SYNC — Sheet เป็นแหล่งกลาง, localStorage เป็น cache/สำรอง
@@ -673,7 +704,7 @@ const truckKey=t=>[t.plate||'',t.driver||'',t.trailer||''].join('|'); // รู�
 async function fetchMaster(){
   const url=endpoint(); if(!url.startsWith('http')) return;
   try{
-    const res=await fetch(url+(url.includes('?')?'&':'?')+'master=1',{method:'GET'});
+    const res=await fetch(url+(url.includes('?')?'&':'?')+'master=1'+APPQS(),{method:'GET'});
     const m=await res.json();
     if(!m || !m.ok || !m.lists) return;
     const hasData=(Array.isArray(m.trucks)&&m.trucks.length) ||
@@ -694,14 +725,14 @@ async function fetchMaster(){
 /* seed: เขียนค่าปัจจุบันทั้งชุดขึ้น Sheet (ใช้เฉพาะตอน Sheet ว่าง) */
 function seedMaster(){
   const url=endpoint(); if(!url.startsWith('http')) return;
-  const payload={_master:true, seed:true, trucks:store.trucks, lists:store.lists, custBook:store.custBook};
+  const payload={_master:true, seed:true, trucks:store.trucks, lists:store.lists, custBook:store.custBook, app:appToken};
   try{ fetch(url,{method:'POST',mode:'no-cors',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify(payload)}); }catch(e){}
 }
 
 /* ส่งการแก้ทีละรายการ (เพิ่ม/ลบ) — ไม่ทับของคนอื่น */
 function opMaster(op,kind,value){
   const url=endpoint(); if(!url.startsWith('http')) return;
-  const payload={_master:true, op:op, kind:kind, value:value};
+  const payload={_master:true, op:op, kind:kind, value:value, app:appToken};
   try{ fetch(url,{method:'POST',mode:'no-cors',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify(payload)}); }catch(e){}
 }
 
@@ -750,7 +781,7 @@ setupTruck();
 ['driver','trailer','customer','size','yardIn','yardOut','dropoff'].forEach(setupCombo);
 setupMaint();
 renderStatus();
-fetchMaster(); // โหลด master ล่าสุดจาก Sheet ถ้ามี URL แล้ว
+(async()=>{ await ensureAppAccess(); fetchMaster(); })(); // เช็กรหัสเข้าใช้งาน แล้วโหลด master ล่าสุด
 
 /* ============================================================
    บันทึก / เก็บ session
@@ -791,6 +822,7 @@ const now2=()=>new Date().toTimeString().slice(0,5);
 
 async function save(){
   const d=collect();
+  d.app=appToken; // รหัสเข้าใช้งาน (กันคนนอก)
   if(!d.truck){ flash("กรุณาเลือกทะเบียนหัว",'err'); return; }
   if(!d.date){ flash("กรุณาระบุวันที่",'err'); return; }
   const btn=$("btnSave"); btn.disabled=true;
@@ -800,7 +832,7 @@ async function save(){
     if(!adminToken && !enteredUser){ flash('ตั้งชื่อผู้กรอกก่อนแก้ไข (ปุ่ม “ตั้งผู้กรอก” มุมขวาบน)','err'); btn.disabled=false; return; }
     d.uid=editUid; d.enteredBy=editEnteredBy||enteredUser; // คงชื่อผู้กรอกเดิมไว้
     if(url.startsWith('http')){
-      try{ await fetch(url,{method:'POST',mode:'no-cors',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify({_edit:true,token:adminToken,byEmp:enteredUser,uid:editUid,rec:d})}); }catch(e){}
+      try{ await fetch(url,{method:'POST',mode:'no-cors',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify({_edit:true,token:adminToken,byEmp:enteredUser,uid:editUid,rec:d,app:appToken})}); }catch(e){}
     }
     const i=session.findIndex(x=>x.uid===editUid);
     if(i>-1){ session[i]={...d,sent:true}; } else { session.unshift({...d,sent:true}); }
@@ -910,7 +942,7 @@ async function doSearch(){
   if(to) p+='&to='+to;
   $("searchBody").innerHTML='<div class="empty">กำลังค้นหา…</div>';
   try{
-    const res=await fetch(url+(url.includes('?')?'&':'?')+p,{method:'GET'});
+    const res=await fetch(url+(url.includes('?')?'&':'?')+p+APPQS(),{method:'GET'});
     const j=await res.json(); renderSearch(j.rows||[]);
   }catch(e){ $("searchBody").innerHTML='<div class="empty">ค้นไม่สำเร็จ — เช็ก Sheet URL / deploy เวอร์ชันล่าสุด</div>'; }
 }
@@ -963,7 +995,7 @@ function updateDelSel(){
 async function callAct(params){
   const url=endpoint();
   const qs=Object.keys(params).map(k=>k+'='+encodeURIComponent(params[k])).join('&');
-  const r=await fetch(url+(url.includes('?')?'&':'?')+qs,{method:'GET'});
+  const r=await fetch(url+(url.includes('?')?'&':'?')+qs+APPQS(),{method:'GET'});
   return await r.json();
 }
 const ACT_ERR={forbidden:'รหัสแอดมินไม่ถูกต้อง (เช็ก ADMIN_TOKEN ในสคริปต์)',
@@ -1002,7 +1034,7 @@ async function deleteJob(uid,container,btn){
 async function doTrash(){
   const url=endpoint(); if(!url.startsWith('http')){ flash('ยังไม่ได้ตั้ง Sheet URL','err'); return; }
   $("searchBody").innerHTML='<div class="empty">กำลังโหลดถังขยะ…</div>';
-  try{ const r=await fetch(url+(url.includes('?')?'&':'?')+'trash=1'); const j=await r.json(); renderTrash(j.rows||[]); }
+  try{ const r=await fetch(url+(url.includes('?')?'&':'?')+'trash=1'+APPQS()); const j=await r.json(); renderTrash(j.rows||[]); }
   catch(e){ $("searchBody").innerHTML='<div class="empty">โหลดถังขยะไม่สำเร็จ — เช็ก Sheet URL / deploy</div>'; }
 }
 function renderTrash(rows){
@@ -1034,7 +1066,7 @@ async function fetchOne(uid,cb){
   const url=endpoint(); if(!url.startsWith('http')) return;
   flash('กำลังโหลดใบ…','ok');
   try{
-    const r=await fetch(url+(url.includes('?')?'&':'?')+'one='+encodeURIComponent(uid));
+    const r=await fetch(url+(url.includes('?')?'&':'?')+'one='+encodeURIComponent(uid)+APPQS());
     const j=await r.json();
     if(j.ok&&j.rec) cb(j.rec); else flash('ไม่พบใบนี้','err');
   }catch(e){ flash('โหลดไม่สำเร็จ','err'); }
@@ -1053,7 +1085,7 @@ function setAdmin(t){ adminToken=t; try{ t?localStorage.setItem('jobform_admin',
 async function tryAdmin(t){
   const url=endpoint(); if(!url.startsWith('http')){ flash('ตั้ง Sheet URL ก่อน','err'); return; }
   try{
-    const r=await fetch(url+(url.includes('?')?'&':'?')+'admin='+encodeURIComponent(t));
+    const r=await fetch(url+(url.includes('?')?'&':'?')+'admin='+encodeURIComponent(t)+APPQS());
     const j=await r.json();
     if(j.ok){ setAdmin(t); flash('เข้าโหมดแอดมินแล้ว','ok'); if($("searchBody").querySelector('table')) doSearch(); }
     else flash('รหัสแอดมินไม่ถูกต้อง','err');
@@ -1203,7 +1235,7 @@ async function runAudit(){
   if(from) p+='&from='+from; if(to) p+='&to='+to;
   $("searchBody").innerHTML='<div class="empty">กำลังตรวจสอบ…</div>';
   let rows=[];
-  try{ const r=await fetch(url+(url.includes('?')?'&':'?')+p); const j=await r.json(); rows=j.rows||[]; }
+  try{ const r=await fetch(url+(url.includes('?')?'&':'?')+p+APPQS()); const j=await r.json(); rows=j.rows||[]; }
   catch(e){ $("searchBody").innerHTML='<div class="empty">ตรวจไม่สำเร็จ — เช็ก Sheet URL / deploy เวอร์ชันล่าสุด</div>'; return; }
   renderAudit(rows);
 }
@@ -1238,7 +1270,7 @@ async function doEditLog(){
   if(!adminToken){ flash('เฉพาะแอดมิน','err'); return; }
   $("searchBody").innerHTML='<div class="empty">กำลังโหลดประวัติแก้ไข…</div>';
   try{
-    const r=await fetch(url+(url.includes('?')?'&':'?')+'editlog=1&token='+encodeURIComponent(adminToken));
+    const r=await fetch(url+(url.includes('?')?'&':'?')+'editlog=1&token='+encodeURIComponent(adminToken)+APPQS());
     const j=await r.json();
     if(j.ok===false){ $("searchBody").innerHTML='<div class="empty">'+(ACT_ERR[j.result]||'โหลดไม่สำเร็จ')+'</div>'; return; }
     renderEditLog(j.rows||[]);
@@ -1394,12 +1426,12 @@ function openLoadingWindow(){
 async function fetchRecs(uids){
   const url=endpoint();
   try{ // batch: ต้อง deploy Apps Script ล่าสุด (เร็วสุด)
-    const r=await fetch(url+(url.includes('?')?'&':'?')+'many='+encodeURIComponent(uids.join(',')));
+    const r=await fetch(url+(url.includes('?')?'&':'?')+'many='+encodeURIComponent(uids.join(','))+APPQS());
     const j=await r.json();
     if(j&&j.ok&&Array.isArray(j.recs)&&j.recs.length) return j.recs;
   }catch(e){}
   try{ // fallback: ดึงพร้อมกันแบบขนาน (ใช้ได้แม้ยังไม่ deploy backend ใหม่)
-    const res=await Promise.all(uids.map(u=>fetch(url+(url.includes('?')?'&':'?')+'one='+encodeURIComponent(u)).then(r=>r.json()).catch(()=>null)));
+    const res=await Promise.all(uids.map(u=>fetch(url+(url.includes('?')?'&':'?')+'one='+encodeURIComponent(u)+APPQS()).then(r=>r.json()).catch(()=>null)));
     return res.filter(j=>j&&j.ok&&j.rec).map(j=>j.rec);
   }catch(e){ return []; }
 }
