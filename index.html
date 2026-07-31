@@ -1447,7 +1447,7 @@ function openInvoice(recs,win){
         +'<td><input class="jr"></td>'
         +'<td><input value="'+esc(r.date||'')+'"></td>'
         +'<td><input value="'+esc(r.truck||'')+'"></td>'
-        +'<td><input class="bl"></td>'
+        +(i===0?('<td rowspan="'+nrows+'"><input class="bl" style="text-align:center"></td>'):'')
         +'<td><input value="'+esc(qty)+'"></td>'
         +'<td><input value="'+esc(r.container||'')+'"></td>'
         +'<td><input value="'+esc(r.yardIn||'')+'"></td>'
@@ -1457,7 +1457,7 @@ function openInvoice(recs,win){
         +'<td><input class="amt rtn" inputmode="numeric" value="'+money0(r.c_return)+'"></td>'
         +'<td><input class="amt tr" inputmode="numeric"></td></tr>';
     } else {
-      rowsHtml+='<tr><td class="c"></td><td><input></td><td><input></td><td><input></td><td><input></td><td><input></td><td><input></td><td><input></td><td><input></td><td><input></td><td><input class="amt cy" inputmode="numeric"></td><td><input class="amt rtn" inputmode="numeric"></td><td><input class="amt tr" inputmode="numeric"></td></tr>';
+      rowsHtml+='<tr><td class="c"></td><td><input></td><td><input></td><td><input></td><td><input></td><td><input></td><td><input></td><td><input></td><td><input></td><td><input class="amt cy" inputmode="numeric"></td><td><input class="amt rtn" inputmode="numeric"></td><td><input class="amt tr" inputmode="numeric"></td></tr>';
     }
   }
   const cust=recs[0].customer||'';
@@ -1485,17 +1485,17 @@ function openInvoice(recs,win){
     +"function saveCust(){var n=document.getElementById('cName').value,a=document.getElementById('cAddr').value,t=document.getElementById('cTax').value;"
     +"if(window.opener&&window.opener.saveCustBook){window.opener.saveCustBook(n,a,t);alert('บันทึกที่อยู่ลูกค้าเรียบร้อย ครั้งหน้าจะเติมให้เอง');}else{alert('ต้องเปิดจากหน้าเว็บหลัก');}}";
   const css='*{box-sizing:border-box}'
-    +'body{font-family:Sarabun,sans-serif;color:#000;margin:0;padding:12mm 10mm;font-size:12px}'
+    +'body{font-family:Sarabun,sans-serif;color:#000;margin:0;padding:12mm 5mm;font-size:12px}'
     +'.tool{background:#0f6e78;color:#fff;padding:8px 12px;border-radius:8px;margin-bottom:12px;display:flex;gap:8px;flex-wrap:wrap}'
     +'.tool button{font-family:inherit;font-size:13px;font-weight:600;border:none;border-radius:6px;padding:8px 14px;cursor:pointer;background:#fff;color:#0f6e78}'
     +'.tool span{align-self:center;font-size:11px}'
     +'.top{display:flex;align-items:flex-start;gap:10px;border-bottom:2px solid #000;padding-bottom:6px}'
-    +'.top .logo img{height:54px}.top .co{flex:1;text-align:center}.top .co b{font-size:14px}.top .co div{font-size:11px}'
+    +'.top .logo{text-align:center}.top .logo .cap{font-size:9px;margin-top:2px}.top .logo img{height:54px}.top .co{flex:1;text-align:left;padding-left:12px}.top .co b{font-size:14px}.top .co div{font-size:11px}'
     +'.top .inv{display:flex;justify-content:flex-end;min-width:120px}.top .inv .box{border:1.5px solid #000;padding:8px 20px;font-weight:700;font-size:15px;height:fit-content}'
     +'.mid{display:flex;justify-content:space-between;gap:16px;margin:8px 0 4px}'
     +'.mid .cust{flex:1;font-size:11px}.mid .cust .rowc{display:flex;gap:5px;align-items:center}.mid .cust label{font-weight:600;white-space:nowrap}'
     +'.mid .cust input{border:none;border-bottom:1px dotted #999;font-family:inherit;font-size:11px;flex:1;padding:1px 2px}'
-    +'.mid .cust textarea{width:100%;border:none;border-bottom:1px dotted #999;font-family:inherit;font-size:11px;height:32px;resize:vertical;margin:2px 0}'
+    +'.mid .cust textarea{width:100%;border:none;border-bottom:1px dotted #999;font-family:inherit;font-size:11px;height:48px;resize:vertical;margin:2px 0}'
     +'.mid .meta{font-size:12px;min-width:200px}.mid .meta .rowm{display:flex;gap:5px;margin-bottom:4px;align-items:center}.mid .meta b{white-space:nowrap}'
     +'.mid .meta input{border:none;border-bottom:1px dotted #999;font-family:inherit;font-size:12px;flex:1;padding:1px 2px}'
     +'.cap{font-size:11px;margin:3px 0 2px;font-weight:600}'
@@ -1508,21 +1508,22 @@ function openInvoice(recs,win){
     +'tfoot td{border:none;font-size:11px;padding:2px 4px}tfoot td.amt{border:1px solid #000;text-align:right;font-weight:700;overflow:visible;white-space:nowrap;padding:2px 3px}'
     +'tfoot td.r{text-align:right}tfoot td.l{text-align:left}tfoot td.gt{border-bottom:3px double #000}'
     +'#words{font-weight:700}'
-    +'.bank{margin-top:10px;font-size:11px;line-height:1.6}.bank .ind{margin-left:78px}'
+    +'.bank{margin-top:10px;font-size:11px;line-height:1.6;text-align:left}.bank .ind{margin-left:0}'
     +'.pay{display:flex;justify-content:space-between;align-items:flex-end;margin-top:64px;font-size:11px;gap:20px}'
     +'.pay .pd{white-space:nowrap}.pay .sg{text-align:center;width:230px}.pay .sg .ln{border-top:1px dotted #000;height:40px;margin-bottom:3px}'
-    +'@page{size:A4;margin:0}@media print{.tool{display:none}body{padding:10mm 10mm}input[type=checkbox]{display:none!important}}';
+    +'@page{size:A4;margin:0}@media print{input.optfield{border:none!important}.tool{display:none}body{padding:10mm 5mm}input[type=checkbox]{display:none!important}}';
   const html='<!doctype html><html lang="th"><head><meta charset="utf-8"><title>INVOICE '+esc(cust)+'</title>'
     +'<link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@400;600;700&display=swap" rel="stylesheet"><style>'+css+'</style></head><body>'
     +'<div class="tool"><button onclick="window.print()">🖨 พิมพ์ / บันทึก PDF</button><button onclick="saveCust()">💾 จำที่อยู่ลูกค้านี้</button><span>กรอก Invoice No / B-L / ค่าขนส่ง ในช่องได้เลย · ยอดคำนวณให้อัตโนมัติ</span></div>'
-    +'<div class="top"><div class="logo"><img src="'+LOGO+'" onerror="this.style.display=\'none\'"></div>'
+    +'<div class="top"><div class="logo"><img src="'+LOGO+'" onerror="this.style.display=\'none\'"><div class="cap">24 Logistics Co., Ltd.</div></div>'
     +'<div class="co"><b>'+esc(COMPANY.name)+'</b><div>'+esc(COMPANY.addr)+'</div><div>'+esc(COMPANY.tax)+'</div><div>'+esc(COMPANY.tel)+'</div></div>'
     +'<div class="inv"><div class="box">INVOICE</div></div></div>'
     +'<div class="mid"><div class="cust"><div class="rowc"><label>ลูกค้า :</label><input id="cName" value="'+esc(cust)+'"></div>'
     +'<textarea id="cAddr" placeholder="ที่อยู่ลูกค้า">'+esc(info.addr||'')+'</textarea>'
     +'<div class="rowc"><label>TAX ID :</label><input id="cTax" value="'+esc(info.tax||'')+'"></div></div>'
     +'<div class="meta"><div class="rowm"><b>INV.NO :</b><input id="invNo" placeholder="(กรอกเอง)"></div>'
-    +'<div class="rowm"><b>Date :</b><input id="invDate" value="'+esc(today)+'"></div></div></div>'
+    +'<div class="rowm"><b>Date :</b><input id="invDate" value="'+esc(today)+'"></div>'
+    +'<div class="rowm"><input class="optfield" placeholder="ช่องเพิ่มเติม (ไม่กรอก = ไม่พิมพ์)"></div></div></div>'
     +'<div class="cap">Particular / รายการ</div>'
     +'<table><colgroup><col style="width:4%"><col style="width:6%"><col style="width:9%"><col style="width:8%"><col style="width:6%"><col style="width:6%"><col style="width:13%"><col style="width:6%"><col style="width:9%"><col style="width:6%"><col style="width:9%"><col style="width:9%"><col style="width:9%"></colgroup>'
     +'<thead><tr><th>Item</th><th>Job.Ref</th><th>date</th><th>Truck.no</th><th rowspan="2">B/L</th><th>Qty</th><th>Cont. no</th><th>CY</th><th>LOAD</th><th>Return</th><th>CY</th><th>Rtn.</th><th>Transport</th></tr>'
@@ -1530,7 +1531,7 @@ function openInvoice(recs,win){
     +'<tbody>'+rowsHtml+'<tr class="sub"><td colspan="10"></td><td class="amt" id="sumCy"></td><td class="amt" id="sumRtn"></td><td class="amt" id="sumTr"></td></tr></tbody>'
     +'<tfoot><tr><td class="r" colspan="10">Withholding Tax ภาษีหัก ณ ที่จ่าย 1 % <input type="checkbox" id="whtChk" checked style="vertical-align:middle"></td><td></td><td></td><td class="amt" id="whtVal"></td></tr>'
     +'<tr><td class="l" colspan="7">Mark : <input id="mk" style="border:none;border-bottom:1px dotted #999;font-family:inherit;width:130px"></td><td class="r" colspan="3">รวม</td><td></td><td class="amt" id="sumCyRtn"></td><td class="amt" id="sumTrNet"></td></tr>'
-    +'<tr><td class="r" colspan="12">Total</td><td class="amt gt" id="grand">0.00</td></tr>'
+    +'<tr><td class="l" colspan="12" style="font-weight:700">Total</td><td class="amt gt" id="grand">0.00</td></tr>'
     +'<tr><td class="l" colspan="13" style="padding-top:3px">รวมเงิน&nbsp;&nbsp;&nbsp;<span id="words"></span></td></tr></tfoot></table>'
     +'<div class="bank"><div><b>Account / บัญชี :</b> '+esc(COMPANY.bank)+'</div>'
     +'<div><b>Cheque issue :</b> โปรดสั่งจ่ายเช็คขีดคร่อมในนาม '+esc(COMPANY.name)+'</div>'
@@ -1579,13 +1580,13 @@ function bulkWindowMain(){
       var r=recs[i];
       if(r){
         var qty=r.size?('1*'+r.size):'';
-        rowsHtml+='<tr><td class="c">'+(i+1)+'</td><td><input></td><td><input value="'+esc(r.date||'')+'"></td><td><input value="'+esc(r.truck||'')+'"></td><td><input></td><td><input value="'+esc(qty)+'"></td><td><input value="'+esc(r.container||'')+'"></td><td><input value="'+esc(r.yardIn||'')+'"></td><td><input value="'+esc(r.loadPlace||'')+'"></td><td><input value="'+esc(r.yardOut||'')+'"></td><td><input class="amt cy" inputmode="numeric" value="'+((Number(r.c_recv)||0)?(Number(r.c_recv)).toLocaleString('th-TH',{minimumFractionDigits:2,maximumFractionDigits:2}):'')+'"></td><td><input class="amt rtn" inputmode="numeric" value="'+((Number(r.c_return)||0)?(Number(r.c_return)).toLocaleString('th-TH',{minimumFractionDigits:2,maximumFractionDigits:2}):'')+'"></td><td><input class="amt tr" inputmode="numeric"></td></tr>';
+        rowsHtml+='<tr><td class="c">'+(i+1)+'</td><td><input></td><td><input value="'+esc(r.date||'')+'"></td><td><input value="'+esc(r.truck||'')+'"></td>'+(i===0?('<td rowspan="'+n+'"><input style="text-align:center"></td>'):'')+'<td><input value="'+esc(qty)+'"></td><td><input value="'+esc(r.container||'')+'"></td><td><input value="'+esc(r.yardIn||'')+'"></td><td><input value="'+esc(r.loadPlace||'')+'"></td><td><input value="'+esc(r.yardOut||'')+'"></td><td><input class="amt cy" inputmode="numeric" value="'+((Number(r.c_recv)||0)?(Number(r.c_recv)).toLocaleString('th-TH',{minimumFractionDigits:2,maximumFractionDigits:2}):'')+'"></td><td><input class="amt rtn" inputmode="numeric" value="'+((Number(r.c_return)||0)?(Number(r.c_return)).toLocaleString('th-TH',{minimumFractionDigits:2,maximumFractionDigits:2}):'')+'"></td><td><input class="amt tr" inputmode="numeric"></td></tr>';
       } else {
-        rowsHtml+='<tr><td class="c"></td><td><input></td><td><input></td><td><input></td><td><input></td><td><input></td><td><input></td><td><input></td><td><input></td><td><input></td><td><input class="amt cy" inputmode="numeric"></td><td><input class="amt rtn" inputmode="numeric"></td><td><input class="amt tr" inputmode="numeric"></td></tr>';
+        rowsHtml+='<tr><td class="c"></td><td><input></td><td><input></td><td><input></td><td><input></td><td><input></td><td><input></td><td><input></td><td><input></td><td><input class="amt cy" inputmode="numeric"></td><td><input class="amt rtn" inputmode="numeric"></td><td><input class="amt tr" inputmode="numeric"></td></tr>';
       }
     }
     return '<div class="bill">'
-      +'<div class="top"><div class="logo"><img src="'+LOGO+'" onerror="this.style.display=\'none\'"></div>'
+      +'<div class="top"><div class="logo"><img src="'+LOGO+'" onerror="this.style.display=\'none\'"><div class="cap">24 Logistics Co., Ltd.</div></div>'
       +'<div class="co"><b>'+escT(C.name)+'</b><div>'+escT(C.addr)+'</div><div>'+escT(C.tax)+'</div><div>'+escT(C.tel)+'</div></div>'
       +'<div class="inv"><div class="box">INVOICE</div></div></div>'
       +'<div class="mid"><div class="cust"><div class="rowc"><label>ลูกค้า :</label><input class="cName" value="'+esc(cust)+'"></div>'
@@ -1593,13 +1594,14 @@ function bulkWindowMain(){
       +'<div class="rowc"><label>TAX ID :</label><input class="cTax" value="'+esc(info.tax||'')+'"></div>'
       +'<button type="button" class="saveCust no-print">💾 จำที่อยู่ลูกค้านี้</button></div>'
       +'<div class="meta"><div class="rowm"><b>INV.NO :</b><input class="invNo" value="'+esc(invno)+'"></div>'
-      +'<div class="rowm"><b>Date :</b><input class="invDate" value="'+esc(today)+'"></div></div></div>'
+      +'<div class="rowm"><b>Date :</b><input class="invDate" value="'+esc(today)+'"></div>'
+      +'<div class="rowm"><input class="optfield" placeholder="ช่องเพิ่มเติม (ไม่กรอก = ไม่พิมพ์)"></div></div></div>'
       +'<div class="cap">Particular / รายการ</div>'
       +'<table>'+COLGROUP+THEAD+'<tbody>'+rowsHtml
       +'<tr class="sub"><td colspan="10"></td><td class="amt sumCy"></td><td class="amt sumRtn"></td><td class="amt sumTr"></td></tr></tbody>'
       +'<tfoot><tr><td class="r" colspan="10">Withholding Tax ภาษีหัก ณ ที่จ่าย 1 % <input type="checkbox" class="whtChk" checked style="vertical-align:middle"></td><td></td><td></td><td class="amt whtVal"></td></tr>'
       +'<tr><td class="l" colspan="7">Mark : <input class="mk" style="border:none;border-bottom:1px dotted #999;font-family:inherit;width:130px"></td><td class="r" colspan="3">รวม</td><td></td><td class="amt sumCyRtn"></td><td class="amt sumTrNet"></td></tr>'
-      +'<tr><td class="r" colspan="12">Total</td><td class="amt gt grand">0.00</td></tr>'
+      +'<tr><td class="l" colspan="12" style="font-weight:700">Total</td><td class="amt gt grand">0.00</td></tr>'
       +'<tr><td class="l" colspan="13" style="padding-top:3px">รวมเงิน&nbsp;&nbsp;&nbsp;<span class="words"></span></td></tr></tfoot></table>'
       +'<div class="bank"><div><b>Account / บัญชี :</b> '+escT(C.bank)+'</div>'
       +'<div><b>Cheque issue :</b> โปรดสั่งจ่ายเช็คขีดคร่อมในนาม '+escT(C.name)+'</div>'
@@ -1672,7 +1674,7 @@ function openBulkInvoice(recs,win){
     custBook:store.custBook||{}, logo:BULK_LOGO,
     recs:recs.map(r=>({date:r.date||'',truck:r.truck||'',container:r.container||'',size:r.size||'',yardIn:r.yardIn||'',loadPlace:r.loadPlace||'',yardOut:r.yardOut||'',c_recv:Number(r.c_recv)||0,c_return:Number(r.c_return)||0,customer:r.customer||''}))
   };
-  const css='*{box-sizing:border-box}body{font-family:Sarabun,sans-serif;color:#000;margin:0;padding:10mm 10mm;font-size:12px}'
+  const css='*{box-sizing:border-box}body{font-family:Sarabun,sans-serif;color:#000;margin:0;padding:10mm 5mm;font-size:12px}'
     +'.tool{background:#0f6e78;color:#fff;padding:8px 12px;border-radius:8px;margin-bottom:10px;display:flex;gap:8px;flex-wrap:wrap;align-items:center;position:sticky;top:0;z-index:5}'
     +'.tool button{font-family:inherit;font-size:13px;font-weight:600;border:none;border-radius:6px;padding:8px 14px;cursor:pointer;background:#fff;color:#0f6e78}'
     +'.tool input{font-family:inherit;font-size:13px;padding:5px 8px;border:none;border-radius:5px;width:120px}.tool input[type=number]{width:70px}.tool span{font-size:11.5px}'
@@ -1681,12 +1683,12 @@ function openBulkInvoice(recs,win){
     +'#groupPanel th{background:#f0f0f0}#groupPanel .gno{width:64px;text-align:center;font-size:13px;padding:4px}.mono{font-family:monospace}'
     +'.bill{max-width:1000px;margin:0 auto 14px;padding-bottom:6px}'
     +'.top{display:flex;align-items:flex-start;gap:10px;border-bottom:2px solid #000;padding-bottom:6px}'
-    +'.top .logo img{height:54px}.top .co{flex:1;text-align:center}.top .co b{font-size:14px}.top .co div{font-size:11px}'
+    +'.top .logo{text-align:center}.top .logo .cap{font-size:9px;margin-top:2px}.top .logo img{height:54px}.top .co{flex:1;text-align:left;padding-left:12px}.top .co b{font-size:14px}.top .co div{font-size:11px}'
     +'.top .inv{display:flex;justify-content:flex-end;min-width:120px}.top .inv .box{border:1.5px solid #000;padding:8px 20px;font-weight:700;font-size:15px;height:fit-content}'
     +'.mid{display:flex;justify-content:space-between;gap:16px;margin:8px 0 4px}'
     +'.mid .cust{flex:1;font-size:11px}.mid .cust .rowc{display:flex;gap:5px;align-items:center}.mid .cust label{font-weight:600;white-space:nowrap}'
     +'.mid .cust input{border:none;border-bottom:1px dotted #999;font-family:inherit;font-size:11px;flex:1;padding:1px 2px}'
-    +'.mid .cust textarea{width:100%;border:none;border-bottom:1px dotted #999;font-family:inherit;font-size:11px;height:32px;resize:vertical;margin:2px 0}'
+    +'.mid .cust textarea{width:100%;border:none;border-bottom:1px dotted #999;font-family:inherit;font-size:11px;height:48px;resize:vertical;margin:2px 0}'
     +'.mid .cust .saveCust{background:#e3f0f1;color:#0f6e78;border:1px solid #0f6e78;border-radius:5px;font-size:11px;padding:3px 8px;cursor:pointer}'
     +'.mid .meta{font-size:12px;min-width:200px}.mid .meta .rowm{display:flex;gap:5px;margin-bottom:4px;align-items:center}.mid .meta b{white-space:nowrap}'
     +'.mid .meta input{border:none;border-bottom:1px dotted #999;font-family:inherit;font-size:12px;flex:1;padding:1px 2px}'
@@ -1700,11 +1702,11 @@ function openBulkInvoice(recs,win){
     +'.bill tfoot td{border:none;font-size:11px;padding:2px 4px}.bill tfoot td.amt{border:1px solid #000;text-align:right;font-weight:700;overflow:visible;white-space:nowrap;padding:2px 3px}'
     +'.bill tfoot td.r{text-align:right}.bill tfoot td.l{text-align:left}.bill tfoot td.gt{border-bottom:3px double #000}'
     +'.words{font-weight:700}'
-    +'.bank{margin-top:10px;font-size:11px;line-height:1.6}.bank .ind{margin-left:78px}'
+    +'.bank{margin-top:10px;font-size:11px;line-height:1.6;text-align:left}.bank .ind{margin-left:0}'
     +'.pay{display:flex;justify-content:space-between;align-items:flex-end;margin-top:52px;font-size:11px;gap:20px}'
     +'.pay .pd{white-space:nowrap}.pay .sg{text-align:center;width:230px}.pay .sg .ln{border-top:1px dotted #000;height:38px;margin-bottom:3px}'
     +'.bill{page-break-after:always}.bill:last-child{page-break-after:auto}'
-    +'@page{size:A4;margin:0}@media print{.tool,#groupPanel,#grpHint,.no-print{display:none!important}body{padding:8mm 10mm}.bill{margin:0}input[type=checkbox]{display:none!important}}';
+    +'@page{size:A4;margin:0}@media print{input.optfield{border:none!important}.tool,#groupPanel,#grpHint,.no-print{display:none!important}body{padding:8mm 5mm}.bill{margin:0}input[type=checkbox]{display:none!important}}';
   const bodyHtml='<div class="tool no-print">'
     +'<button id="makeBills">➡ สร้างบิล</button>'
     +'<button id="toGroup" style="display:none">◀ กลับไปจัดกลุ่ม</button>'
