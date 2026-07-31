@@ -1436,7 +1436,7 @@ async function buildInvoiceFromSelection(){
 function openInvoice(recs,win){
   const esc=escAttr;
   const LOGO=APP_LOGO;
-  const money0=v=>{const n=Number(v)||0; return n?n:'';};
+  const money0=v=>{const n=Number(v)||0; return n?n.toLocaleString('th-TH',{minimumFractionDigits:2,maximumFractionDigits:2}):'';};
   const MINROWS=6, nrows=Math.max(recs.length,MINROWS);
   let rowsHtml='';
   for(let i=0;i<nrows;i++){
@@ -1485,7 +1485,7 @@ function openInvoice(recs,win){
     +"function saveCust(){var n=document.getElementById('cName').value,a=document.getElementById('cAddr').value,t=document.getElementById('cTax').value;"
     +"if(window.opener&&window.opener.saveCustBook){window.opener.saveCustBook(n,a,t);alert('บันทึกที่อยู่ลูกค้าเรียบร้อย ครั้งหน้าจะเติมให้เอง');}else{alert('ต้องเปิดจากหน้าเว็บหลัก');}}";
   const css='*{box-sizing:border-box}'
-    +'body{font-family:Sarabun,sans-serif;color:#000;margin:0;padding:12mm 10mm;font-size:12px}'
+    +'body{font-family:Sarabun,sans-serif;color:#000;margin:0;padding:12mm 15mm;font-size:12px}'
     +'.tool{background:#0f6e78;color:#fff;padding:8px 12px;border-radius:8px;margin-bottom:12px;display:flex;gap:8px;flex-wrap:wrap}'
     +'.tool button{font-family:inherit;font-size:13px;font-weight:600;border:none;border-radius:6px;padding:8px 14px;cursor:pointer;background:#fff;color:#0f6e78}'
     +'.tool span{align-self:center;font-size:11px}'
@@ -1503,15 +1503,15 @@ function openInvoice(recs,win){
     +'th,td{border:1px solid #000;padding:1px 2px;font-size:9.5px;text-align:center;overflow:hidden}'
     +'th{font-weight:700;line-height:1.15}'
     +'td input{width:100%;border:none;font-family:inherit;font-size:9.5px;text-align:center;padding:1px;background:transparent;min-width:0}'
-    +'.amt input,td.amt{text-align:right;font-family:monospace}'
+    +'.amt input,td.amt{text-align:right}'
     +'tbody tr{height:19px}tr.sub td{font-weight:700;height:20px}'
-    +'tfoot td{border:none;font-size:11px;padding:2px 4px}tfoot td.amt{border:1px solid #000;text-align:right;font-weight:700;font-family:monospace;overflow:visible;white-space:nowrap;padding:2px 3px}'
+    +'tfoot td{border:none;font-size:11px;padding:2px 4px}tfoot td.amt{border:1px solid #000;text-align:right;font-weight:700;overflow:visible;white-space:nowrap;padding:2px 3px}'
     +'tfoot td.r{text-align:right}tfoot td.l{text-align:left}tfoot td.gt{border-bottom:3px double #000}'
     +'#words{font-weight:700}'
     +'.bank{margin-top:10px;font-size:11px;line-height:1.6}.bank .ind{margin-left:78px}'
     +'.pay{display:flex;justify-content:space-between;align-items:flex-end;margin-top:64px;font-size:11px;gap:20px}'
     +'.pay .pd{white-space:nowrap}.pay .sg{text-align:center;width:230px}.pay .sg .ln{border-top:1px dotted #000;height:40px;margin-bottom:3px}'
-    +'@page{size:A4;margin:0}@media print{.tool{display:none}body{padding:10mm 8mm}input[type=checkbox]{display:none!important}}';
+    +'@page{size:A4;margin:0}@media print{.tool{display:none}body{padding:10mm 15mm}input[type=checkbox]{display:none!important}}';
   const html='<!doctype html><html lang="th"><head><meta charset="utf-8"><title>INVOICE '+esc(cust)+'</title>'
     +'<link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@400;600;700&display=swap" rel="stylesheet"><style>'+css+'</style></head><body>'
     +'<div class="tool"><button onclick="window.print()">🖨 พิมพ์ / บันทึก PDF</button><button onclick="saveCust()">💾 จำที่อยู่ลูกค้านี้</button><span>กรอก Invoice No / B-L / ค่าขนส่ง ในช่องได้เลย · ยอดคำนวณให้อัตโนมัติ</span></div>'
@@ -1579,7 +1579,7 @@ function bulkWindowMain(){
       var r=recs[i];
       if(r){
         var qty=r.size?('1*'+r.size):'';
-        rowsHtml+='<tr><td class="c">'+(i+1)+'</td><td><input></td><td><input value="'+esc(r.date||'')+'"></td><td><input value="'+esc(r.truck||'')+'"></td><td><input></td><td><input value="'+esc(qty)+'"></td><td><input value="'+esc(r.container||'')+'"></td><td><input value="'+esc(r.yardIn||'')+'"></td><td><input value="'+esc(r.loadPlace||'')+'"></td><td><input value="'+esc(r.yardOut||'')+'"></td><td><input class="amt cy" inputmode="numeric" value="'+(Number(r.c_recv)||'')+'"></td><td><input class="amt rtn" inputmode="numeric" value="'+(Number(r.c_return)||'')+'"></td><td><input class="amt tr" inputmode="numeric"></td></tr>';
+        rowsHtml+='<tr><td class="c">'+(i+1)+'</td><td><input></td><td><input value="'+esc(r.date||'')+'"></td><td><input value="'+esc(r.truck||'')+'"></td><td><input></td><td><input value="'+esc(qty)+'"></td><td><input value="'+esc(r.container||'')+'"></td><td><input value="'+esc(r.yardIn||'')+'"></td><td><input value="'+esc(r.loadPlace||'')+'"></td><td><input value="'+esc(r.yardOut||'')+'"></td><td><input class="amt cy" inputmode="numeric" value="'+((Number(r.c_recv)||0)?(Number(r.c_recv)).toLocaleString('th-TH',{minimumFractionDigits:2,maximumFractionDigits:2}):'')+'"></td><td><input class="amt rtn" inputmode="numeric" value="'+((Number(r.c_return)||0)?(Number(r.c_return)).toLocaleString('th-TH',{minimumFractionDigits:2,maximumFractionDigits:2}):'')+'"></td><td><input class="amt tr" inputmode="numeric"></td></tr>';
       } else {
         rowsHtml+='<tr><td class="c"></td><td><input></td><td><input></td><td><input></td><td><input></td><td><input></td><td><input></td><td><input></td><td><input></td><td><input></td><td><input class="amt cy" inputmode="numeric"></td><td><input class="amt rtn" inputmode="numeric"></td><td><input class="amt tr" inputmode="numeric"></td></tr>';
       }
@@ -1672,7 +1672,7 @@ function openBulkInvoice(recs,win){
     custBook:store.custBook||{}, logo:BULK_LOGO,
     recs:recs.map(r=>({date:r.date||'',truck:r.truck||'',container:r.container||'',size:r.size||'',yardIn:r.yardIn||'',loadPlace:r.loadPlace||'',yardOut:r.yardOut||'',c_recv:Number(r.c_recv)||0,c_return:Number(r.c_return)||0,customer:r.customer||''}))
   };
-  const css='*{box-sizing:border-box}body{font-family:Sarabun,sans-serif;color:#000;margin:0;padding:10mm 8mm;font-size:12px}'
+  const css='*{box-sizing:border-box}body{font-family:Sarabun,sans-serif;color:#000;margin:0;padding:10mm 15mm;font-size:12px}'
     +'.tool{background:#0f6e78;color:#fff;padding:8px 12px;border-radius:8px;margin-bottom:10px;display:flex;gap:8px;flex-wrap:wrap;align-items:center;position:sticky;top:0;z-index:5}'
     +'.tool button{font-family:inherit;font-size:13px;font-weight:600;border:none;border-radius:6px;padding:8px 14px;cursor:pointer;background:#fff;color:#0f6e78}'
     +'.tool input{font-family:inherit;font-size:13px;padding:5px 8px;border:none;border-radius:5px;width:120px}.tool input[type=number]{width:70px}.tool span{font-size:11.5px}'
@@ -1695,16 +1695,16 @@ function openBulkInvoice(recs,win){
     +'.bill th,.bill td{border:1px solid #000;padding:1px 2px;font-size:9.5px;text-align:center;overflow:hidden}'
     +'.bill th{font-weight:700;line-height:1.15}'
     +'.bill td input{width:100%;border:none;font-family:inherit;font-size:9.5px;text-align:center;padding:1px;background:transparent;min-width:0}'
-    +'.amt input,td.amt{text-align:right;font-family:monospace}'
+    +'.amt input,td.amt{text-align:right}'
     +'.bill tbody tr{height:19px}tr.sub td{font-weight:700;height:20px}'
-    +'.bill tfoot td{border:none;font-size:11px;padding:2px 4px}.bill tfoot td.amt{border:1px solid #000;text-align:right;font-weight:700;font-family:monospace;overflow:visible;white-space:nowrap;padding:2px 3px}'
+    +'.bill tfoot td{border:none;font-size:11px;padding:2px 4px}.bill tfoot td.amt{border:1px solid #000;text-align:right;font-weight:700;overflow:visible;white-space:nowrap;padding:2px 3px}'
     +'.bill tfoot td.r{text-align:right}.bill tfoot td.l{text-align:left}.bill tfoot td.gt{border-bottom:3px double #000}'
     +'.words{font-weight:700}'
     +'.bank{margin-top:10px;font-size:11px;line-height:1.6}.bank .ind{margin-left:78px}'
     +'.pay{display:flex;justify-content:space-between;align-items:flex-end;margin-top:52px;font-size:11px;gap:20px}'
     +'.pay .pd{white-space:nowrap}.pay .sg{text-align:center;width:230px}.pay .sg .ln{border-top:1px dotted #000;height:38px;margin-bottom:3px}'
     +'.bill{page-break-after:always}.bill:last-child{page-break-after:auto}'
-    +'@page{size:A4;margin:0}@media print{.tool,#groupPanel,#grpHint,.no-print{display:none!important}body{padding:8mm}.bill{margin:0}input[type=checkbox]{display:none!important}}';
+    +'@page{size:A4;margin:0}@media print{.tool,#groupPanel,#grpHint,.no-print{display:none!important}body{padding:8mm 15mm}.bill{margin:0}input[type=checkbox]{display:none!important}}';
   const bodyHtml='<div class="tool no-print">'
     +'<button id="makeBills">➡ สร้างบิล</button>'
     +'<button id="toGroup" style="display:none">◀ กลับไปจัดกลุ่ม</button>'
