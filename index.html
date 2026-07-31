@@ -452,7 +452,7 @@ const COMPANY = {
   nameEn:"24 Logistics Co., Ltd.",
   addr:"59/60 หมู่ 16 ถ.ศรีนครินทร์ ต.บางแก้ว อ.บางพลี จ.สมุทรปราการ 10540",
   tax:"เลขผู้เสียภาษี 0115565024918",
-  tel:"โทรศัพท์ 094-8789335",
+  tel:"โทรศัพท์ 094-8789335, 098-7893224",
   bank:"บริษัท ยี่สิบสี่ โลจิสติกส์ จำกัด ธนาคารกสิกรไทย สาขาซอยอุดมสุข เลขที่ 061-8-87965-8",
   cheque:'โปรดสั่งจ่ายเช็คขีดคร่อมในนาม บริษัท ยี่สิบสี่ โลจิสติกส์ จำกัด and crossed "A/C PAYEE ONLY"'
 };
@@ -1505,13 +1505,13 @@ function openInvoice(recs,win){
     +'td input{width:100%;border:none;font-family:inherit;font-size:9.5px;text-align:center;padding:1px;background:transparent;min-width:0}'
     +'.amt input,td.amt{text-align:right;font-family:monospace}'
     +'tbody tr{height:19px}tr.sub td{font-weight:700;height:20px}'
-    +'tfoot td{border:none;font-size:11px;padding:2px 4px}tfoot td.amt{border:1px solid #000;text-align:right;font-weight:700;font-family:monospace}'
+    +'tfoot td{border:none;font-size:11px;padding:2px 4px}tfoot td.amt{border:1px solid #000;text-align:right;font-weight:700;font-family:monospace;overflow:visible;white-space:nowrap;padding:2px 3px}'
     +'tfoot td.r{text-align:right}tfoot td.l{text-align:left}tfoot td.gt{border-bottom:3px double #000}'
     +'#words{font-weight:700}'
     +'.bank{margin-top:10px;font-size:11px;line-height:1.6}.bank .ind{margin-left:78px}'
     +'.pay{display:flex;justify-content:space-between;align-items:flex-end;margin-top:64px;font-size:11px;gap:20px}'
     +'.pay .pd{white-space:nowrap}.pay .sg{text-align:center;width:230px}.pay .sg .ln{border-top:1px dotted #000;height:40px;margin-bottom:3px}'
-    +'@media print{.tool{display:none}body{padding:6mm}}';
+    +'@page{size:A4;margin:0}@media print{.tool{display:none}body{padding:10mm 8mm}input[type=checkbox]{display:none!important}}';
   const html='<!doctype html><html lang="th"><head><meta charset="utf-8"><title>INVOICE '+esc(cust)+'</title>'
     +'<link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@400;600;700&display=swap" rel="stylesheet"><style>'+css+'</style></head><body>'
     +'<div class="tool"><button onclick="window.print()">🖨 พิมพ์ / บันทึก PDF</button><button onclick="saveCust()">💾 จำที่อยู่ลูกค้านี้</button><span>กรอก Invoice No / B-L / ค่าขนส่ง ในช่องได้เลย · ยอดคำนวณให้อัตโนมัติ</span></div>'
@@ -1524,7 +1524,7 @@ function openInvoice(recs,win){
     +'<div class="meta"><div class="rowm"><b>INV.NO :</b><input id="invNo" placeholder="(กรอกเอง)"></div>'
     +'<div class="rowm"><b>Date :</b><input id="invDate" value="'+esc(today)+'"></div></div></div>'
     +'<div class="cap">Particular / รายการ</div>'
-    +'<table><colgroup><col style="width:4%"><col style="width:8%"><col style="width:8%"><col style="width:8%"><col style="width:9%"><col style="width:6%"><col style="width:11%"><col style="width:6%"><col style="width:10%"><col style="width:6%"><col style="width:8%"><col style="width:8%"><col style="width:8%"></colgroup>'
+    +'<table><colgroup><col style="width:4%"><col style="width:6%"><col style="width:9%"><col style="width:8%"><col style="width:6%"><col style="width:6%"><col style="width:13%"><col style="width:6%"><col style="width:9%"><col style="width:6%"><col style="width:9%"><col style="width:9%"><col style="width:9%"></colgroup>'
     +'<thead><tr><th>Item</th><th>Job.Ref</th><th>date</th><th>Truck.no</th><th rowspan="2">B/L</th><th>Qty</th><th>Cont. no</th><th>CY</th><th>LOAD</th><th>Return</th><th>CY</th><th>Rtn.</th><th>Transport</th></tr>'
     +'<tr><th>ลำดับ</th><th>เลขอ้างอิง</th><th>วันวิ่งงาน</th><th>ทะเบียน</th><th>จำนวน</th><th>เบอร์ตู้</th><th>รับตู้</th><th>ที่บรรจุ/ส่ง</th><th>คืนตู้</th><th>ค่ารับตู้</th><th>ค่าคืนตู้</th><th>ค่าขนส่ง</th></tr></thead>'
     +'<tbody>'+rowsHtml+'<tr class="sub"><td colspan="10"></td><td class="amt" id="sumCy"></td><td class="amt" id="sumRtn"></td><td class="amt" id="sumTr"></td></tr></tbody>'
@@ -1560,7 +1560,7 @@ function bulkWindowMain(){
   var custOrder=[];
   var assign=RECS.map(function(r){var c=(r.customer||'').trim();var i=custOrder.indexOf(c);if(i<0){custOrder.push(c);i=custOrder.length-1;}return i+1;});
 
-  var COLGROUP='<colgroup><col style="width:4%"><col style="width:8%"><col style="width:8%"><col style="width:8%"><col style="width:9%"><col style="width:6%"><col style="width:11%"><col style="width:6%"><col style="width:10%"><col style="width:6%"><col style="width:8%"><col style="width:8%"><col style="width:8%"></colgroup>';
+  var COLGROUP='<colgroup><col style="width:4%"><col style="width:6%"><col style="width:9%"><col style="width:8%"><col style="width:6%"><col style="width:6%"><col style="width:13%"><col style="width:6%"><col style="width:9%"><col style="width:6%"><col style="width:9%"><col style="width:9%"><col style="width:9%"></colgroup>';
   var THEAD='<thead><tr><th>Item</th><th>Job.Ref</th><th>date</th><th>Truck.no</th><th rowspan="2">B/L</th><th>Qty</th><th>Cont. no</th><th>CY</th><th>LOAD</th><th>Return</th><th>CY</th><th>Rtn.</th><th>Transport</th></tr><tr><th>ลำดับ</th><th>เลขอ้างอิง</th><th>วันวิ่งงาน</th><th>ทะเบียน</th><th>จำนวน</th><th>เบอร์ตู้</th><th>รับตู้</th><th>ที่บรรจุ/ส่ง</th><th>คืนตู้</th><th>ค่ารับตู้</th><th>ค่าคืนตู้</th><th>ค่าขนส่ง</th></tr></thead>';
 
   function renderGroup(){
@@ -1697,14 +1697,14 @@ function openBulkInvoice(recs,win){
     +'.bill td input{width:100%;border:none;font-family:inherit;font-size:9.5px;text-align:center;padding:1px;background:transparent;min-width:0}'
     +'.amt input,td.amt{text-align:right;font-family:monospace}'
     +'.bill tbody tr{height:19px}tr.sub td{font-weight:700;height:20px}'
-    +'.bill tfoot td{border:none;font-size:11px;padding:2px 4px}.bill tfoot td.amt{border:1px solid #000;text-align:right;font-weight:700;font-family:monospace}'
+    +'.bill tfoot td{border:none;font-size:11px;padding:2px 4px}.bill tfoot td.amt{border:1px solid #000;text-align:right;font-weight:700;font-family:monospace;overflow:visible;white-space:nowrap;padding:2px 3px}'
     +'.bill tfoot td.r{text-align:right}.bill tfoot td.l{text-align:left}.bill tfoot td.gt{border-bottom:3px double #000}'
     +'.words{font-weight:700}'
     +'.bank{margin-top:10px;font-size:11px;line-height:1.6}.bank .ind{margin-left:78px}'
     +'.pay{display:flex;justify-content:space-between;align-items:flex-end;margin-top:52px;font-size:11px;gap:20px}'
     +'.pay .pd{white-space:nowrap}.pay .sg{text-align:center;width:230px}.pay .sg .ln{border-top:1px dotted #000;height:38px;margin-bottom:3px}'
     +'.bill{page-break-after:always}.bill:last-child{page-break-after:auto}'
-    +'@media print{.tool,#groupPanel,#grpHint,.no-print{display:none!important}body{padding:4mm}.bill{margin:0}}';
+    +'@page{size:A4;margin:0}@media print{.tool,#groupPanel,#grpHint,.no-print{display:none!important}body{padding:8mm}.bill{margin:0}input[type=checkbox]{display:none!important}}';
   const bodyHtml='<div class="tool no-print">'
     +'<button id="makeBills">➡ สร้างบิล</button>'
     +'<button id="toGroup" style="display:none">◀ กลับไปจัดกลุ่ม</button>'
