@@ -197,7 +197,7 @@
       <button type="button" class="theme-btn" id="themeBtn" title="สลับธีมมืด/สว่าง" aria-label="สลับธีม">
         <span id="themeIcon">🌙</span><span id="themeLabel">มืด</span>
       </button>
-      <div class="endpoint">
+      <div class="endpoint" id="epWrap" style="display:none">
         <span class="dot" id="epDot"></span>
         <label for="epUrl" style="color:var(--ink-soft)">Sheet URL:</label>
         <input id="epUrl" placeholder="วาง Apps Script Web App URL" spellcheck="false">
@@ -686,7 +686,8 @@ $("themeBtn").addEventListener('click',()=>{
 
 /* ---- endpoint (จำไว้ใน localStorage) ---- */
 const epUrl=$("epUrl"), epDot=$("epDot");
-try{ const saved=localStorage.getItem(EPKEY); if(saved) epUrl.value=saved; }catch(e){}
+const DEFAULT_EP='https://script.google.com/macros/s/AKfycbwpWEtN1sw6G_qXaKs8aj61NJ8xBvxxJLKzjkRvDWlDqxFghITdk4Xqmu_vwszwnuAG-A/exec'; // ลิงก์เซิร์ฟเวอร์ฝังไว้ พนักงานไม่ต้องกรอก
+try{ const saved=localStorage.getItem(EPKEY); epUrl.value=(saved&&saved.trim().startsWith('http'))?saved:DEFAULT_EP; }catch(e){ epUrl.value=DEFAULT_EP; }
 epDot.classList.toggle('on',epUrl.value.trim().startsWith('http'));
 epUrl.addEventListener('input',()=>{
   const v=epUrl.value.trim();
@@ -1867,6 +1868,7 @@ recalc();
       var ab=document.getElementById('appBtn'); if(ab) ab.style.display='none';
       var ub=document.getElementById('userBtn'); if(ub) ub.style.display='none';
       if(window.__me&&window.__me.role==='admin'){
+        var epw=document.getElementById('epWrap'); if(epw) epw.style.display='';
         if(window.setAdmin) setAdmin('__role_admin__');
         var adb=document.getElementById('adminBtn');
         if(adb){ adb.textContent='👥 จัดการผู้ใช้'; adb.title='อนุมัติ/จัดการผู้ใช้'; adb.style.color=''; adb.onclick=openUserPanel; adb.style.display=''; }
