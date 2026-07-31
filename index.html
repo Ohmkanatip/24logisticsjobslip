@@ -1006,7 +1006,7 @@ function renderSearch(rows){
     <tbody>${body}</tbody></table></div>`;
   $("searchBody").querySelectorAll('.btnRet').forEach(b=>b.onclick=()=>markReturned(b.dataset.uid,b.dataset.c,b));
   $("searchBody").querySelectorAll('.btnUnret').forEach(b=>b.onclick=()=>unreturnJob(b.dataset.uid,b.dataset.c));
-  $("searchBody").querySelectorAll('.btnP').forEach(b=>b.onclick=()=>fetchOne(b.dataset.uid,rec=>printSlip(rec)));
+  $("searchBody").querySelectorAll('.btnP').forEach(b=>b.onclick=()=>{ const w=openLoadingWindow(); if(!w){ flash('เบราว์เซอร์บล็อกป๊อปอัป — อนุญาตป๊อปอัปของเว็บนี้ก่อน','err'); return; } fetchOne(b.dataset.uid,rec=>printSlip(rec,w)); });
   $("searchBody").querySelectorAll('.btnE').forEach(b=>b.onclick=()=>fetchOne(b.dataset.uid,rec=>enterEdit(rec)));
   if(sel){
     const all=$("selAll"); if(all) all.onchange=()=>{ $("searchBody").querySelectorAll('.selchk').forEach(c=>c.checked=all.checked); updateDelSel(); };
@@ -1339,67 +1339,12 @@ $("q").addEventListener('keydown',e=>{ if(e.key==='Enter') doSearch(); });
 /* ============================================================
    พิมพ์ใบเบิกต่อใบ (เปิดหน้าใหม่ → Save as PDF / พิมพ์)
    ============================================================ */
-function printSlip(d){
-  if(!d) return;
-  const money=v=>Number(v||0).toLocaleString('th-TH');
-  const row=(l,v)=>`<tr><td class="l">${l}</td><td class="v">${escHtml(v||'-')}</td></tr>`;
-  const costRows=COSTS.filter(c=>Number(d[c.key])>0)
-    .map(c=>`<tr><td>${c.label}</td><td class="r">${money(d[c.key])}</td></tr>`).join('')
-    || '<tr><td colspan="2" style="text-align:center;color:#888">— ไม่มีรายการค่าใช้จ่าย —</td></tr>';
-  const handoff=(d.driver2||d.truck2||d.trailer2)
-    ? `<tr><td class="l">คนรับตู้ต่อ</td><td class="v">${escHtml(d.driver2)} ${escHtml(d.truck2)} ${escHtml(d.trailer2)}</td></tr>` : '';
-  const html=`<!doctype html><html lang="th"><head><meta charset="utf-8"><title>ใบเบิก ${escHtml(d.container||d.uid||'')}</title>
-  <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@400;600;700&display=swap" rel="stylesheet">
-  <style>
-    *{box-sizing:border-box}
-    body{font-family:'Sarabun',sans-serif;color:#000;margin:0;padding:10mm 10mm;font-size:12.5px}
-    .top{display:flex;align-items:flex-start;gap:10px;border-bottom:2px solid #000;padding-bottom:6px}
-    .top .logo img{height:54px}
-    .top .co{flex:1;text-align:center}.top .co b{font-size:14px}.top .co div{font-size:11px}
-    .top .inv{display:flex;justify-content:flex-end;min-width:120px}
-    .top .inv .box{border:1.5px solid #000;padding:8px 16px;font-weight:700;font-size:14px;height:fit-content;text-align:center}
-    .meta{display:flex;justify-content:space-between;font-size:11.5px;margin:6px 0 8px;color:#000}
-    table{width:100%;border-collapse:collapse;margin-bottom:12px}
-    td{padding:5px 8px;border:1px solid #000;vertical-align:top;font-size:12px}
-    td.l{width:34%;background:#f2f2f2;font-weight:600}
-    td.r{text-align:right;font-family:monospace}
-    .cost td:first-child{width:70%}
-    .total{display:flex;justify-content:space-between;border:1.5px solid #000;padding:8px 14px;font-size:15px;font-weight:700}
-    .words{font-size:11.5px;margin-top:4px}
-    .pay{display:flex;justify-content:space-between;align-items:flex-end;margin-top:46px;font-size:11px;gap:20px}
-    .pay .sg{text-align:center;width:190px}.pay .sg .ln{border-top:1px dotted #000;height:38px;margin-bottom:3px}
-    @media print{body{padding:6mm}}
-  </style></head><body>
-  <div class="top"><div class="logo"><img src="${APP_LOGO}" onerror="this.style.display='none'"></div>
-    <div class="co"><b>${escHtml(COMPANY.name)}</b><div>${escHtml(COMPANY.addr)}</div><div>${escHtml(COMPANY.tax)}</div><div>${escHtml(COMPANY.tel)}</div></div>
-    <div class="inv"><div class="box">ใบเบิก<div style="font-size:10px;font-weight:600">ค่าใช้จ่ายงานขนส่ง</div></div></div></div>
-  <div class="meta"><span>วันที่ ${escHtml(d.date||'')} ${escHtml(d.time||'')} · ประเภท: ${escHtml(d.type||'')}</span><span>เลขที่: ${escHtml(d.uid||'')}</span></div>
-  <table>
-    ${row('ทะเบียนหัว / คนขับ', (d.truck||'')+'  /  '+(d.driver||''))}
-    ${row('ทะเบียนหาง', d.trailer)}
-    ${row('ลูกค้า', d.customer)}
-    ${row('ขนาดตู้ / เบอร์ตู้', (d.size||'')+'  /  '+(d.container||''))}
-    ${row('ลานรับ → ลานคืน', (d.yardIn||'')+'  →  '+(d.yardOut||''))}
-    ${row('วันรับตู้ / วันคืนตู้', (d.dateIn||'')+'  /  '+(d.dateOut||''))}
-    ${row('จุด Drop off', (d.dropoff||'')+(d.dropoffAt?('  ('+d.dropoffAt.replace('T',' ')+')'):''))}
-    ${row('สถานที่เปิด/บรรจุ', d.loadPlace)}
-    ${row('MARK', d.mark)}
-    ${handoff}
-    ${d.maint?row('รายการซ่อมบำรุง', d.maint):''}
-    ${row('สถานะตู้', (d.status||'')+(d.returned?' (คืนแล้ว)':''))}
-  </table>
-  <table class="cost"><thead><tr><td class="l">รายการค่าใช้จ่าย</td><td class="l r">บาท</td></tr></thead><tbody>${costRows}</tbody></table>
-  <div class="total"><span>รวมเบิก</span><span>${money(d.total)} บาท</span></div>
-  <div class="pay">
-    <div class="sg"><div class="ln"></div>ผู้เบิก / คนขับ</div>
-    <div class="sg"><div class="ln"></div>ผู้ตรวจ</div>
-    <div class="sg"><div class="ln"></div>ผู้อนุมัติ</div>
-  </div>
-  <scr`+`ipt>window.onload=function(){setTimeout(function(){window.print();},400);}</scr`+`ipt>
-  </body></html>`;
-  const w=window.open('','_blank','width=820,height=920');
-  if(!w){ flash('เบราว์เซอร์บล็อกป๊อปอัป — อนุญาตก่อนพิมพ์','err'); return; }
-  w.document.open(); w.document.write(html); w.document.close();
+/* พิมพ์รายเที่ยว = เปิดฟอร์มใบวางบิล/INVOICE ตัวเดียวกัน (งานใบเดียว) */
+function printSlip(d,win){
+  if(!d){ try{ if(win) win.close(); }catch(e){} return; }
+  const w=win||openLoadingWindow();
+  if(!w){ flash('เบราว์เซอร์บล็อกป๊อปอัป — อนุญาตป๊อปอัปของเว็บนี้ก่อน','err'); return; }
+  openInvoice([d],w);
 }
 
 /* ============================================================
