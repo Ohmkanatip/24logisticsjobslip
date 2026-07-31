@@ -6,6 +6,7 @@
 <title>ใบงานรถหัวลาก — บันทึกเข้า Sheet</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="preconnect" href="https://script.google.com">
 <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=Sarabun:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
   :root{
@@ -1351,24 +1352,28 @@ function printSlip(d){
   <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@400;600;700&display=swap" rel="stylesheet">
   <style>
     *{box-sizing:border-box}
-    body{font-family:'Sarabun',sans-serif;color:#111;margin:24px;font-size:14px}
-    h1{font-size:20px;margin:0 0 2px} .sub{color:#555;font-size:12px;margin:0 0 14px}
-    .head{display:flex;justify-content:space-between;border-bottom:2px solid #111;padding-bottom:8px;margin-bottom:12px}
-    .meta{text-align:right;font-size:12px;color:#333}
-    table{width:100%;border-collapse:collapse;margin-bottom:14px}
-    td{padding:6px 8px;border:1px solid #ccc;vertical-align:top}
-    td.l{width:34%;background:#f4f6fa;font-weight:600;color:#333}
+    body{font-family:'Sarabun',sans-serif;color:#000;margin:0;padding:10mm 10mm;font-size:12.5px}
+    .top{display:flex;align-items:flex-start;gap:10px;border-bottom:2px solid #000;padding-bottom:6px}
+    .top .logo img{height:54px}
+    .top .co{flex:1;text-align:center}.top .co b{font-size:14px}.top .co div{font-size:11px}
+    .top .inv{display:flex;justify-content:flex-end;min-width:120px}
+    .top .inv .box{border:1.5px solid #000;padding:8px 16px;font-weight:700;font-size:14px;height:fit-content;text-align:center}
+    .meta{display:flex;justify-content:space-between;font-size:11.5px;margin:6px 0 8px;color:#000}
+    table{width:100%;border-collapse:collapse;margin-bottom:12px}
+    td{padding:5px 8px;border:1px solid #000;vertical-align:top;font-size:12px}
+    td.l{width:34%;background:#f2f2f2;font-weight:600}
     td.r{text-align:right;font-family:monospace}
     .cost td:first-child{width:70%}
-    .total{display:flex;justify-content:space-between;background:#111;color:#fff;padding:10px 14px;border-radius:6px;font-size:16px;font-weight:700}
-    .sign{display:flex;gap:40px;margin-top:36px}
-    .sign div{flex:1;text-align:center;border-top:1px dashed #888;padding-top:6px;font-size:12px;color:#555}
-    @media print{body{margin:12mm}}
+    .total{display:flex;justify-content:space-between;border:1.5px solid #000;padding:8px 14px;font-size:15px;font-weight:700}
+    .words{font-size:11.5px;margin-top:4px}
+    .pay{display:flex;justify-content:space-between;align-items:flex-end;margin-top:46px;font-size:11px;gap:20px}
+    .pay .sg{text-align:center;width:190px}.pay .sg .ln{border-top:1px dotted #000;height:38px;margin-bottom:3px}
+    @media print{body{padding:6mm}}
   </style></head><body>
-  <div class="head">
-    <div><h1>ใบเบิกค่าใช้จ่ายงานขนส่ง</h1><p class="sub">รถหัวลากสิบล้อ</p></div>
-    <div class="meta">วันที่ ${escHtml(d.date||'')} ${escHtml(d.time||'')}<br>ประเภท: ${escHtml(d.type||'')}<br>เลขที่: ${escHtml(d.uid||'')}</div>
-  </div>
+  <div class="top"><div class="logo"><img src="${APP_LOGO}" onerror="this.style.display='none'"></div>
+    <div class="co"><b>${escHtml(COMPANY.name)}</b><div>${escHtml(COMPANY.addr)}</div><div>${escHtml(COMPANY.tax)}</div><div>${escHtml(COMPANY.tel)}</div></div>
+    <div class="inv"><div class="box">ใบเบิก<div style="font-size:10px;font-weight:600">ค่าใช้จ่ายงานขนส่ง</div></div></div></div>
+  <div class="meta"><span>วันที่ ${escHtml(d.date||'')} ${escHtml(d.time||'')} · ประเภท: ${escHtml(d.type||'')}</span><span>เลขที่: ${escHtml(d.uid||'')}</span></div>
   <table>
     ${row('ทะเบียนหัว / คนขับ', (d.truck||'')+'  /  '+(d.driver||''))}
     ${row('ทะเบียนหาง', d.trailer)}
@@ -1385,7 +1390,11 @@ function printSlip(d){
   </table>
   <table class="cost"><thead><tr><td class="l">รายการค่าใช้จ่าย</td><td class="l r">บาท</td></tr></thead><tbody>${costRows}</tbody></table>
   <div class="total"><span>รวมเบิก</span><span>${money(d.total)} บาท</span></div>
-  <div class="sign"><div>ผู้เบิก / คนขับ</div><div>ผู้ตรวจ</div><div>ผู้อนุมัติ</div></div>
+  <div class="pay">
+    <div class="sg"><div class="ln"></div>ผู้เบิก / คนขับ</div>
+    <div class="sg"><div class="ln"></div>ผู้ตรวจ</div>
+    <div class="sg"><div class="ln"></div>ผู้อนุมัติ</div>
+  </div>
   <scr`+`ipt>window.onload=function(){setTimeout(function(){window.print();},400);}</scr`+`ipt>
   </body></html>`;
   const w=window.open('','_blank','width=820,height=920');
@@ -1844,6 +1853,7 @@ recalc();
     var p=jwt(resp.credential);
     window.__me={email:(p.email||'').toLowerCase(),name:p.name||p.email||''};
     inner.innerHTML='<div class="auth-emoji" style="font-size:30px">⏳</div><div class="co">กำลังเข้าสู่ระบบ…</div>';
+    try{ if(window.fetchMaster){ window.__mfStarted=1; fetchMaster(); } }catch(e){}
     checkStatus();
   }
 
@@ -1876,7 +1886,7 @@ recalc();
         var adb2=document.getElementById('adminBtn'); if(adb2) adb2.style.display='none';
       }
       addUserChip();
-      if(window.fetchMaster) fetchMaster();
+      if(!window.__mfStarted && window.fetchMaster) fetchMaster();
     }catch(e){}
     scheduleRefresh();
   }
