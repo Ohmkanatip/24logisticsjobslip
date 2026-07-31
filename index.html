@@ -1433,11 +1433,11 @@ async function buildInvoiceFromSelection(){
   if(!recs.length){ w.close(); flash('ดึงข้อมูลไม่สำเร็จ — เช็ก Sheet URL / deploy เวอร์ชันล่าสุด','err'); return; }
   openInvoice(recs,w);
 }
-/* B/L อัจฉริยะ + ย่อฟอนต์อัตโนมัติ (รันในหน้าบิล) */
+/* B/L รวม/แยกอัตโนมัติ + ขยายความกว้างช่องตามข้อความ (รันในหน้าบิล — ไม่แตะเซิร์ฟเวอร์) */
 function blFitMain(){
-  function fitInp(el){ el.style.fontSize=''; var fs=parseFloat(getComputedStyle(el).fontSize)||9.5; var g=0;
-    while(el.scrollWidth>el.clientWidth&&fs>6&&g++<20){ fs-=0.5; el.style.fontSize=fs+'px'; } }
-  function fitAll(){ var els=document.querySelectorAll('td input'); for(var i=0;i<els.length;i++) fitInp(els[i]); }
+  function growInp(el){ el.style.width='100%';
+    if(el.scrollWidth>el.clientWidth+1){ el.style.width=Math.min(el.scrollWidth+6,280)+'px'; } }
+  function growAll(){ var els=document.querySelectorAll('td input'); for(var i=0;i<els.length;i++) growInp(els[i]); }
   function blRelayout(tb,expand){
     var rows=Array.prototype.slice.call(tb.querySelectorAll('tr.dr')); if(!rows.length) return;
     var vals=rows.map(function(r){ var i2=r.querySelector('td.blx input'); return i2?i2.value:''; });
@@ -1447,17 +1447,20 @@ function blFitMain(){
     starts.push(rows.length);
     for(k=0;k<starts.length-1;k++){
       var s=starts[k], len=starts[k+1]-s;
-      var td=document.createElement('td'); td.className='blx'; td.rowSpan=len; td.title='ดับเบิลคลิก = แยกช่อง B/L เป็นรายแถว';
+      var td=document.createElement('td'); td.className='blx'; td.rowSpan=len; td.title='ดับเบิลคลิก = สลับ รวม/แยก ช่อง B/L';
       var inp=document.createElement('input'); inp.className='bl'; inp.style.textAlign='center'; inp.value=vals[s]||'';
-      td.appendChild(inp); rows[s].insertBefore(td, rows[s].children[4]); fitInp(inp);
+      td.appendChild(inp); rows[s].insertBefore(td, rows[s].children[4]); growInp(inp);
     }
   }
   document.addEventListener('change',function(e){ var t=e.target;
     if(t&&t.tagName==='INPUT'&&(' '+t.className+' ').indexOf(' bl ')>-1){ var tb=t.closest('tbody'); if(tb) blRelayout(tb,false); } });
-  document.addEventListener('dblclick',function(e){ var td=e.target&&e.target.closest?e.target.closest('td.blx'):null;
-    if(td){ blRelayout(td.closest('tbody'),true); } });
-  document.addEventListener('input',function(e){ var t=e.target; if(t&&t.tagName==='INPUT'&&t.closest('td')) fitInp(t); });
-  setTimeout(fitAll,400);
+  document.addEventListener('dblclick',function(e){ var td=e.target&&e.target.closest?e.target.closest('td.blx'):null; if(!td) return;
+    var tb=td.closest('tbody'); if(!tb) return;
+    var nR=tb.querySelectorAll('tr.dr').length, nC=tb.querySelectorAll('td.blx').length;
+    blRelayout(tb, nC<nR); /* ยังไม่แยกครบ = แยก · แยกครบแล้ว = รวมกลับ */ });
+  document.addEventListener('input',function(e){ var t=e.target; if(t&&t.tagName==='INPUT'&&t.closest('td')) growInp(t); });
+  window.addEventListener('load',function(){ setTimeout(growAll,300); });
+  setTimeout(growAll,500);
 }
 function openInvoice(recs,win){
   const esc=escAttr;
@@ -1525,7 +1528,7 @@ function openInvoice(recs,win){
     +'.mid .meta{font-size:12px;min-width:200px}.mid .meta .rowm{display:flex;gap:5px;margin-bottom:4px;align-items:center}.mid .meta b{white-space:nowrap}'
     +'.mid .meta input{border:none;border-bottom:1px dotted #999;font-family:inherit;font-size:12px;flex:1;padding:1px 2px}.mid .meta input.optfield{text-align:center}'
     +'.cap{font-size:11px;margin:3px 0 2px;font-weight:600}'
-    +'table{width:100%;border-collapse:collapse;table-layout:fixed}'
+    +'table{width:100%;border-collapse:collapse}'
     +'th,td{border:1px solid #000;padding:1px 2px;font-size:9.5px;text-align:center;overflow:hidden}'
     +'th{font-weight:700;line-height:1.15}'
     +'td input{width:100%;border:none;font-family:inherit;font-size:9.5px;text-align:center;padding:1px;background:transparent;min-width:0}'
@@ -1719,7 +1722,7 @@ function openBulkInvoice(recs,win){
     +'.mid .meta{font-size:12px;min-width:200px}.mid .meta .rowm{display:flex;gap:5px;margin-bottom:4px;align-items:center}.mid .meta b{white-space:nowrap}'
     +'.mid .meta input{border:none;border-bottom:1px dotted #999;font-family:inherit;font-size:12px;flex:1;padding:1px 2px}.mid .meta input.optfield{text-align:center}'
     +'.cap{font-size:11px;margin:3px 0 2px;font-weight:600}'
-    +'table{width:100%;border-collapse:collapse;table-layout:fixed}'
+    +'table{width:100%;border-collapse:collapse}'
     +'.bill th,.bill td{border:1px solid #000;padding:1px 2px;font-size:9.5px;text-align:center;overflow:hidden}'
     +'.bill th{font-weight:700;line-height:1.15}'
     +'.bill td input{width:100%;border:none;font-family:inherit;font-size:9.5px;text-align:center;padding:1px;background:transparent;min-width:0}'
