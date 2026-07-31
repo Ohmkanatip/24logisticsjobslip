@@ -1462,7 +1462,7 @@ function openInvoice(recs,win){
   }
   const cust=recs[0].customer||'';
   const info=(store.custBook&&store.custBook[cust])||{addr:'',tax:''};
-  const today=new Date().toLocaleDateString('th-TH');
+  var _M=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'],_d=new Date();const today=_d.getDate()+' '+_M[_d.getMonth()]+' '+String(_d.getFullYear()+543).slice(-2);
   const bahtFn="function bahtText(num){num=Math.round((Number(num)||0)*100)/100;var baht=Math.floor(num),satang=Math.round((num-baht)*100);var digits=['ศูนย์','หนึ่ง','สอง','สาม','สี่','ห้า','หก','เจ็ด','แปด','เก้า'];var places=['','สิบ','ร้อย','พัน','หมื่น','แสน'];function rc(chunk){var r='',len=chunk.length;for(var i=0;i<len;i++){var d=+chunk[i],pos=len-1-i;if(d===0)continue;if(pos===0&&d===1&&len>1)r+='เอ็ด';else if(pos===1&&d===2)r+='ยี่'+places[pos];else if(pos===1&&d===1)r+=places[pos];else r+=digits[d]+places[pos];}return r;}function nt(s){s=String(s);if(s==='0')return '';var g=[];while(s.length>6){g.unshift(s.slice(-6));s=s.slice(0,-6);}g.unshift(s);return g.map(rc).join('ล้าน');}if(baht===0&&satang===0)return 'ศูนย์บาทถ้วน';var w='';if(baht>0)w+=nt(baht)+'บาท';if(satang>0)w+=nt(satang)+'สตางค์';else if(baht>0)w+='ถ้วน';return w;}";
   const script=bahtFn
     +"function fmt(n){return Number(n).toLocaleString('th-TH',{minimumFractionDigits:2,maximumFractionDigits:2});}"
@@ -1511,7 +1511,7 @@ function openInvoice(recs,win){
     +'.bank{margin-top:10px;font-size:11px;line-height:1.6;text-align:left}.bank .ind{margin-left:0}'
     +'.pay{display:flex;justify-content:space-between;align-items:flex-end;margin-top:64px;font-size:11px;gap:20px}'
     +'.pay .pd{white-space:nowrap}.pay .sg{text-align:center;width:230px}.pay .sg .ln{border-top:1px dotted #000;height:40px;margin-bottom:3px}'
-    +'@page{size:A4;margin:0}@media print{input.optfield{border:none!important}input.optfield::placeholder{color:transparent!important}.tool{display:none}body{padding:10mm 5mm}input[type=checkbox]{display:none!important}}';
+    +'@page{size:A4;margin:0}@media print{input.optfield{border:none!important}input.optfield::placeholder{color:transparent!important}#mk,#cName,#cAddr,.pay .pd input{border:none!important}#cAddr::placeholder{color:transparent!important}.tool{display:none}body{padding:10mm 5mm}input[type=checkbox]{display:none!important}}';
   const html='<!doctype html><html lang="th"><head><meta charset="utf-8"><title>INVOICE '+esc(cust)+'</title>'
     +'<link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@400;600;700&display=swap" rel="stylesheet"><style>'+css+'</style></head><body>'
     +'<div class="tool"><button onclick="window.print()">🖨 พิมพ์ / บันทึก PDF</button><button onclick="saveCust()">💾 จำที่อยู่ลูกค้านี้</button><span>กรอก Invoice No / B-L / ค่าขนส่ง ในช่องได้เลย · ยอดคำนวณให้อัตโนมัติ</span></div>'
@@ -1530,12 +1530,12 @@ function openInvoice(recs,win){
     +'<tr><th>ลำดับ</th><th>เลขอ้างอิง</th><th>วันวิ่งงาน</th><th>ทะเบียน</th><th>จำนวน</th><th>เบอร์ตู้</th><th>รับตู้</th><th>ที่บรรจุ/ส่ง</th><th>คืนตู้</th><th>ค่ารับตู้</th><th>ค่าคืนตู้</th><th>ค่าขนส่ง</th></tr></thead>'
     +'<tbody>'+rowsHtml+'<tr class="sub"><td colspan="10"></td><td class="amt" id="sumCy"></td><td class="amt" id="sumRtn"></td><td class="amt" id="sumTr"></td></tr></tbody>'
     +'<tfoot><tr><td class="r" colspan="10">Withholding Tax ภาษีหัก ณ ที่จ่าย 1 % <input type="checkbox" id="whtChk" checked style="vertical-align:middle"></td><td></td><td></td><td class="amt" id="whtVal"></td></tr>'
-    +'<tr><td class="l" colspan="7">Mark : <input id="mk" style="border:none;border-bottom:1px dotted #999;font-family:inherit;width:130px"></td><td class="r" colspan="3">รวม</td><td></td><td class="amt" id="sumCyRtn"></td><td class="amt" id="sumTrNet"></td></tr>'
+    +'<tr><td class="l" colspan="7">Mark : <input id="mk" style="border:none;border-bottom:1px dotted #999;font-family:inherit;width:130px"></td><td class="r" colspan="3">รวม</td><td class="amt" colspan="2" id="sumCyRtn"></td><td class="amt" id="sumTrNet"></td></tr>'
     +'<tr><td class="l" colspan="12" style="font-weight:700">Total</td><td class="amt gt" id="grand">0.00</td></tr>'
     +'<tr><td class="l" colspan="13" style="padding-top:3px">รวมเงิน&nbsp;&nbsp;&nbsp;<span id="words"></span></td></tr></tfoot></table>'
     +'<div class="bank"><div><b>Account / บัญชี :</b> '+esc(COMPANY.bank)+'</div>'
     +'<div><b>Cheque issue :</b> โปรดสั่งจ่ายเช็คขีดคร่อมในนาม '+esc(COMPANY.name)+'</div>'
-    +'<div class="ind">Please issued Acrossed '+esc(COMPANY.name)+' and crossed &quot;A/C PAYEE ONLY&quot;</div></div>'
+    +'<div class="ind"><b style="visibility:hidden">Cheque issue : </b>Please issued Acrossed '+esc(COMPANY.name)+' and crossed &quot;A/C PAYEE ONLY&quot;</div></div>'
     +'<div class="pay"><div class="pd"><b>Payment due :</b><br>วันครบกำหนดชำระ <input style="border:none;border-bottom:1px dotted #999;font-family:inherit;width:110px"></div>'
     +'<div class="sg"><div class="ln"></div>Receiver / ผู้รับวางบิล</div>'
     +'<div class="sg"><div class="ln"></div>Name and Date of issue / ผู้วางบิล</div></div>'
@@ -1600,12 +1600,12 @@ function bulkWindowMain(){
       +'<table>'+COLGROUP+THEAD+'<tbody>'+rowsHtml
       +'<tr class="sub"><td colspan="10"></td><td class="amt sumCy"></td><td class="amt sumRtn"></td><td class="amt sumTr"></td></tr></tbody>'
       +'<tfoot><tr><td class="r" colspan="10">Withholding Tax ภาษีหัก ณ ที่จ่าย 1 % <input type="checkbox" class="whtChk" checked style="vertical-align:middle"></td><td></td><td></td><td class="amt whtVal"></td></tr>'
-      +'<tr><td class="l" colspan="7">Mark : <input class="mk" style="border:none;border-bottom:1px dotted #999;font-family:inherit;width:130px"></td><td class="r" colspan="3">รวม</td><td></td><td class="amt sumCyRtn"></td><td class="amt sumTrNet"></td></tr>'
+      +'<tr><td class="l" colspan="7">Mark : <input class="mk" style="border:none;border-bottom:1px dotted #999;font-family:inherit;width:130px"></td><td class="r" colspan="3">รวม</td><td class="amt sumCyRtn" colspan="2"></td><td class="amt sumTrNet"></td></tr>'
       +'<tr><td class="l" colspan="12" style="font-weight:700">Total</td><td class="amt gt grand">0.00</td></tr>'
       +'<tr><td class="l" colspan="13" style="padding-top:3px">รวมเงิน&nbsp;&nbsp;&nbsp;<span class="words"></span></td></tr></tfoot></table>'
       +'<div class="bank"><div><b>Account / บัญชี :</b> '+escT(C.bank)+'</div>'
       +'<div><b>Cheque issue :</b> โปรดสั่งจ่ายเช็คขีดคร่อมในนาม '+escT(C.name)+'</div>'
-      +'<div class="ind">Please issued Acrossed '+escT(C.name)+' and crossed "A/C PAYEE ONLY"</div></div>'
+      +'<div class="ind"><b style="visibility:hidden">Cheque issue : </b>Please issued Acrossed '+escT(C.name)+' and crossed "A/C PAYEE ONLY"</div></div>'
       +'<div class="pay"><div class="pd"><b>Payment due :</b><br>วันครบกำหนดชำระ <input style="border:none;border-bottom:1px dotted #999;font-family:inherit;width:110px"></div>'
       +'<div class="sg"><div class="ln"></div>Receiver / ผู้รับวางบิล</div>'
       +'<div class="sg"><div class="ln"></div>Name and Date of issue / ผู้วางบิล</div></div></div>';
@@ -1632,7 +1632,7 @@ function bulkWindowMain(){
     var groups={};
     RECS.forEach(function(r,i){var g=assign[i]||1;(groups[g]=groups[g]||[]).push(r);});
     var keys=Object.keys(groups).map(Number).sort(function(a,b){return a-b;});
-    var today=new Date().toLocaleDateString('th-TH');
+    var _M=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'],_d=new Date();var today=_d.getDate()+' '+_M[_d.getMonth()]+' '+String(_d.getFullYear()+543).slice(-2);
     var html=keys.map(function(k,gi){
       var recs=groups[k], cust=(recs[0].customer||''), info=BOOK[cust]||{addr:'',tax:''};
       return renderBill(gi,recs,cust,info,prefix+(start+gi),today);
@@ -1706,7 +1706,7 @@ function openBulkInvoice(recs,win){
     +'.pay{display:flex;justify-content:space-between;align-items:flex-end;margin-top:52px;font-size:11px;gap:20px}'
     +'.pay .pd{white-space:nowrap}.pay .sg{text-align:center;width:230px}.pay .sg .ln{border-top:1px dotted #000;height:38px;margin-bottom:3px}'
     +'.bill{page-break-after:always}.bill:last-child{page-break-after:auto}'
-    +'@page{size:A4;margin:0}@media print{input.optfield{border:none!important}input.optfield::placeholder{color:transparent!important}.tool,#groupPanel,#grpHint,.no-print{display:none!important}body{padding:8mm 5mm}.bill{margin:0}input[type=checkbox]{display:none!important}}';
+    +'@page{size:A4;margin:0}@media print{input.optfield{border:none!important}input.optfield::placeholder{color:transparent!important}.mk,.cName,.cAddr,.pay .pd input{border:none!important}.cAddr::placeholder{color:transparent!important}.tool,#groupPanel,#grpHint,.no-print{display:none!important}body{padding:8mm 5mm}.bill{margin:0}input[type=checkbox]{display:none!important}}';
   const bodyHtml='<div class="tool no-print">'
     +'<button id="makeBills">➡ สร้างบิล</button>'
     +'<button id="toGroup" style="display:none">◀ กลับไปจัดกลุ่ม</button>'
