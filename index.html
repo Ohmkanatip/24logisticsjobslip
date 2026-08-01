@@ -1482,20 +1482,20 @@ function openInvoice(recs,win){
     if(r){
       const qty=r.size?('1*'+r.size):'';
       rowsHtml+='<tr class="dr"><td class="c">'+(i+1)+'</td>'
-        +'<td><input class="jr"></td>'
-        +'<td><input value="'+esc(r.date||'')+'"></td>'
-        +'<td><input value="'+esc(r.truck||'')+'"></td>'
-        +(i===0?('<td rowspan="'+nrows+'" class="blx"><input class="bl" style="text-align:center"></td>'):'')
-        +'<td><input value="'+esc(qty)+'"></td>'
-        +'<td><input value="'+esc(r.container||'')+'"></td>'
-        +'<td><input value="'+esc(r.yardIn||'')+'"></td>'
-        +'<td><input value="'+esc(r.loadPlace||'')+'"></td>'
-        +'<td><input value="'+esc(r.yardOut||'')+'"></td>'
+        +'<td><textarea class="cell jr" rows="1"></textarea></td>'
+        +'<td><textarea class="cell" rows="1">'+esc(r.date||'')+'</textarea></td>'
+        +'<td><textarea class="cell" rows="1">'+esc(r.truck||'')+'</textarea></td>'
+        +(i===0?('<td rowspan="'+nrows+'" class="blx"><textarea class="cell bl" rows="1" style="text-align:center"></textarea></td>'):'')
+        +'<td><textarea class="cell" rows="1">'+esc(qty)+'</textarea></td>'
+        +'<td><textarea class="cell" rows="1">'+esc(r.container||'')+'</textarea></td>'
+        +'<td><textarea class="cell" rows="1">'+esc(r.yardIn||'')+'</textarea></td>'
+        +'<td><textarea class="cell" rows="1">'+esc(r.loadPlace||'')+'</textarea></td>'
+        +'<td><textarea class="cell" rows="1">'+esc(r.yardOut||'')+'</textarea></td>'
         +'<td><input class="amt cy" inputmode="numeric" value="'+money0(r.c_recv)+'"></td>'
         +'<td><input class="amt rtn" inputmode="numeric" value="'+money0(r.c_return)+'"></td>'
         +'<td><input class="amt tr" inputmode="numeric"></td></tr>';
     } else {
-      rowsHtml+='<tr class="dr"><td class="c"></td><td><input></td><td><input></td><td><input></td><td><input></td><td><input></td><td><input></td><td><input></td><td><input></td><td><input class="amt cy" inputmode="numeric"></td><td><input class="amt rtn" inputmode="numeric"></td><td><input class="amt tr" inputmode="numeric"></td></tr>';
+      rowsHtml+='<tr class="dr"><td class="c"></td><td><textarea class="cell" rows="1"></textarea></td><td><textarea class="cell" rows="1"></textarea></td><td><textarea class="cell" rows="1"></textarea></td><td><textarea class="cell" rows="1"></textarea></td><td><textarea class="cell" rows="1"></textarea></td><td><textarea class="cell" rows="1"></textarea></td><td><textarea class="cell" rows="1"></textarea></td><td><textarea class="cell" rows="1"></textarea></td><td><input class="amt cy" inputmode="numeric"></td><td><input class="amt rtn" inputmode="numeric"></td><td><input class="amt tr" inputmode="numeric"></td></tr>';
     }
   }
   const cust=recs[0].customer||'';
@@ -1619,9 +1619,9 @@ function bulkWindowMain(){
       var r=recs[i];
       if(r){
         var qty=r.size?('1*'+r.size):'';
-        rowsHtml+='<tr class="dr"><td class="c">'+(i+1)+'</td><td><input></td><td><input value="'+esc(r.date||'')+'"></td><td><input value="'+esc(r.truck||'')+'"></td>'+(i===0?('<td rowspan="'+n+'" class="blx"><input class="bl" style="text-align:center"></td>'):'')+'<td><input value="'+esc(qty)+'"></td><td><input value="'+esc(r.container||'')+'"></td><td><input value="'+esc(r.yardIn||'')+'"></td><td><input value="'+esc(r.loadPlace||'')+'"></td><td><input value="'+esc(r.yardOut||'')+'"></td><td><input class="amt cy" inputmode="numeric" value="'+((Number(r.c_recv)||0)?(Number(r.c_recv)).toLocaleString('th-TH',{minimumFractionDigits:2,maximumFractionDigits:2}):'')+'"></td><td><input class="amt rtn" inputmode="numeric" value="'+((Number(r.c_return)||0)?(Number(r.c_return)).toLocaleString('th-TH',{minimumFractionDigits:2,maximumFractionDigits:2}):'')+'"></td><td><input class="amt tr" inputmode="numeric"></td></tr>';
+        rowsHtml+='<tr class="dr"><td class="c">'+(i+1)+'</td><td><textarea class="cell" rows="1"></textarea></td><td><textarea class="cell" rows="1">'+esc(r.date||'')+'</textarea></td><td><textarea class="cell" rows="1">'+esc(r.truck||'')+'</textarea></td>'+(i===0?('<td rowspan="'+n+'" class="blx"><textarea class="cell bl" rows="1" style="text-align:center"></textarea></td>'):'')+'<td><textarea class="cell" rows="1">'+esc(qty)+'</textarea></td><td><textarea class="cell" rows="1">'+esc(r.container||'')+'</textarea></td><td><textarea class="cell" rows="1">'+esc(r.yardIn||'')+'</textarea></td><td><textarea class="cell" rows="1">'+esc(r.loadPlace||'')+'</textarea></td><td><textarea class="cell" rows="1">'+esc(r.yardOut||'')+'</textarea></td><td><input class="amt cy" inputmode="numeric" value="'+((Number(r.c_recv)||0)?(Number(r.c_recv)).toLocaleString('th-TH',{minimumFractionDigits:2,maximumFractionDigits:2}):'')+'"></td><td><input class="amt rtn" inputmode="numeric" value="'+((Number(r.c_return)||0)?(Number(r.c_return)).toLocaleString('th-TH',{minimumFractionDigits:2,maximumFractionDigits:2}):'')+'"></td><td><input class="amt tr" inputmode="numeric"></td></tr>';
       } else {
-        rowsHtml+='<tr class="dr"><td class="c"></td><td><input></td><td><input></td><td><input></td><td><input></td><td><input></td><td><input></td><td><input></td><td><input></td><td><input class="amt cy" inputmode="numeric"></td><td><input class="amt rtn" inputmode="numeric"></td><td><input class="amt tr" inputmode="numeric"></td></tr>';
+        rowsHtml+='<tr class="dr"><td class="c"></td><td><textarea class="cell" rows="1"></textarea></td><td><textarea class="cell" rows="1"></textarea></td><td><textarea class="cell" rows="1"></textarea></td><td><textarea class="cell" rows="1"></textarea></td><td><textarea class="cell" rows="1"></textarea></td><td><textarea class="cell" rows="1"></textarea></td><td><textarea class="cell" rows="1"></textarea></td><td><textarea class="cell" rows="1"></textarea></td><td><input class="amt cy" inputmode="numeric"></td><td><input class="amt rtn" inputmode="numeric"></td><td><input class="amt tr" inputmode="numeric"></td></tr>';
       }
     }
     return '<div class="bill">'
