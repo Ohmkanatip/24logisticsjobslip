@@ -1435,12 +1435,21 @@ async function buildInvoiceFromSelection(){
 }
 /* B/L รวม/แยกอัตโนมัติ + ขยายความกว้างช่องตามข้อความ (รันในหน้าบิล — ไม่แตะเซิร์ฟเวอร์) */
 function blFitMain(){
-  function growInp(el){ el.style.width='100%';
-    if(el.scrollWidth>el.clientWidth+1){ el.style.width=Math.min(el.scrollWidth+6,280)+'px'; } }
-  function growAll(){ var els=document.querySelectorAll('td input'); for(var i=0;i<els.length;i++) growInp(els[i]); }
+  function autoGrow(t){ t.style.height='auto'; t.style.height=(t.scrollHeight)+'px'; }
+  function mkCell(val,extra){ var t=document.createElement('textarea'); t.className='cell'+(extra?(' '+extra):''); t.rows=1; t.value=val||''; t.style.textAlign='center'; return t; }
+  function convertAll(){
+    var ins=Array.prototype.slice.call(document.querySelectorAll('td input'));
+    ins.forEach(function(inp){
+      var c=' '+inp.className+' ';
+      if(c.indexOf(' cy ')>-1||c.indexOf(' rtn ')>-1||c.indexOf(' tr ')>-1||c.indexOf(' amt ')>-1) return; // คงช่องยอดเงินไว้ (ใช้คำนวณ)
+      var ta=mkCell(inp.value, (c.indexOf(' bl ')>-1)?'bl':'');
+      inp.parentNode.replaceChild(ta,inp); autoGrow(ta);
+    });
+  }
+  function growAll(){ var els=document.querySelectorAll('td .cell'); for(var i=0;i<els.length;i++) autoGrow(els[i]); }
   function blRelayout(tb,expand){
     var rows=Array.prototype.slice.call(tb.querySelectorAll('tr.dr')); if(!rows.length) return;
-    var vals=rows.map(function(r){ var i2=r.querySelector('td.blx input'); return i2?i2.value:''; });
+    var vals=rows.map(function(r){ var i2=r.querySelector('td.blx .cell, td.blx input'); return i2?i2.value:''; });
     rows.forEach(function(r){ var t=r.querySelector('td.blx'); if(t) t.parentNode.removeChild(t); });
     var starts=[0],i3,k;
     for(i3=1;i3<rows.length;i3++){ if(expand||(vals[i3]&&vals[i3].replace(/\s/g,''))) starts.push(i3); }
@@ -1448,19 +1457,19 @@ function blFitMain(){
     for(k=0;k<starts.length-1;k++){
       var s=starts[k], len=starts[k+1]-s;
       var td=document.createElement('td'); td.className='blx'; td.rowSpan=len; td.title='ดับเบิลคลิก = สลับ รวม/แยก ช่อง B/L';
-      var inp=document.createElement('input'); inp.className='bl'; inp.style.textAlign='center'; inp.value=vals[s]||'';
-      td.appendChild(inp); rows[s].insertBefore(td, rows[s].children[4]); growInp(inp);
+      var cell=mkCell(vals[s]||'','bl');
+      td.appendChild(cell); rows[s].insertBefore(td, rows[s].children[4]); autoGrow(cell);
     }
   }
-  document.addEventListener('change',function(e){ var t=e.target;
-    if(t&&t.tagName==='INPUT'&&(' '+t.className+' ').indexOf(' bl ')>-1){ var tb=t.closest('tbody'); if(tb) blRelayout(tb,false); } });
+  document.addEventListener('change',function(e){ var t=e.target; if(t&&t.closest&&t.closest('td.blx')){ var tb=t.closest('tbody'); if(tb) blRelayout(tb,false); } });
   document.addEventListener('dblclick',function(e){ var td=e.target&&e.target.closest?e.target.closest('td.blx'):null; if(!td) return;
     var tb=td.closest('tbody'); if(!tb) return;
-    var nR=tb.querySelectorAll('tr.dr').length, nC=tb.querySelectorAll('td.blx').length;
-    blRelayout(tb, nC<nR); /* ยังไม่แยกครบ = แยก · แยกครบแล้ว = รวมกลับ */ });
-  document.addEventListener('input',function(e){ var t=e.target; if(t&&t.tagName==='INPUT'&&t.closest('td')) growInp(t); });
-  window.addEventListener('load',function(){ setTimeout(growAll,300); });
-  setTimeout(growAll,500);
+    var nR=tb.querySelectorAll('tr.dr').length, nC=tb.querySelectorAll('td.blx').length; blRelayout(tb, nC<nR); });
+  document.addEventListener('input',function(e){ var t=e.target; if(t&&t.classList&&t.classList.contains('cell')) autoGrow(t); });
+  window.addEventListener('beforeprint',growAll);
+  function boot(){ convertAll(); growAll(); }
+  if(document.readyState!=='loading'){ setTimeout(boot,200); } else { window.addEventListener('load',function(){ setTimeout(boot,200); }); }
+  setTimeout(growAll,700);
 }
 function openInvoice(recs,win){
   const esc=escAttr;
@@ -1532,6 +1541,7 @@ function openInvoice(recs,win){
     +'th,td{border:1px solid #000;padding:1px 2px;font-size:9.5px;text-align:center;overflow:hidden}'
     +'th{font-weight:700;line-height:1.15}'
     +'td input{width:100%;border:none;font-family:inherit;font-size:9.5px;text-align:center;padding:1px;background:transparent;min-width:0}'
+     +'td .cell{width:100%;border:none;background:transparent;resize:none;overflow:hidden;font-family:inherit;font-size:9.5px;line-height:1.25;text-align:center;padding:1px;white-space:pre-wrap;word-break:break-word;box-sizing:border-box;display:block}td{vertical-align:middle}'
     +'.amt input,td.amt{text-align:right}'
     +'tbody tr{height:19px}tr.sub td{font-weight:700;height:20px}'
     +'tfoot td{border:none;font-size:11px;padding:2px 4px}tfoot td.amt{border:1px solid #000;text-align:right;font-weight:700;overflow:visible;white-space:nowrap;padding:2px 3px}'
@@ -1726,6 +1736,7 @@ function openBulkInvoice(recs,win){
     +'.bill th,.bill td{border:1px solid #000;padding:1px 2px;font-size:9.5px;text-align:center;overflow:hidden}'
     +'.bill th{font-weight:700;line-height:1.15}'
     +'.bill td input{width:100%;border:none;font-family:inherit;font-size:9.5px;text-align:center;padding:1px;background:transparent;min-width:0}'
+     +'.bill td .cell{width:100%;border:none;background:transparent;resize:none;overflow:hidden;font-family:inherit;font-size:9.5px;line-height:1.25;text-align:center;padding:1px;white-space:pre-wrap;word-break:break-word;box-sizing:border-box;display:block}td{vertical-align:middle}'
     +'.amt input,td.amt{text-align:right}'
     +'.bill tbody tr{height:19px}tr.sub td{font-weight:700;height:20px}'
     +'.bill tfoot td{border:none;font-size:11px;padding:2px 4px}.bill tfoot td.amt{border:1px solid #000;text-align:right;font-weight:700;overflow:visible;white-space:nowrap;padding:2px 3px}'
