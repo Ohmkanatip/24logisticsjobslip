@@ -1435,41 +1435,35 @@ async function buildInvoiceFromSelection(){
 }
 /* B/L รวม/แยกอัตโนมัติ + ขยายความกว้างช่องตามข้อความ (รันในหน้าบิล — ไม่แตะเซิร์ฟเวอร์) */
 function blFitMain(){
-  function autoGrow(t){ t.style.height='auto'; t.style.height=(t.scrollHeight)+'px'; }
-  function mkCell(val,extra){ var t=document.createElement('textarea'); t.className='cell'+(extra?(' '+extra):''); t.rows=1; t.value=val||''; t.style.textAlign='center'; return t; }
-  function convertAll(){
-    var ins=Array.prototype.slice.call(document.querySelectorAll('td input'));
-    ins.forEach(function(inp){
-      var c=' '+inp.className+' ';
-      if(c.indexOf(' cy ')>-1||c.indexOf(' rtn ')>-1||c.indexOf(' tr ')>-1||c.indexOf(' amt ')>-1) return; // คงช่องยอดเงินไว้ (ใช้คำนวณ)
-      var ta=mkCell(inp.value, (c.indexOf(' bl ')>-1)?'bl':'');
-      inp.parentNode.replaceChild(ta,inp); autoGrow(ta);
-    });
+  /* B/L: รวม/แยกช่องอัตโนมัติ (ดับเบิลคลิกสลับได้) — ความสูงช่องยืดเองด้วย CSS ไม่ต้องใช้สคริปต์ */
+  function mkCell(val,extra){
+    var d=document.createElement('div');
+    d.className='cell'+(extra?(' '+extra):'');
+    d.setAttribute('contenteditable','true');
+    d.style.textAlign='center'; d.textContent=val||''; return d;
   }
-  function growAll(){ var els=document.querySelectorAll('td .cell'); for(var i=0;i<els.length;i++) autoGrow(els[i]); }
   function blRelayout(tb,expand){
     var rows=Array.prototype.slice.call(tb.querySelectorAll('tr.dr')); if(!rows.length) return;
-    var vals=rows.map(function(r){ var i2=r.querySelector('td.blx .cell, td.blx input'); return i2?i2.value:''; });
+    var vals=rows.map(function(r){ var c=r.querySelector('td.blx .cell'); return c?(c.textContent||''):''; });
     rows.forEach(function(r){ var t=r.querySelector('td.blx'); if(t) t.parentNode.removeChild(t); });
     var starts=[0],i3,k;
     for(i3=1;i3<rows.length;i3++){ if(expand||(vals[i3]&&vals[i3].replace(/\s/g,''))) starts.push(i3); }
     starts.push(rows.length);
     for(k=0;k<starts.length-1;k++){
       var s=starts[k], len=starts[k+1]-s;
-      var td=document.createElement('td'); td.className='blx'; td.rowSpan=len; td.title='ดับเบิลคลิก = สลับ รวม/แยก ช่อง B/L';
-      var cell=mkCell(vals[s]||'','bl');
-      td.appendChild(cell); rows[s].insertBefore(td, rows[s].children[4]); autoGrow(cell);
+      var td=document.createElement('td'); td.className='blx'; td.rowSpan=len;
+      td.title='ดับเบิลคลิก = สลับ รวม/แยก ช่อง B/L';
+      td.appendChild(mkCell(vals[s]||'','bl'));
+      rows[s].insertBefore(td, rows[s].children[4]);
     }
   }
-  document.addEventListener('change',function(e){ var t=e.target; if(t&&t.closest&&t.closest('td.blx')){ var tb=t.closest('tbody'); if(tb) blRelayout(tb,false); } });
-  document.addEventListener('dblclick',function(e){ var td=e.target&&e.target.closest?e.target.closest('td.blx'):null; if(!td) return;
+  document.addEventListener('focusout',function(e){
+    var t=e.target; if(t&&t.closest&&t.closest('td.blx')){ var tb=t.closest('tbody'); if(tb) blRelayout(tb,false); } });
+  document.addEventListener('dblclick',function(e){
+    var td=e.target&&e.target.closest?e.target.closest('td.blx'):null; if(!td) return;
     var tb=td.closest('tbody'); if(!tb) return;
-    var nR=tb.querySelectorAll('tr.dr').length, nC=tb.querySelectorAll('td.blx').length; blRelayout(tb, nC<nR); });
-  document.addEventListener('input',function(e){ var t=e.target; if(t&&t.classList&&t.classList.contains('cell')) autoGrow(t); });
-  window.addEventListener('beforeprint',growAll);
-  function boot(){ convertAll(); growAll(); }
-  if(document.readyState!=='loading'){ setTimeout(boot,200); } else { window.addEventListener('load',function(){ setTimeout(boot,200); }); }
-  setTimeout(growAll,700);
+    var nR=tb.querySelectorAll('tr.dr').length, nC=tb.querySelectorAll('td.blx').length;
+    blRelayout(tb, nC<nR); });
 }
 function openInvoice(recs,win){
   const esc=escAttr;
@@ -1482,20 +1476,20 @@ function openInvoice(recs,win){
     if(r){
       const qty=r.size?('1*'+r.size):'';
       rowsHtml+='<tr class="dr"><td class="c">'+(i+1)+'</td>'
-        +'<td><textarea class="cell jr" rows="1"></textarea></td>'
-        +'<td><textarea class="cell" rows="1">'+esc(r.date||'')+'</textarea></td>'
-        +'<td><textarea class="cell" rows="1">'+esc(r.truck||'')+'</textarea></td>'
-        +(i===0?('<td rowspan="'+nrows+'" class="blx"><textarea class="cell bl" rows="1" style="text-align:center"></textarea></td>'):'')
-        +'<td><textarea class="cell" rows="1">'+esc(qty)+'</textarea></td>'
-        +'<td><textarea class="cell" rows="1">'+esc(r.container||'')+'</textarea></td>'
-        +'<td><textarea class="cell" rows="1">'+esc(r.yardIn||'')+'</textarea></td>'
-        +'<td><textarea class="cell" rows="1">'+esc(r.loadPlace||'')+'</textarea></td>'
-        +'<td><textarea class="cell" rows="1">'+esc(r.yardOut||'')+'</textarea></td>'
-        +'<td><input class="amt cy" inputmode="numeric" value="'+money0(r.c_recv)+'"></td>'
-        +'<td><input class="amt rtn" inputmode="numeric" value="'+money0(r.c_return)+'"></td>'
-        +'<td><input class="amt tr" inputmode="numeric"></td></tr>';
+        +'<td><div class="cell jr" contenteditable="true"></div></td>'
+        +'<td><div class="cell" contenteditable="true">'+esc(r.date||'')+'</div></td>'
+        +'<td><div class="cell" contenteditable="true">'+esc(r.truck||'')+'</div></td>'
+        +(i===0?('<td rowspan="'+nrows+'" class="blx"><div class="cell bl" contenteditable="true" style="text-align:center"></div></td>'):'')
+        +'<td><div class="cell" contenteditable="true">'+esc(qty)+'</div></td>'
+        +'<td><div class="cell" contenteditable="true">'+esc(r.container||'')+'</div></td>'
+        +'<td><div class="cell" contenteditable="true">'+esc(r.yardIn||'')+'</div></td>'
+        +'<td><div class="cell" contenteditable="true">'+esc(r.loadPlace||'')+'</div></td>'
+        +'<td><div class="cell" contenteditable="true">'+esc(r.yardOut||'')+'</div></td>'
+        +'<td><div class="cell amt cy" contenteditable="true" inputmode="numeric">'+money0(r.c_recv)+'</div></td>'
+        +'<td><div class="cell amt rtn" contenteditable="true" inputmode="numeric">'+money0(r.c_return)+'</div></td>'
+        +'<td><div class="cell amt tr" contenteditable="true" inputmode="numeric"></div></td></tr>';
     } else {
-      rowsHtml+='<tr class="dr"><td class="c"></td><td><textarea class="cell" rows="1"></textarea></td><td><textarea class="cell" rows="1"></textarea></td><td><textarea class="cell" rows="1"></textarea></td><td><textarea class="cell" rows="1"></textarea></td><td><textarea class="cell" rows="1"></textarea></td><td><textarea class="cell" rows="1"></textarea></td><td><textarea class="cell" rows="1"></textarea></td><td><textarea class="cell" rows="1"></textarea></td><td><input class="amt cy" inputmode="numeric"></td><td><input class="amt rtn" inputmode="numeric"></td><td><input class="amt tr" inputmode="numeric"></td></tr>';
+      rowsHtml+='<tr class="dr"><td class="c"></td><td><div class="cell" contenteditable="true"></div></td><td><div class="cell" contenteditable="true"></div></td><td><div class="cell" contenteditable="true"></div></td><td><div class="cell" contenteditable="true"></div></td><td><div class="cell" contenteditable="true"></div></td><td><div class="cell" contenteditable="true"></div></td><td><div class="cell" contenteditable="true"></div></td><td><div class="cell" contenteditable="true"></div></td><td><div class="cell amt cy" contenteditable="true" inputmode="numeric"></div></td><td><div class="cell amt rtn" contenteditable="true" inputmode="numeric"></div></td><td><div class="cell amt tr" contenteditable="true" inputmode="numeric"></div></td></tr>';
     }
   }
   const cust=recs[0].customer||'';
@@ -1504,7 +1498,7 @@ function openInvoice(recs,win){
   const bahtFn="function bahtText(num){num=Math.round((Number(num)||0)*100)/100;var baht=Math.floor(num),satang=Math.round((num-baht)*100);var digits=['ศูนย์','หนึ่ง','สอง','สาม','สี่','ห้า','หก','เจ็ด','แปด','เก้า'];var places=['','สิบ','ร้อย','พัน','หมื่น','แสน'];function rc(chunk){var r='',len=chunk.length;for(var i=0;i<len;i++){var d=+chunk[i],pos=len-1-i;if(d===0)continue;if(pos===0&&d===1&&len>1)r+='เอ็ด';else if(pos===1&&d===2)r+='ยี่'+places[pos];else if(pos===1&&d===1)r+=places[pos];else r+=digits[d]+places[pos];}return r;}function nt(s){s=String(s);if(s==='0')return '';var g=[];while(s.length>6){g.unshift(s.slice(-6));s=s.slice(0,-6);}g.unshift(s);return g.map(rc).join('ล้าน');}if(baht===0&&satang===0)return 'ศูนย์บาทถ้วน';var w='';if(baht>0)w+=nt(baht)+'บาท';if(satang>0)w+=nt(satang)+'สตางค์';else if(baht>0)w+='ถ้วน';return w;}";
   const script=bahtFn
     +"function fmt(n){return Number(n).toLocaleString('th-TH',{minimumFractionDigits:2,maximumFractionDigits:2});}"
-    +"function gv(el){return parseFloat((el.value||'').replace(/,/g,''))||0;}"
+    +"function gv(el){var v=(el.value!==undefined&&el.value!==null)?el.value:(el.textContent||'');return parseFloat(String(v).replace(/,/g,''))||0;}"
     +"function recompute(){var cy=0,rtn=0,tr=0;"
     +"document.querySelectorAll('.cy').forEach(function(e){cy+=gv(e);});"
     +"document.querySelectorAll('.rtn').forEach(function(e){rtn+=gv(e);});"
@@ -1537,11 +1531,11 @@ function openInvoice(recs,win){
     +'.mid .meta{font-size:12px;min-width:200px}.mid .meta .rowm{display:flex;gap:5px;margin-bottom:4px;align-items:center}.mid .meta b{white-space:nowrap}'
     +'.mid .meta input{border:none;border-bottom:1px dotted #999;font-family:inherit;font-size:12px;flex:1;padding:1px 2px}.mid .meta input.optfield{text-align:center}'
     +'.cap{font-size:11px;margin:3px 0 2px;font-weight:600}'
-    +'table{width:100%;border-collapse:collapse}'
+    +'table{width:100%;border-collapse:collapse;table-layout:fixed}'
     +'th,td{border:1px solid #000;padding:1px 2px;font-size:9.5px;text-align:center;overflow:hidden}'
     +'th{font-weight:700;line-height:1.15}'
     +'td input{width:100%;border:none;font-family:inherit;font-size:9.5px;text-align:center;padding:1px;background:transparent;min-width:0}'
-     +'td .cell{width:100%;border:none;background:transparent;resize:none;overflow:hidden;font-family:inherit;font-size:9.5px;line-height:1.25;text-align:center;padding:1px;white-space:pre-wrap;word-break:break-word;box-sizing:border-box;display:block}td{vertical-align:middle}'
+     +'td .cell{min-height:12px;font-family:inherit;font-size:9.5px;line-height:1.3;text-align:center;padding:1px 2px;white-space:pre-wrap;word-break:break-word;overflow-wrap:anywhere;outline:none;box-sizing:border-box}td .cell.amt{text-align:right}td{vertical-align:middle}'
     +'.amt input,td.amt{text-align:right}'
     +'tbody tr{height:19px}tr.sub td{font-weight:700;height:20px}'
     +'tfoot td{border:none;font-size:11px;padding:2px 4px}tfoot td.amt{border:1px solid #000;text-align:right;font-weight:700;overflow:visible;white-space:nowrap;padding:2px 3px}'
@@ -1564,7 +1558,7 @@ function openInvoice(recs,win){
     +'<div class="rowm"><b>Date :</b><input id="invDate" value="'+esc(today)+'"></div>'
     +'<div class="rowm"><input class="optfield" placeholder="ช่องเพิ่มเติม (ไม่กรอก = ไม่พิมพ์)"></div></div></div>'
     +'<div class="cap">Particular / รายการ</div>'
-    +'<table><colgroup><col style="width:4%"><col style="width:6%"><col style="width:9%"><col style="width:8%"><col style="width:6%"><col style="width:6%"><col style="width:13%"><col style="width:6%"><col style="width:9%"><col style="width:6%"><col style="width:9%"><col style="width:9%"><col style="width:9%"></colgroup>'
+    +'<table><colgroup><col style="width:4%"><col style="width:5%"><col style="width:8%"><col style="width:7%"><col style="width:6%"><col style="width:6%"><col style="width:11%"><col style="width:10%"><col style="width:10%"><col style="width:10%"><col style="width:8%"><col style="width:8%"><col style="width:7%"></colgroup>'
     +'<thead><tr><th>Item</th><th>Job.Ref</th><th>date</th><th>Truck.no</th><th rowspan="2">B/L</th><th>Qty</th><th>Cont. no</th><th>CY</th><th>LOAD</th><th>Return</th><th>CY</th><th>Rtn.</th><th>Transport</th></tr>'
     +'<tr><th>ลำดับ</th><th>เลขอ้างอิง</th><th>วันวิ่งงาน</th><th>ทะเบียน</th><th>จำนวน</th><th>เบอร์ตู้</th><th>รับตู้</th><th>ที่บรรจุ/ส่ง</th><th>คืนตู้</th><th>ค่ารับตู้</th><th>ค่าคืนตู้</th><th>ค่าขนส่ง</th></tr></thead>'
     +'<tbody>'+rowsHtml+'<tr class="sub"><td colspan="10"></td><td class="amt" id="sumCy"></td><td class="amt" id="sumRtn"></td><td class="amt" id="sumTr"></td></tr></tbody>'
@@ -1593,14 +1587,14 @@ function bulkWindowMain(){
   function esc(s){return String(s==null?'':s).replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;');}
   function escT(s){return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;');}
   function fmt(n){return Number(n).toLocaleString('th-TH',{minimumFractionDigits:2,maximumFractionDigits:2});}
-  function gv(el){return parseFloat((el.value||'').replace(/,/g,''))||0;}
+  function gv(el){var v=(el.value!==undefined&&el.value!==null)?el.value:(el.textContent||'');return parseFloat(String(v).replace(/,/g,''))||0;}
   function bahtText(num){num=Math.round((Number(num)||0)*100)/100;var baht=Math.floor(num),satang=Math.round((num-baht)*100);var digits=['ศูนย์','หนึ่ง','สอง','สาม','สี่','ห้า','หก','เจ็ด','แปด','เก้า'];var places=['','สิบ','ร้อย','พัน','หมื่น','แสน'];function rc(chunk){var r='',len=chunk.length;for(var i=0;i<len;i++){var d=+chunk[i],pos=len-1-i;if(d===0)continue;if(pos===0&&d===1&&len>1)r+='เอ็ด';else if(pos===1&&d===2)r+='ยี่'+places[pos];else if(pos===1&&d===1)r+=places[pos];else r+=digits[d]+places[pos];}return r;}function nt(s){s=String(s);if(s==='0')return '';var g=[];while(s.length>6){g.unshift(s.slice(-6));s=s.slice(0,-6);}g.unshift(s);return g.map(rc).join('ล้าน');}if(baht===0&&satang===0)return 'ศูนย์บาทถ้วน';var w='';if(baht>0)w+=nt(baht)+'บาท';if(satang>0)w+=nt(satang)+'สตางค์';else if(baht>0)w+='ถ้วน';return w;}
 
   // จัดกลุ่มเริ่มต้นตามลูกค้า
   var custOrder=[];
   var assign=RECS.map(function(r){var c=(r.customer||'').trim();var i=custOrder.indexOf(c);if(i<0){custOrder.push(c);i=custOrder.length-1;}return i+1;});
 
-  var COLGROUP='<colgroup><col style="width:4%"><col style="width:6%"><col style="width:9%"><col style="width:8%"><col style="width:6%"><col style="width:6%"><col style="width:13%"><col style="width:6%"><col style="width:9%"><col style="width:6%"><col style="width:9%"><col style="width:9%"><col style="width:9%"></colgroup>';
+  var COLGROUP='<colgroup><col style="width:4%"><col style="width:5%"><col style="width:8%"><col style="width:7%"><col style="width:6%"><col style="width:6%"><col style="width:11%"><col style="width:10%"><col style="width:10%"><col style="width:10%"><col style="width:8%"><col style="width:8%"><col style="width:7%"></colgroup>';
   var THEAD='<thead><tr><th>Item</th><th>Job.Ref</th><th>date</th><th>Truck.no</th><th rowspan="2">B/L</th><th>Qty</th><th>Cont. no</th><th>CY</th><th>LOAD</th><th>Return</th><th>CY</th><th>Rtn.</th><th>Transport</th></tr><tr><th>ลำดับ</th><th>เลขอ้างอิง</th><th>วันวิ่งงาน</th><th>ทะเบียน</th><th>จำนวน</th><th>เบอร์ตู้</th><th>รับตู้</th><th>ที่บรรจุ/ส่ง</th><th>คืนตู้</th><th>ค่ารับตู้</th><th>ค่าคืนตู้</th><th>ค่าขนส่ง</th></tr></thead>';
 
   function renderGroup(){
@@ -1619,9 +1613,9 @@ function bulkWindowMain(){
       var r=recs[i];
       if(r){
         var qty=r.size?('1*'+r.size):'';
-        rowsHtml+='<tr class="dr"><td class="c">'+(i+1)+'</td><td><textarea class="cell" rows="1"></textarea></td><td><textarea class="cell" rows="1">'+esc(r.date||'')+'</textarea></td><td><textarea class="cell" rows="1">'+esc(r.truck||'')+'</textarea></td>'+(i===0?('<td rowspan="'+n+'" class="blx"><textarea class="cell bl" rows="1" style="text-align:center"></textarea></td>'):'')+'<td><textarea class="cell" rows="1">'+esc(qty)+'</textarea></td><td><textarea class="cell" rows="1">'+esc(r.container||'')+'</textarea></td><td><textarea class="cell" rows="1">'+esc(r.yardIn||'')+'</textarea></td><td><textarea class="cell" rows="1">'+esc(r.loadPlace||'')+'</textarea></td><td><textarea class="cell" rows="1">'+esc(r.yardOut||'')+'</textarea></td><td><input class="amt cy" inputmode="numeric" value="'+((Number(r.c_recv)||0)?(Number(r.c_recv)).toLocaleString('th-TH',{minimumFractionDigits:2,maximumFractionDigits:2}):'')+'"></td><td><input class="amt rtn" inputmode="numeric" value="'+((Number(r.c_return)||0)?(Number(r.c_return)).toLocaleString('th-TH',{minimumFractionDigits:2,maximumFractionDigits:2}):'')+'"></td><td><input class="amt tr" inputmode="numeric"></td></tr>';
+        rowsHtml+='<tr class="dr"><td class="c">'+(i+1)+'</td><td><div class="cell" contenteditable="true"></div></td><td><div class="cell" contenteditable="true">'+esc(r.date||'')+'</div></td><td><div class="cell" contenteditable="true">'+esc(r.truck||'')+'</div></td>'+(i===0?('<td rowspan="'+n+'" class="blx"><div class="cell bl" contenteditable="true" style="text-align:center"></div></td>'):'')+'<td><div class="cell" contenteditable="true">'+esc(qty)+'</div></td><td><div class="cell" contenteditable="true">'+esc(r.container||'')+'</div></td><td><div class="cell" contenteditable="true">'+esc(r.yardIn||'')+'</div></td><td><div class="cell" contenteditable="true">'+esc(r.loadPlace||'')+'</div></td><td><div class="cell" contenteditable="true">'+esc(r.yardOut||'')+'</div></td><td><div class="cell amt cy" contenteditable="true" inputmode="numeric">'+((Number(r.c_recv)||0)?(Number(r.c_recv)).toLocaleString('th-TH',{minimumFractionDigits:2,maximumFractionDigits:2}):'')+'</div></td><td><div class="cell amt rtn" contenteditable="true" inputmode="numeric">'+((Number(r.c_return)||0)?(Number(r.c_return)).toLocaleString('th-TH',{minimumFractionDigits:2,maximumFractionDigits:2}):'')+'</div></td><td><div class="cell amt tr" contenteditable="true" inputmode="numeric"></div></td></tr>';
       } else {
-        rowsHtml+='<tr class="dr"><td class="c"></td><td><textarea class="cell" rows="1"></textarea></td><td><textarea class="cell" rows="1"></textarea></td><td><textarea class="cell" rows="1"></textarea></td><td><textarea class="cell" rows="1"></textarea></td><td><textarea class="cell" rows="1"></textarea></td><td><textarea class="cell" rows="1"></textarea></td><td><textarea class="cell" rows="1"></textarea></td><td><textarea class="cell" rows="1"></textarea></td><td><input class="amt cy" inputmode="numeric"></td><td><input class="amt rtn" inputmode="numeric"></td><td><input class="amt tr" inputmode="numeric"></td></tr>';
+        rowsHtml+='<tr class="dr"><td class="c"></td><td><div class="cell" contenteditable="true"></div></td><td><div class="cell" contenteditable="true"></div></td><td><div class="cell" contenteditable="true"></div></td><td><div class="cell" contenteditable="true"></div></td><td><div class="cell" contenteditable="true"></div></td><td><div class="cell" contenteditable="true"></div></td><td><div class="cell" contenteditable="true"></div></td><td><div class="cell" contenteditable="true"></div></td><td><div class="cell amt cy" contenteditable="true" inputmode="numeric"></div></td><td><div class="cell amt rtn" contenteditable="true" inputmode="numeric"></div></td><td><div class="cell amt tr" contenteditable="true" inputmode="numeric"></div></td></tr>';
       }
     }
     return '<div class="bill">'
@@ -1732,11 +1726,11 @@ function openBulkInvoice(recs,win){
     +'.mid .meta{font-size:12px;min-width:200px}.mid .meta .rowm{display:flex;gap:5px;margin-bottom:4px;align-items:center}.mid .meta b{white-space:nowrap}'
     +'.mid .meta input{border:none;border-bottom:1px dotted #999;font-family:inherit;font-size:12px;flex:1;padding:1px 2px}.mid .meta input.optfield{text-align:center}'
     +'.cap{font-size:11px;margin:3px 0 2px;font-weight:600}'
-    +'table{width:100%;border-collapse:collapse}'
+    +'table{width:100%;border-collapse:collapse;table-layout:fixed}'
     +'.bill th,.bill td{border:1px solid #000;padding:1px 2px;font-size:9.5px;text-align:center;overflow:hidden}'
     +'.bill th{font-weight:700;line-height:1.15}'
     +'.bill td input{width:100%;border:none;font-family:inherit;font-size:9.5px;text-align:center;padding:1px;background:transparent;min-width:0}'
-     +'.bill td .cell{width:100%;border:none;background:transparent;resize:none;overflow:hidden;font-family:inherit;font-size:9.5px;line-height:1.25;text-align:center;padding:1px;white-space:pre-wrap;word-break:break-word;box-sizing:border-box;display:block}td{vertical-align:middle}'
+     +'.bill td .cell{min-height:12px;font-family:inherit;font-size:9.5px;line-height:1.3;text-align:center;padding:1px 2px;white-space:pre-wrap;word-break:break-word;overflow-wrap:anywhere;outline:none;box-sizing:border-box}td .cell.amt{text-align:right}td{vertical-align:middle}'
     +'.amt input,td.amt{text-align:right}'
     +'.bill tbody tr{height:19px}tr.sub td{font-weight:700;height:20px}'
     +'.bill tfoot td{border:none;font-size:11px;padding:2px 4px}.bill tfoot td.amt{border:1px solid #000;text-align:right;font-weight:700;overflow:visible;white-space:nowrap;padding:2px 3px}'
