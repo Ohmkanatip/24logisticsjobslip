@@ -92,6 +92,9 @@
   #mrgOvl .gback{border:1px solid var(--line-strong);background:transparent;color:var(--ink)}
   #mrgOvl .ggo2{border:none;background:var(--accent);color:#fff}
   #mrgOvl .gdis{width:100%;margin-top:8px;padding:9px;border-radius:9px;border:none;background:var(--field);color:var(--ink-soft);font-size:12.5px;cursor:pointer;font-family:inherit}
+  #mrgOvl .arow{display:flex;gap:9px;align-items:flex-start;cursor:pointer;user-select:none}
+  #mrgOvl .advchk,#mrgOvl #advAll{width:18px;height:18px;accent-color:var(--accent);flex:none;margin:2px 0 0}
+  #mrgOvl .advlist{max-height:40vh;overflow:auto;margin-top:2px}
   input,select{width:100%;padding:9px 11px;border:1px solid var(--line);border-radius:8px;background:var(--field);color:var(--ink);font-family:inherit;font-size:14.5px;outline:none;transition:.12s}
   input.mono,select.mono{font-family:'IBM Plex Mono',monospace}
   input:focus,select:focus{border-color:var(--accent);background:var(--field-focus);box-shadow:0 0 0 3px var(--accent-soft)}
@@ -376,7 +379,8 @@
       <button class="btn btn-ghost" id="btnTrash">🗑 งานที่ลบแล้ว</button>
       <button class="btn btn-primary" id="btnSummary" title="สรุปยอดวันนี้ ส่งเข้า LINE ให้พ่อ">📤 สรุปยอดวันนี้ → LINE</button>
       <button class="btn btn-ghost" id="btnAudit" title="ตรวจเบอร์ตู้ผิดมาตรฐาน / ตู้ซ้ำ / ยอดสูงผิดปกติ" style="display:none">🔍 ตรวจสอบความผิดปกติ</button>
-      <button class="btn btn-ghost" id="btnAutoAdv" title="ใบงานของคนขับที่ถือเงินก้อน แต่ยังไม่ได้กรอกสำรองจ่าย → หักให้อัตโนมัติ (ดูรายการก่อนยืนยัน)" style="display:none">💸 หักเงินก้อนย้อนหลัง</button>
+      <button class="btn btn-ghost" id="btnAutoAdv" title="ใบงานของคนขับที่ถือเงินก้อน แต่ยังไม่ได้กรอกสำรองจ่าย → ติ๊กเลือกใบแล้วหักให้" style="display:none">💸 หักเงินก้อนย้อนหลัง</button>
+      <button class="btn btn-ghost" id="btnRevAdv" title="ใบที่หักเงินก้อนไว้ → ติ๊กเลือกใบแล้วคืนกลับ (สำรองจ่ายกลับเป็น 0)" style="display:none">↩ ยกเลิกหักเงินก้อน</button>
       <button class="btn btn-ghost" id="btnEditLog" title="ประวัติก่อน–หลังการแก้ไข (แอดมินเท่านั้น)" style="display:none">📝 ประวัติการแก้ไข</button>
       <button class="btn btn-primary" id="btnInvoice" style="display:none" title="รวมทุกใบที่เลือกเป็นบิลเดียว">🧾 บิลเดียว (0)</button>
       <button class="btn btn-primary" id="btnBulkInvoice" style="display:none" title="พิมพ์หลายบิลพร้อมกัน จัดกลุ่มเองได้">🖨 พิมพ์หลายบิล (0)</button>
@@ -1291,7 +1295,7 @@ let adminToken=(()=>{ try{ return localStorage.getItem('jobform_admin')||''; }ca
 function updateAdminUI(){
   $("adminBtn").textContent=adminToken?'แอดมิน ✓':'แอดมิน'; $("adminBtn").style.color=adminToken?'var(--ok)':'';
   const vis=adminToken?'':'none';
-  ['btnAudit','btnEditLog','btnAutoAdv'].forEach(id=>{ const b=$(id); if(b) b.style.display=vis; }); // เครื่องมือตรวจสอบ = แอดมินเท่านั้น
+  ['btnAudit','btnEditLog','btnAutoAdv','btnRevAdv'].forEach(id=>{ const b=$(id); if(b) b.style.display=vis; }); // เครื่องมือตรวจสอบ = แอดมินเท่านั้น
 }
 function setAdmin(t){ adminToken=t; try{ t?localStorage.setItem('jobform_admin',t):localStorage.removeItem('jobform_admin'); }catch(e){} updateAdminUI(); }
 async function tryAdmin(t){
@@ -1508,31 +1512,50 @@ $("btnTrash").addEventListener('click',doTrash);
 $("btnOpenCont").addEventListener('click',showOpenContainers);
 $("btnSummary").addEventListener('click',sendSummary);
 $("btnAudit").addEventListener('click',runAudit);
-$("btnAutoAdv").addEventListener('click',()=>runAutoAdv(false));
-/* หักเงินก้อนย้อนหลัง: ดูรายการก่อน → ยืนยันแล้วค่อยแก้จริง (ลงประวัติแก้ไขให้ด้วย) */
-async function runAutoAdv(all){
+$("btnAutoAdv").addEventListener('click',()=>advTool('deduct',false));
+$("btnRevAdv").addEventListener('click',()=>advTool('revert',false));
+/* เครื่องมือเงินก้อน: หักย้อนหลัง / คืนกลับ — ติ๊กเลือกใบเองได้ ยืนยันแล้วจึงแก้ (ลงประวัติแก้ไขทุกครั้ง) */
+async function advTool(kind,all){
   const url=endpoint(); if(!url.startsWith('http')){ flash('ยังไม่ได้ตั้ง Sheet URL','err'); return; }
-  flash('กำลังตรวจใบที่ยังไม่หักเงินก้อน…','ok');
-  let j; try{ j=await callAct({act:'autoadv',mode:'preview',all:all?'1':''}); }catch(e){ flash('เชื่อมต่อไม่สำเร็จ','err'); return; }
+  const rev=(kind==='revert');
+  flash(rev?'กำลังตรวจใบที่หักเงินก้อนไว้…':'กำลังตรวจใบที่ยังไม่หักเงินก้อน…','ok');
+  let j; try{ j=await callAct({act:'autoadv',mode:rev?'revertpreview':'preview',all:all?'1':''}); }catch(e){ flash('เชื่อมต่อไม่สำเร็จ','err'); return; }
   if(!j||!j.ok){ flash(ACT_ERR[(j&&j.result)||'']||('ไม่สำเร็จ: '+((j&&j.result)||'')),'err'); return; }
   let list=[]; try{ list=JSON.parse(String(j.result).replace(/^preview-ok\s*/,''))||[]; }catch(e){}
-  if(!list.length){ flash(all?'ไม่มีใบไหนต้องหักเงินก้อนแล้ว ✓':'ใบวันนี้หักเงินก้อนครบแล้ว ✓ (กดค้างเพื่อดูย้อนหลังทั้งหมด)','ok'); return; }
-  const sum=list.reduce((s,x)=>s+(Number(x.a)||0),0);
-  const rows=list.map(x=>`<div class="mrow"><b>${escHtml(x.d)}</b> · ตู้ ${escHtml(x.c||'-')} · เบิก ${Number(x.t).toLocaleString()} → <b style="color:var(--ok)">หักก้อน ${Number(x.a).toLocaleString()}</b> · ก้อนเหลือ ${Number(x.l).toLocaleString()}</div>`).join('');
+  if(!list.length){
+    if(!all){ flash('ใบวันนี้ไม่มีรายการ — กำลังดูย้อนหลังทั้งหมด…','ok'); advTool(kind,true); return; }
+    flash(rev?'ไม่มีใบที่หักเงินก้อนไว้':'ไม่มีใบไหนต้องหักเงินก้อนแล้ว ✓','ok'); return;
+  }
+  showAdvPop(kind,all,list);
+}
+function showAdvPop(kind,all,list){
+  const rev=(kind==='revert');
   let ov=document.getElementById('mrgOvl'); if(ov) ov.remove();
   ov=document.createElement('div'); ov.id='mrgOvl';
-  ov.innerHTML=`<div class="gcard"><div class="gic">💸</div><h3>หักเงินก้อน ${list.length} ใบ?</h3><div class="gbody">${rows}
-    <div class="ghl2">รวมหักจากเงินก้อน <b>${sum.toLocaleString()}</b> บาท → ยอดที่ต้องโอนของใบเหล่านี้จะลดลงเท่ากัน<br>บันทึกลงแท็บ “ประวัติแก้ไข” ให้ตรวจย้อนหลังได้ · แก้กลับเองในเว็บได้ตลอด</div></div>
-    <div class="grow"><button type="button" class="gback" onclick="document.getElementById('mrgOvl').remove()">ยกเลิก</button><button type="button" class="ggo2" onclick="doAutoAdv(${all?1:0})">💸 ยืนยันหักเงินก้อน</button></div>
-    ${all?'':'<button type="button" class="gdis" onclick="document.getElementById(\'mrgOvl\').remove(); runAutoAdv(true)">ดูย้อนหลังทั้งหมด (ไม่เฉพาะวันนี้)</button>'}</div>`;
+  const rows=list.map(x=>`<label class="mrow arow"><input type="checkbox" class="advchk" data-u="${escAttr(x.u||'')}" data-a="${Number(x.a)||0}" checked><span><b>${escHtml(x.d)}</b> · ตู้ ${escHtml(x.c||'-')} · เบิก ${Number(x.t).toLocaleString()} → <b style="color:${rev?'var(--warn)':'var(--ok)'}">${rev?'คืนก้อน':'หักก้อน'} ${Number(x.a).toLocaleString()}</b> · ก้อนเหลือ ${Number(x.l).toLocaleString()}</span></label>`).join('');
+  ov.innerHTML=`<div class="gcard"><div class="gic">${rev?'↩':'💸'}</div>
+    <h3>${rev?'ยกเลิกหักเงินก้อน':'หักเงินก้อนย้อนหลัง'}</h3>
+    <label class="mrow arow" style="background:var(--accent-soft);border-color:var(--accent)"><input type="checkbox" id="advAll" checked><span><b>เลือกทั้งหมด (${list.length} ใบ)</b> · ${all?'ย้อนหลังทั้งหมด':'เฉพาะใบวันนี้'}</span></label>
+    <div class="gbody advlist">${rows}</div>
+    <div class="ghl2" id="advSum"></div>
+    <div class="grow"><button type="button" class="gback" onclick="document.getElementById('mrgOvl').remove()">ปิด</button><button type="button" class="ggo2" id="advGo">${rev?'↩ ยืนยันคืนก้อน':'💸 ยืนยันหักก้อน'}</button></div>
+    ${all?'':`<button type="button" class="gdis" onclick="document.getElementById('mrgOvl').remove(); advTool('${kind}',true)">ดูย้อนหลังทั้งหมด (ไม่เฉพาะวันนี้)</button>`}</div>`;
   document.body.appendChild(ov); ov.style.display='flex';
+  const chks=()=>[...ov.querySelectorAll('.advchk')];
+  const upd=()=>{ const s=chks().filter(c=>c.checked), sum=s.reduce((a,c)=>a+(Number(c.dataset.a)||0),0);
+    $("advSum").innerHTML=`เลือก <b>${s.length}</b> ใบ · รวม <b>${sum.toLocaleString()}</b> บาท`+(rev?' — จะคืนเข้าเงินก้อนคนขับ และยอดที่ต้องโอนกลับมาเท่ายอดเบิก':' — ยอดที่ต้องโอนของใบที่เลือกจะลดลงเท่ากัน');
+    const g=$("advGo"); g.disabled=!s.length; g.style.opacity=s.length?'1':'.45'; };
+  ov.querySelector('#advAll').onchange=e=>{ chks().forEach(c=>c.checked=e.target.checked); upd(); };
+  chks().forEach(c=>c.onchange=upd); upd();
+  $("advGo").onclick=()=>{ const uids=chks().filter(c=>c.checked).map(c=>c.dataset.u).filter(Boolean); ov.remove(); doAdvApply(kind,all,uids); };
 }
-async function doAutoAdv(all){
-  const ov=document.getElementById('mrgOvl'); if(ov) ov.remove();
-  flash('กำลังหักเงินก้อน…','ok');
+async function doAdvApply(kind,all,uids){
+  if(!uids.length){ flash('ยังไม่ได้เลือกใบ','err'); return; }
+  const rev=(kind==='revert');
+  flash(rev?'กำลังคืนเงินก้อน…':'กำลังหักเงินก้อน…','ok');
   try{
-    const j=await callAct({act:'autoadv',mode:'apply',all:all?'1':''});
-    if(j&&j.ok){ flash('หักเงินก้อนเรียบร้อย ✓ '+String(j.result).replace('autoadv-ok','')+' ใบ','ok'); refreshLump(); doSearch(); }
+    const j=await callAct({act:'autoadv',mode:rev?'revert':'apply',all:all?'1':'',uids:uids.join(',')});
+    if(j&&j.ok){ flash((rev?'คืนเงินก้อนเรียบร้อย ✓ ':'หักเงินก้อนเรียบร้อย ✓ ')+String(j.result).replace('autoadv-ok','').trim()+' ใบ','ok'); refreshLump(); doSearch(); }
     else flash(ACT_ERR[(j&&j.result)||'']||('ไม่สำเร็จ: '+((j&&j.result)||'')),'err');
   }catch(e){ flash('เชื่อมต่อไม่สำเร็จ ลองใหม่','err'); }
 }
