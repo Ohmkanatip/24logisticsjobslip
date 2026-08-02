@@ -76,6 +76,20 @@
   #guardOvl .grow button{flex:1;padding:11px 6px;border-radius:9px;font-size:13.5px;font-weight:700;cursor:pointer;font-family:inherit}
   #guardOvl .gback{border:1px solid var(--accent);background:transparent;color:var(--accent)}
   #guardOvl .ggo{border:none;background:var(--warn);color:#fff}
+  .dupbdg{display:inline-block;font-size:10.5px;font-weight:700;border-radius:20px;padding:0 7px;background:rgba(178,59,46,.13);color:var(--warn);border:1px solid rgba(178,59,46,.4);vertical-align:1px}
+  .lkbdg{display:inline-block;font-size:10.5px;font-weight:700;border-radius:20px;padding:0 7px;background:var(--accent-soft);color:var(--accent);border:1px solid var(--accent);vertical-align:1px}
+  #mrgOvl{display:none;position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:9000;align-items:center;justify-content:center;padding:20px}
+  #mrgOvl .gcard{background:var(--panel);color:var(--ink);border-radius:14px;max-width:460px;width:100%;padding:20px;box-shadow:var(--shadow);max-height:90vh;overflow:auto}
+  #mrgOvl .gic{font-size:32px;text-align:center;margin-bottom:4px}
+  #mrgOvl h3{font-size:17px;text-align:center;margin:0 0 10px}
+  #mrgOvl .gbody{font-size:13.5px;line-height:1.65}
+  #mrgOvl .mrow{background:var(--field);border:1px solid var(--line);border-radius:8px;padding:6px 10px;margin-bottom:6px;font-size:13px}
+  #mrgOvl .ghl2{background:var(--accent-soft);border:1px solid var(--accent);border-radius:8px;padding:8px 10px;color:var(--ink);margin:8px 0;font-size:12.8px;line-height:1.7}
+  #mrgOvl .grow{display:flex;gap:8px;margin-top:12px}
+  #mrgOvl .grow button{flex:1;padding:11px 6px;border-radius:9px;font-size:13.5px;font-weight:700;cursor:pointer;font-family:inherit}
+  #mrgOvl .gback{border:1px solid var(--line-strong);background:transparent;color:var(--ink)}
+  #mrgOvl .ggo2{border:none;background:var(--accent);color:#fff}
+  #mrgOvl .gdis{width:100%;margin-top:8px;padding:9px;border-radius:9px;border:none;background:var(--field);color:var(--ink-soft);font-size:12.5px;cursor:pointer;font-family:inherit}
   input,select{width:100%;padding:9px 11px;border:1px solid var(--line);border-radius:8px;background:var(--field);color:var(--ink);font-family:inherit;font-size:14.5px;outline:none;transition:.12s}
   input.mono,select.mono{font-family:'IBM Plex Mono',monospace}
   input:focus,select:focus{border-color:var(--accent);background:var(--field-focus);box-shadow:0 0 0 3px var(--accent-soft)}
@@ -363,6 +377,7 @@
       <button class="btn btn-ghost" id="btnEditLog" title="ประวัติก่อน–หลังการแก้ไข (แอดมินเท่านั้น)" style="display:none">📝 ประวัติการแก้ไข</button>
       <button class="btn btn-primary" id="btnInvoice" style="display:none" title="รวมทุกใบที่เลือกเป็นบิลเดียว">🧾 บิลเดียว (0)</button>
       <button class="btn btn-primary" id="btnBulkInvoice" style="display:none" title="พิมพ์หลายบิลพร้อมกัน จัดกลุ่มเองได้">🖨 พิมพ์หลายบิล (0)</button>
+      <button class="btn btn-ghost" id="btnMerge" style="display:none" title="ตู้ซ้ำที่เป็นงานเดียวกัน — ติ๊กเลือกใบแล้วกดรวม (แถวในชีทยังแยกคนละบรรทัดเหมือนเดิม)">🔗 รวมงานเดียวกัน (0)</button>
       <button class="btn btn-ghost" id="btnDelSel" style="display:none;color:var(--warn);border-color:var(--warn)">🗑 ลบที่เลือก (0)</button>
       <button class="btn btn-ghost" id="btnCustBook" title="เพิ่ม/แก้ไข ที่อยู่ลูกค้าสำหรับใบวางบิล">📇 จัดการที่อยู่ลูกค้า</button>
       <span class="hint" style="margin:0;align-self:center">ติ๊กเลือกงาน → ออกใบวางบิลได้ · ลบ/กู้คืน = แอดมิน</span>
@@ -1042,11 +1057,22 @@ async function doSearch(){
 }
 function showHistory(){ $("q").value=''; $("qFrom").value=''; $("qTo").value=''; $("qOpen").checked=false; doSearch(); }
 function renderSearch(rows){
-  const sel=true; // ทุกคนติ๊กเลือกได้ (ใช้ออกใบวางบิล) — ปุ่มลบยังเป็นแอดมินเท่านั้น
+  const sel=true; // ทุกคนติ๊กเลือกได้ (ใช้ออกใบวางบิล/รวมงาน) — ปุ่มลบยังเป็นแอดมินเท่านั้น
+  window.LAST_ROWS=rows;
   if(!rows.length){ $("searchBody").innerHTML='<div class="empty">ไม่พบรายการ</div>'; updateDelSel(); return; }
+  // ตู้ซ้ำ: เบอร์เดียวกัน ยังไม่คืน >1 ใบ ที่ยังไม่ได้รวมงาน/ไม่ได้กด "คนละงาน"
+  const nrmC=c=>String(c||'').replace(/[\s-]/g,'').toUpperCase();
+  const dupG={};
+  rows.forEach(r=>{ if(!r.returned&&nrmC(r.container)){ (dupG[nrmC(r.container)]=dupG[nrmC(r.container)]||[]).push(r); } });
+  const isDup=r=>{ if(r.returned) return false; const g=dupG[nrmC(r.container)]; if(!g||g.length<2) return false;
+    if(g.some(x=>String(x.link||'').indexOf('X:')===0)) return false;
+    const st={}; g.forEach(x=>{ const l=String(x.link||''); st[(l&&l.indexOf('X:')!==0)?l:('u'+x.uid)]=1; });
+    return Object.keys(st).length>1; };
+  const lkB=r=>(r.link&&String(r.link).indexOf('X:')!==0)?' <span class="lkbdg" title="ถูกรวมเป็นงานเดียวกันแล้ว — บิล/จำนวนตู้นับเป็น 1">🔗 งานเดียวกัน</span>':'';
+  const dupB=r=>isDup(r)?' <span class="dupbdg" title="ตู้เดียวกันยังไม่คืนมีมากกว่า 1 ใบ — ถ้าเป็นงานเดียวกัน ติ๊กเลือกแล้วกดปุ่ม รวมงานเดียวกัน">⚠️ ตู้ซ้ำ</span>':'';
   const body=rows.map(r=>`<tr>
     ${sel?`<td style="text-align:center"><input type="checkbox" class="selchk" data-uid="${escAttr(r.uid)}" data-c="${escAttr(r.container)}" style="width:17px;height:17px;accent-color:var(--warn)"></td>`:''}
-    <td>${escHtml(r.date)} ${escHtml(r.time)}</td><td class="mono">${escHtml(r.container)}${adminToken&&r.container&&!contValid(r.container).ok?' <span title="เบอร์ตู้ไม่ผ่านมาตรฐาน ISO 6346 — เช็กก่อนเบิก" style="color:var(--warn);cursor:help">⚠</span>':''}</td>
+    <td>${escHtml(r.date)} ${escHtml(r.time)}</td><td class="mono">${escHtml(r.container)}${adminToken&&r.container&&!contValid(r.container).ok?' <span title="เบอร์ตู้ไม่ผ่านมาตรฐาน ISO 6346 — เช็กก่อนเบิก" style="color:var(--warn);cursor:help">⚠</span>':''}${lkB(r)}${dupB(r)}</td>
     <td>${escHtml(r.customer)}</td><td class="mono">${escHtml(r.truck)}</td><td>${escHtml(r.driver)}</td>
     <td>${escHtml(r.dateOut)}</td>
     <td class="retcell">${r.returned
@@ -1084,6 +1110,76 @@ function updateDelSel(){
   if(inv){ inv.style.display=hasChk?'':'none'; inv.textContent=`🧾 บิลเดียว (${n})`; inv.disabled=n===0; inv.style.opacity=n?'1':'.5'; }
   const inv2=$("btnBulkInvoice");
   if(inv2){ inv2.style.display=hasChk?'':'none'; inv2.textContent=`🖨 พิมพ์หลายบิล (${n})`; inv2.disabled=n===0; inv2.style.opacity=n?'1':'.5'; }
+  const mg=$("btnMerge");
+  if(mg){ mg.style.display=hasChk?'':'none';
+    const selU=hasChk?selectedUids().map(c=>c.dataset.uid).filter(Boolean):[];
+    const rowsSel=(window.LAST_ROWS||[]).filter(r=>selU.includes(r.uid));
+    const allLinked=rowsSel.length>1&&rowsSel.every(r=>r.link&&String(r.link).indexOf('X:')!==0)&&(new Set(rowsSel.map(r=>String(r.link)))).size===1;
+    mg.textContent=allLinked?`↩ ยกเลิกรวมงาน (${n})`:`🔗 รวมงานเดียวกัน (${n})`;
+    mg.disabled=n<2; mg.style.opacity=n>=2?'1':'.5'; }
+}
+/* ---- รวมงาน (ตู้ซ้ำ = งานเดียวกัน): ผูกใบด้วยคอลัมน์ "งานเดียวกัน" — แถวในชีทยังแยกคนละบรรทัด เงินใครเงินมัน ---- */
+async function mergeSelected(){
+  const chks=selectedUids(); const uids=chks.map(c=>c.dataset.uid).filter(Boolean);
+  if(uids.length<2){ flash('ติ๊กเลือกอย่างน้อย 2 ใบที่เป็นงานเดียวกันก่อน','err'); return; }
+  if(uids.length>5){ flash('รวมได้ครั้งละไม่เกิน 5 ใบ','err'); return; }
+  const rows=(window.LAST_ROWS||[]).filter(r=>uids.includes(r.uid));
+  const allLinked=rows.length===uids.length&&rows.every(r=>r.link&&String(r.link).indexOf('X:')!==0)&&(new Set(rows.map(r=>String(r.link)))).size===1;
+  showMergePop(rows.length?rows:uids.map(u=>({uid:u})),uids,allLinked);
+}
+function showMergePop(rows,uids,unlinkMode){
+  let ov=document.getElementById('mrgOvl');
+  if(ov) ov.remove();
+  ov=document.createElement('div'); ov.id='mrgOvl';
+  const list=rows.map(r=>`<div class="mrow"><b>${escHtml(r.container||'-')}</b> · ${escHtml(r.date||'')} · ${escHtml(r.driver||'-')} · ${escHtml(r.truck||'-')}${r.returned?' · <span style="color:var(--ok)">คืนแล้ว</span>':''}</div>`).join('');
+  const body=unlinkMode
+    ? `<div class="gic">↩</div><h3>ยกเลิกการรวมงาน?</h3><div class="gbody">${list}<div class="ghl2">ใบทั้งหมดจะกลับเป็นงานแยกกันเหมือนก่อนรวม (ไม่มีข้อมูลหาย)</div></div>
+       <div class="grow"><button type="button" class="gback" onclick="document.getElementById('mrgOvl').remove()">ปิด</button><button type="button" class="ggo2" onclick="doLinkAct('unlink')">↩ ยืนยันยกเลิกรวม</button></div>`
+    : `<div class="gic">🔗</div><h3>รวม ${rows.length} ใบเป็นงานเดียว?</h3><div class="gbody">${list}
+       <div class="ghl2">✓ ตู้จะนับเป็น 1 (จำนวนตู้/ตู้ค้าง/เตือน 8 โมง)<br>✓ ใบวางบิลออกเป็นแถวเดียว รวมเลขทุกขาให้เอง<br>✓ ในชีทยังแยกคนละบรรทัด — เงินโอน 4 ทุ่มแยกตามคนขับของแต่ละใบเหมือนเดิม<br>✓ ยกเลิกรวมได้ตลอด ไม่มีอะไรถูกลบ</div></div>
+       <div class="grow"><button type="button" class="gback" onclick="document.getElementById('mrgOvl').remove()">ยกเลิก</button><button type="button" class="ggo2" onclick="doLinkAct('link')">🔗 ยืนยันรวมงาน</button></div>
+       ${uids.length===2?'<button type="button" class="gdis" onclick="doLinkAct(\'dismiss\')">🚫 ไม่ใช่งานเดียวกัน — เลิกเตือนตู้ซ้ำคู่นี้ (ตู้ใบเดิมวนกลับมาอีกเที่ยว)</button>':''}`;
+  ov.innerHTML=`<div class="gcard">${body}</div>`;
+  document.body.appendChild(ov);
+  ov.style.display='flex';
+  window.__mrgUids=uids;
+}
+async function doLinkAct(mode){
+  const uids=window.__mrgUids||[];
+  const ovl=document.getElementById('mrgOvl'); if(ovl) ovl.remove();
+  if(uids.length<1) return;
+  flash('กำลังบันทึก…','ok');
+  try{
+    const j=await callAct({act:'linkjobs',mode:mode,uids:uids.join(',')});
+    if(j&&j.ok){
+      flash(mode==='link'?'รวมเป็นงานเดียวแล้ว ✓ (ยกเลิกได้ตลอด)':mode==='unlink'?'ยกเลิกรวมงานแล้ว ✓':'บันทึกแล้ว — จะไม่เตือนตู้ซ้ำคู่นี้อีก ✓','ok');
+      doSearch();
+    }else{
+      flash(ACT_ERR[(j&&j.result)||'']||('ไม่สำเร็จ: '+((j&&j.result)||'ไม่ทราบสาเหตุ')),'err');
+    }
+  }catch(e){ flash('เชื่อมต่อไม่สำเร็จ ลองใหม่','err'); }
+}
+/* รวมเลขใบที่ถูกผูกเป็นงานเดียวกัน → แถวเดียวสำหรับใบวางบิล (ใบหลัก = วันที่เก่าสุด) */
+function combineLinked(recs){
+  const groups={}, order=[];
+  (recs||[]).forEach(r=>{ const g=(r.link&&String(r.link).indexOf('X:')!==0)?String(r.link):('__'+r.uid);
+    if(!groups[g]){ groups[g]=[]; order.push(g); } groups[g].push(r); });
+  return order.map(g=>{ const arr=groups[g]; if(arr.length===1) return arr[0];
+    arr.sort((a,b)=>String(a.date||'').localeCompare(String(b.date||'')));
+    const m={...arr[0]};
+    for(let i=1;i<arr.length;i++){ const r=arr[i];
+      ['c_pier','c_lift','c_swap','c_recv','c_return','c_toll','c_mflow','c_maint','c_other','total','advance','net'].forEach(k=>m[k]=(Number(m[k])||0)+(Number(r[k])||0));
+      ['yardOut','loadPlace','yardIn','dateOut','mark'].forEach(k=>{ if(String(r[k]||'').trim()) m[k]=r[k]; });
+      if(!String(m.driver2||'').trim()&&String(r.driver||'').trim()&&r.driver!==m.driver){ m.driver2=r.driver; m.truck2=r.truck||''; m.trailer2=r.trailer||''; }
+    }
+    return m; });
+}
+/* ติ๊กใบเดียวของงานที่รวมไว้ → ดึงใบคู่มาให้ครบเองตอนออกบิล */
+function expandLinkedUids(uids){
+  const rows=window.LAST_ROWS||[]; const set=new Set(uids);
+  const gs=new Set(rows.filter(r=>set.has(r.uid)&&r.link&&String(r.link).indexOf('X:')!==0).map(r=>String(r.link)));
+  rows.forEach(r=>{ if(r.link&&gs.has(String(r.link))) set.add(r.uid); });
+  return [...set];
 }
 /* เรียกคำสั่งแบบอ่านผลกลับได้ (ลบ/กู้คืน/คืนตู้) — ไม่ใช้ no-cors จะได้รู้ว่าสำเร็จจริงไหม */
 async function callAct(params){
@@ -1395,6 +1491,7 @@ $("btnInvoice").addEventListener('click',buildInvoiceFromSelection);
 $("btnBulkInvoice").addEventListener('click',buildBulkFromSelection);
 $("btnCustBook").addEventListener('click',renderCustBook);
 $("btnDelSel").addEventListener('click',deleteSelected);
+$("btnMerge").addEventListener('click',mergeSelected);
 $("q").addEventListener('keydown',e=>{ if(e.key==='Enter') doSearch(); });
 
 /* ============================================================
@@ -1485,12 +1582,13 @@ async function fetchRecs(uids){
 }
 async function buildInvoiceFromSelection(){
   const url=endpoint(); if(!url.startsWith('http')){ flash('ยังไม่ได้ตั้ง Sheet URL','err'); return; }
-  const uids=selectedUids().map(c=>c.dataset.uid).filter(Boolean);
+  let uids=selectedUids().map(c=>c.dataset.uid).filter(Boolean);
   if(!uids.length){ flash('ติ๊กเลือกงานที่จะรวมเป็นบิลก่อน','err'); return; }
+  uids=expandLinkedUids(uids); // งานที่รวมกันไว้ → ดึงใบคู่มาครบ
   const w=openLoadingWindow();
   if(!w){ flash('เบราว์เซอร์บล็อกป๊อปอัป — อนุญาตป๊อปอัปของเว็บนี้ก่อน','err'); return; }
   flash('กำลังดึงข้อมูล '+uids.length+' ใบ…','ok');
-  const recs=await fetchRecs(uids);
+  const recs=combineLinked(await fetchRecs(uids)); // งานเดียวกัน → บิลแถวเดียว รวมเลขทุกขา
   if(!recs.length){ w.close(); flash('ดึงข้อมูลไม่สำเร็จ — เช็ก Sheet URL / deploy เวอร์ชันล่าสุด','err'); return; }
   openInvoice(recs,w);
 }
@@ -1821,12 +1919,13 @@ function openBulkInvoice(recs,win){
 /* ดึงใบที่ติ๊กเลือก → เปิดตัวสร้างบิลหลายใบ */
 async function buildBulkFromSelection(){
   const url=endpoint(); if(!url.startsWith('http')){ flash('ยังไม่ได้ตั้ง Sheet URL','err'); return; }
-  const uids=selectedUids().map(c=>c.dataset.uid).filter(Boolean);
+  let uids=selectedUids().map(c=>c.dataset.uid).filter(Boolean);
   if(!uids.length){ flash('ติ๊กเลือกงานก่อน','err'); return; }
+  uids=expandLinkedUids(uids);
   const w=openLoadingWindow();
   if(!w){ flash('เบราว์เซอร์บล็อกป๊อปอัป — อนุญาตป๊อปอัปของเว็บนี้ก่อน','err'); return; }
   flash('กำลังดึงข้อมูล '+uids.length+' ใบ…','ok');
-  const recs=await fetchRecs(uids);
+  const recs=combineLinked(await fetchRecs(uids));
   if(!recs.length){ w.close(); flash('ดึงข้อมูลไม่สำเร็จ — เช็ก Sheet URL / deploy เวอร์ชันล่าสุด','err'); return; }
   openBulkInvoice(recs,w);
 }
