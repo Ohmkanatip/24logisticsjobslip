@@ -376,6 +376,7 @@
       <button class="btn btn-ghost" id="btnTrash">🗑 งานที่ลบแล้ว</button>
       <button class="btn btn-primary" id="btnSummary" title="สรุปยอดวันนี้ ส่งเข้า LINE ให้พ่อ">📤 สรุปยอดวันนี้ → LINE</button>
       <button class="btn btn-ghost" id="btnAudit" title="ตรวจเบอร์ตู้ผิดมาตรฐาน / ตู้ซ้ำ / ยอดสูงผิดปกติ" style="display:none">🔍 ตรวจสอบความผิดปกติ</button>
+      <button class="btn btn-ghost" id="btnAutoAdv" title="ใบงานของคนขับที่ถือเงินก้อน แต่ยังไม่ได้กรอกสำรองจ่าย → หักให้อัตโนมัติ (ดูรายการก่อนยืนยัน)" style="display:none">💸 หักเงินก้อนย้อนหลัง</button>
       <button class="btn btn-ghost" id="btnEditLog" title="ประวัติก่อน–หลังการแก้ไข (แอดมินเท่านั้น)" style="display:none">📝 ประวัติการแก้ไข</button>
       <button class="btn btn-primary" id="btnInvoice" style="display:none" title="รวมทุกใบที่เลือกเป็นบิลเดียว">🧾 บิลเดียว (0)</button>
       <button class="btn btn-primary" id="btnBulkInvoice" style="display:none" title="พิมพ์หลายบิลพร้อมกัน จัดกลุ่มเองได้">🖨 พิมพ์หลายบิล (0)</button>
@@ -1290,7 +1291,7 @@ let adminToken=(()=>{ try{ return localStorage.getItem('jobform_admin')||''; }ca
 function updateAdminUI(){
   $("adminBtn").textContent=adminToken?'แอดมิน ✓':'แอดมิน'; $("adminBtn").style.color=adminToken?'var(--ok)':'';
   const vis=adminToken?'':'none';
-  ['btnAudit','btnEditLog'].forEach(id=>{ const b=$(id); if(b) b.style.display=vis; }); // เครื่องมือตรวจสอบ = แอดมินเท่านั้น
+  ['btnAudit','btnEditLog','btnAutoAdv'].forEach(id=>{ const b=$(id); if(b) b.style.display=vis; }); // เครื่องมือตรวจสอบ = แอดมินเท่านั้น
 }
 function setAdmin(t){ adminToken=t; try{ t?localStorage.setItem('jobform_admin',t):localStorage.removeItem('jobform_admin'); }catch(e){} updateAdminUI(); }
 async function tryAdmin(t){
@@ -1507,6 +1508,34 @@ $("btnTrash").addEventListener('click',doTrash);
 $("btnOpenCont").addEventListener('click',showOpenContainers);
 $("btnSummary").addEventListener('click',sendSummary);
 $("btnAudit").addEventListener('click',runAudit);
+$("btnAutoAdv").addEventListener('click',()=>runAutoAdv(false));
+/* หักเงินก้อนย้อนหลัง: ดูรายการก่อน → ยืนยันแล้วค่อยแก้จริง (ลงประวัติแก้ไขให้ด้วย) */
+async function runAutoAdv(all){
+  const url=endpoint(); if(!url.startsWith('http')){ flash('ยังไม่ได้ตั้ง Sheet URL','err'); return; }
+  flash('กำลังตรวจใบที่ยังไม่หักเงินก้อน…','ok');
+  let j; try{ j=await callAct({act:'autoadv',mode:'preview',all:all?'1':''}); }catch(e){ flash('เชื่อมต่อไม่สำเร็จ','err'); return; }
+  if(!j||!j.ok){ flash(ACT_ERR[(j&&j.result)||'']||('ไม่สำเร็จ: '+((j&&j.result)||'')),'err'); return; }
+  let list=[]; try{ list=JSON.parse(String(j.result).replace(/^preview-ok\s*/,''))||[]; }catch(e){}
+  if(!list.length){ flash(all?'ไม่มีใบไหนต้องหักเงินก้อนแล้ว ✓':'ใบวันนี้หักเงินก้อนครบแล้ว ✓ (กดค้างเพื่อดูย้อนหลังทั้งหมด)','ok'); return; }
+  const sum=list.reduce((s,x)=>s+(Number(x.a)||0),0);
+  const rows=list.map(x=>`<div class="mrow"><b>${escHtml(x.d)}</b> · ตู้ ${escHtml(x.c||'-')} · เบิก ${Number(x.t).toLocaleString()} → <b style="color:var(--ok)">หักก้อน ${Number(x.a).toLocaleString()}</b> · ก้อนเหลือ ${Number(x.l).toLocaleString()}</div>`).join('');
+  let ov=document.getElementById('mrgOvl'); if(ov) ov.remove();
+  ov=document.createElement('div'); ov.id='mrgOvl';
+  ov.innerHTML=`<div class="gcard"><div class="gic">💸</div><h3>หักเงินก้อน ${list.length} ใบ?</h3><div class="gbody">${rows}
+    <div class="ghl2">รวมหักจากเงินก้อน <b>${sum.toLocaleString()}</b> บาท → ยอดที่ต้องโอนของใบเหล่านี้จะลดลงเท่ากัน<br>บันทึกลงแท็บ “ประวัติแก้ไข” ให้ตรวจย้อนหลังได้ · แก้กลับเองในเว็บได้ตลอด</div></div>
+    <div class="grow"><button type="button" class="gback" onclick="document.getElementById('mrgOvl').remove()">ยกเลิก</button><button type="button" class="ggo2" onclick="doAutoAdv(${all?1:0})">💸 ยืนยันหักเงินก้อน</button></div>
+    ${all?'':'<button type="button" class="gdis" onclick="document.getElementById(\'mrgOvl\').remove(); runAutoAdv(true)">ดูย้อนหลังทั้งหมด (ไม่เฉพาะวันนี้)</button>'}</div>`;
+  document.body.appendChild(ov); ov.style.display='flex';
+}
+async function doAutoAdv(all){
+  const ov=document.getElementById('mrgOvl'); if(ov) ov.remove();
+  flash('กำลังหักเงินก้อน…','ok');
+  try{
+    const j=await callAct({act:'autoadv',mode:'apply',all:all?'1':''});
+    if(j&&j.ok){ flash('หักเงินก้อนเรียบร้อย ✓ '+String(j.result).replace('autoadv-ok','')+' ใบ','ok'); refreshLump(); doSearch(); }
+    else flash(ACT_ERR[(j&&j.result)||'']||('ไม่สำเร็จ: '+((j&&j.result)||'')),'err');
+  }catch(e){ flash('เชื่อมต่อไม่สำเร็จ ลองใหม่','err'); }
+}
 $("btnEditLog").addEventListener('click',doEditLog);
 $("btnInvoice").addEventListener('click',buildInvoiceFromSelection);
 $("btnBulkInvoice").addEventListener('click',buildBulkFromSelection);
