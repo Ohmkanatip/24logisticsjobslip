@@ -1136,7 +1136,7 @@ function showMergePop(rows,uids,unlinkMode){
     ? `<div class="gic">↩</div><h3>ยกเลิกการรวมงาน?</h3><div class="gbody">${list}<div class="ghl2">ใบทั้งหมดจะกลับเป็นงานแยกกันเหมือนก่อนรวม (ไม่มีข้อมูลหาย)</div></div>
        <div class="grow"><button type="button" class="gback" onclick="document.getElementById('mrgOvl').remove()">ปิด</button><button type="button" class="ggo2" onclick="doLinkAct('unlink')">↩ ยืนยันยกเลิกรวม</button></div>`
     : `<div class="gic">🔗</div><h3>รวม ${rows.length} ใบเป็นงานเดียว?</h3><div class="gbody">${list}
-       <div class="ghl2">✓ ตู้จะนับเป็น 1 (จำนวนตู้/ตู้ค้าง/เตือน 8 โมง)<br>✓ ใบวางบิลออกเป็นแถวเดียว รวมเลขทุกขาให้เอง<br>✓ ในชีทยังแยกคนละบรรทัด — เงินโอน 4 ทุ่มแยกตามคนขับของแต่ละใบเหมือนเดิม<br>✓ ยกเลิกรวมได้ตลอด ไม่มีอะไรถูกลบ</div></div>
+       <div class="ghl2">✓ ตู้จะนับเป็น 1 (จำนวนตู้/ตู้ค้าง/เตือน 8 โมง)<br>✓ ใบวางบิลออกในบิลเดียว <b>แยกคนละบรรทัด</b> ขาแรก/ขาต่อเรียงติดกัน เลขใครเลขมัน — ติ๊กใบเดียวระบบดึงใบคู่มาให้ครบเอง<br>✓ ในชีทยังแยกคนละบรรทัด — เงินโอน 4 ทุ่มแยกตามคนขับของแต่ละใบเหมือนเดิม<br>✓ ยกเลิกรวมได้ตลอด ไม่มีอะไรถูกลบ</div></div>
        <div class="grow"><button type="button" class="gback" onclick="document.getElementById('mrgOvl').remove()">ยกเลิก</button><button type="button" class="ggo2" onclick="doLinkAct('link')">🔗 ยืนยันรวมงาน</button></div>
        ${uids.length===2?'<button type="button" class="gdis" onclick="doLinkAct(\'dismiss\')">🚫 ไม่ใช่งานเดียวกัน — เลิกเตือนตู้ซ้ำคู่นี้ (ตู้ใบเดิมวนกลับมาอีกเที่ยว)</button>':''}`;
   ov.innerHTML=`<div class="gcard">${body}</div>`;
