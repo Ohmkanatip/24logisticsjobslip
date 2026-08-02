@@ -64,6 +64,18 @@
   .field{margin-bottom:13px}
   .field>label{display:block;font-size:12.5px;color:var(--ink-soft);font-weight:600;margin-bottom:4px}
   .field .req{color:var(--warn)}
+  .lump-bar{margin-top:6px;background:rgba(240,192,64,.16);border:1px solid rgba(214,158,38,.6);color:#7a5800;font-size:12.5px;border-radius:8px;padding:6px 9px;line-height:1.5}
+  html[data-theme="dark"] .lump-bar{color:#ffd57a}
+  #guardOvl{display:none;position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:9000;align-items:center;justify-content:center;padding:20px}
+  #guardOvl .gcard{background:var(--panel);color:var(--ink);border-radius:14px;max-width:430px;width:100%;padding:20px;box-shadow:var(--shadow)}
+  #guardOvl .gic{font-size:34px;text-align:center;margin-bottom:4px}
+  #guardOvl h3{font-size:17px;text-align:center;margin:0 0 10px}
+  #guardOvl .gbody{font-size:13.5px;line-height:1.65;color:var(--ink)}
+  #guardOvl .ghl{background:rgba(178,59,46,.1);border:1px solid rgba(178,59,46,.45);border-radius:8px;padding:8px 10px;color:var(--warn);margin:8px 0}
+  #guardOvl .grow{display:flex;gap:8px;margin-top:14px}
+  #guardOvl .grow button{flex:1;padding:11px 6px;border-radius:9px;font-size:13.5px;font-weight:700;cursor:pointer;font-family:inherit}
+  #guardOvl .gback{border:1px solid var(--accent);background:transparent;color:var(--accent)}
+  #guardOvl .ggo{border:none;background:var(--warn);color:#fff}
   input,select{width:100%;padding:9px 11px;border:1px solid var(--line);border-radius:8px;background:var(--field);color:var(--ink);font-family:inherit;font-size:14.5px;outline:none;transition:.12s}
   input.mono,select.mono{font-family:'IBM Plex Mono',monospace}
   input:focus,select:focus{border-color:var(--accent);background:var(--field-focus);box-shadow:0 0 0 3px var(--accent-soft)}
@@ -233,6 +245,7 @@
             <label>ชื่อคนขับ</label>
             <input id="f_driver" list="dl_driver" placeholder="พิมพ์ชื่อเพื่อค้นหา" autocomplete="off">
             <datalist id="dl_driver"></datalist>
+            <div class="lump-bar" id="drvLump" style="display:none"></div>
           </div>
           <div class="field" data-list="trailer">
             <label>ทะเบียนหาง</label>
@@ -740,6 +753,7 @@ async function fetchMaster(){
   try{
     const res=await fetch(url+(url.includes('?')?'&':'?')+'master=1'+APPQS(),{method:'GET'});
     const m=await res.json();
+    try{ if(m&&m.lump){ window.__lump=m.lump; drvLumpBar(); } }catch(e){}
     if(!m || !m.ok || !m.lists) return;
     const hasData=(Array.isArray(m.trucks)&&m.trucks.length) ||
       MASTER_KEYS.some(k=>Array.isArray(m.lists[k])&&m.lists[k].length);
@@ -754,6 +768,51 @@ async function fetchMaster(){
       seedMaster(); // Sheet ยังว่าง → อัปโหลดค่าตั้งต้นขึ้นไปครั้งแรก
     }
   }catch(e){ /* เน็ตล่ม/ยังไม่ deploy → ใช้ cache ต่อไปเงียบๆ */ }
+}
+
+/* ---- กันโอนซ้ำ: เงินก้อนคนขับ (โหลดมากับ ?master=1 ตอนเปิดเว็บ — ไม่หน่วงตอนบันทึก) ---- */
+let editAdv0=0, editDrv0='';
+function lumpOf(name){ const L=window.__lump; if(!L) return null; return Number(L[String(name||'').trim()])||0; }
+function drvLumpBar(){
+  const el=$("drvLump"); if(!el) return;
+  const v=lumpOf(($("f_driver")||{}).value);
+  if(v&&v>0){ el.innerHTML='💼 คนขับถือเงินก้อนอยู่ <b>'+v.toLocaleString()+'</b> บาท — ปกติงานนี้หักจากก้อน (กรอกช่อง “สำรองจ่าย”)'; el.style.display='block'; }
+  else el.style.display='none';
+}
+$("f_driver").addEventListener('input',drvLumpBar);
+function guardCheck(d){ // true = บันทึกต่อได้ / false = หยุดรอผู้ใช้ตัดสินใจใน popup
+  if(window.__guardOk){ window.__guardOk=false; return true; }
+  if(!window.__lump) return true; // ยังไม่มีข้อมูลก้อน (ออฟไลน์/โหลดไม่ทัน) → ทำงานแบบเดิม ไม่เตือนมั่ว
+  let lump=lumpOf(d.driver)||0;
+  if(editUid && String(d.driver||'').trim()===editDrv0) lump+=editAdv0; // แก้ใบเดิม: ไม่นับยอดที่ใบนี้เคยหักไว้ซ้ำ
+  const adv=Number(d.advance)||0, net=(Number(d.total)||0)-adv;
+  if(lump>0 && adv===0 && net>0){ showGuard('A',{name:d.driver,lump:lump,net:net}); return false; }
+  if(adv>0 && adv>lump){ showGuard('B',{name:d.driver,lump:lump,adv:adv}); return false; }
+  return true;
+}
+function showGuard(kind,i){
+  let ov=document.getElementById('guardOvl');
+  if(!ov){
+    ov=document.createElement('div'); ov.id='guardOvl';
+    ov.innerHTML='<div class="gcard"><div class="gic" id="gIc"></div><h3 id="gTitle"></h3><div class="gbody" id="gBody"></div><div class="grow"><button type="button" class="gback" id="gBack"></button><button type="button" class="ggo" id="gGo"></button></div></div>';
+    document.body.appendChild(ov);
+    $("gBack").addEventListener('click',()=>{ ov.style.display='none'; });
+    $("gGo").addEventListener('click',()=>{ ov.style.display='none'; window.__guardOk=true; save(); });
+  }
+  const nm=String(i.name||'คนขับ');
+  if(kind==='A'){
+    $("gIc").textContent='⚠️'; $("gTitle").textContent='เสี่ยงโอนซ้ำ!';
+    $("gBody").innerHTML='<b>'+nm+'</b> ถือเงินก้อนอยู่ <b>'+i.lump.toLocaleString()+'</b> บาท แต่ใบงานนี้ไม่ได้กรอกช่อง “สำรองจ่าย”'
+      +'<div class="ghl">ถ้าบันทึกแบบนี้ ยอด “ค่าที่ต้องโอน” จะขึ้น <b>'+i.net.toLocaleString()+'</b> บาทในสรุป 4 ทุ่ม → เสี่ยงโอนซ้ำทั้งที่คนขับมีเงินก้อนอยู่แล้ว</div>'
+      +'ปกติ: กลับไปกรอกช่องสำรองจ่ายให้หักจากก้อน · เคสพิเศษที่ตั้งใจโอนจริง: กดยืนยัน';
+    $("gBack").textContent='← กลับไปกรอกสำรองจ่าย'; $("gGo").textContent='ยืนยันบันทึก ไม่หักก้อน';
+  }else{
+    $("gIc").textContent='🔺'; $("gTitle").textContent='สำรองจ่ายเกินก้อนที่ถือ';
+    $("gBody").innerHTML='กรอกสำรองจ่าย <b>'+i.adv.toLocaleString()+'</b> บาท แต่ <b>'+nm+'</b> มีก้อนเหลือ <b>'+i.lump.toLocaleString()+'</b> บาท'
+      +'<div class="ghl">ถ้ายืนยัน ก้อนของคนขับจะติดลบ '+(i.adv-i.lump).toLocaleString()+' บาท ในแท็บ 📒 บัญชีคนขับ — อาจลืมลงแถว “จ่ายก้อน” ในชีทสำรองจ่าย</div>';
+    $("gBack").textContent='← กลับไปแก้ตัวเลข'; $("gGo").textContent='ยืนยัน (ก้อนติดลบ)';
+  }
+  ov.style.display='flex';
 }
 
 /* seed: เขียนค่าปัจจุบันทั้งชุดขึ้น Sheet (ใช้เฉพาะตอน Sheet ว่าง) */
@@ -859,6 +918,7 @@ async function save(){
   d.app=appToken; d.idt=(window.idToken||''); // แนบ Google ID token (ระบบล็อกอินใหม่)
   if(!d.truck){ flash("กรุณาเลือกทะเบียนหัว",'err'); return; }
   if(!d.date){ flash("กรุณาระบุวันที่",'err'); return; }
+  if(!guardCheck(d)) return; // กันโอนซ้ำ: เช็คเงินก้อนคนขับก่อนบันทึก (ข้อมูลในเครื่อง ไม่หน่วง)
   const btn=$("btnSave"); btn.disabled=true;
   const url=epUrl.value.trim();
 
@@ -897,7 +957,7 @@ function clearAll(){
   ['f_truck','f_driver','f_customer','f_size','f_yardIn','f_yardOut'].forEach(id=>$(id).value='');
   COSTS.forEach(c=>$(c.key).value=''); $("f_advance").value=''; selectedMaint=[]; renderMaintChips();
   selectedPhotos=[]; renderPhotoPrev();
-  $("f_status").value=STATUS_OPTIONS[0]; recalc(); flash("ล้างฟอร์มแล้ว",'ok');
+  $("f_status").value=STATUS_OPTIONS[0]; recalc(); drvLumpBar(); flash("ล้างฟอร์มแล้ว",'ok');
 }
 const SESS_SHOW=8; // แสดงล่าสุดกี่รายการก่อน (กันรก) — กด "ดูทั้งหมด" เพื่อเห็นทั้งหมด
 let showAllSession=false;
@@ -1161,13 +1221,14 @@ let editEnteredBy='';
 function enterEdit(rec){
   if(!adminToken && !enteredUser){ flash('ตั้งชื่อผู้กรอกก่อนแก้ไข (ปุ่ม “ตั้งผู้กรอก” มุมขวาบน)','err'); return; }
   loadIntoForm(rec); editUid=rec.uid; editEnteredBy=rec.enteredBy||'';
+  editAdv0=Number(rec.advance)||0; editDrv0=String(rec.driver||'').trim(); drvLumpBar();
   $("btnSave").textContent='อัปเดตใบนี้';
   $("btnCancelEdit").style.display=''; $("editBadge").style.display='';
   window.scrollTo({top:0,behavior:'smooth'});
   flash('กำลังแก้ไขใบ '+(rec.container||rec.uid),'ok');
 }
 function exitEdit(){
-  editUid=null;
+  editUid=null; editAdv0=0; editDrv0='';
   $("btnSave").textContent='บันทึกเข้า Sheet';
   $("btnCancelEdit").style.display='none'; $("editBadge").style.display='none';
 }
