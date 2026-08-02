@@ -76,6 +76,8 @@
   #guardOvl .grow button{flex:1;padding:11px 6px;border-radius:9px;font-size:13.5px;font-weight:700;cursor:pointer;font-family:inherit}
   #guardOvl .gback{border:1px solid var(--accent);background:transparent;color:var(--accent)}
   #guardOvl .ggo{border:none;background:var(--warn);color:#fff}
+  #guardOvl .gauto{width:100%;margin:2px 0 8px;padding:12px 8px;border:none;border-radius:9px;background:var(--ok);color:#fff;font-size:14px;font-weight:800;cursor:pointer;font-family:inherit}
+  .lumpBtn{margin-left:6px;padding:3px 10px;border:none;border-radius:7px;background:#d69e26;color:#fff;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit}
   .dupbdg{display:inline-block;font-size:10.5px;font-weight:700;border-radius:20px;padding:0 7px;background:rgba(178,59,46,.13);color:var(--warn);border:1px solid rgba(178,59,46,.4);vertical-align:1px}
   .lkbdg{display:inline-block;font-size:10.5px;font-weight:700;border-radius:20px;padding:0 7px;background:var(--accent-soft);color:var(--accent);border:1px solid var(--accent);vertical-align:1px}
   #mrgOvl{display:none;position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:9000;align-items:center;justify-content:center;padding:20px}
@@ -791,9 +793,23 @@ function lumpOf(name){ const L=window.__lump; if(!L) return null; return Number(
 function drvLumpBar(){
   const el=$("drvLump"); if(!el) return;
   const v=lumpOf(($("f_driver")||{}).value);
-  if(v&&v>0){ el.innerHTML='💼 คนขับถือเงินก้อนอยู่ <b>'+v.toLocaleString()+'</b> บาท — ปกติงานนี้หักจากก้อน (กรอกช่อง “สำรองจ่าย”)'; el.style.display='block'; }
+  if(v&&v>0){ el.innerHTML='💼 คนขับถือเงินก้อนอยู่ <b>'+v.toLocaleString()+'</b> บาท <button type="button" class="lumpBtn" onclick="lumpAutoFill()">💸 หักจากก้อนให้เลย</button>'; el.style.display='block'; }
   else el.style.display='none';
 }
+/* กดปุ่มเดียว: ใส่สำรองจ่าย = ยอดเบิก (ไม่เกินก้อนที่เหลือ) → ค่าที่ต้องโอนลดเอง */
+function lumpAutoFill(){
+  const v=lumpOf(($("f_driver")||{}).value)||0;
+  const t=recalc();
+  if(!(v>0)){ flash('คนขับคนนี้ไม่มีเงินก้อนคงเหลือ','err'); return; }
+  if(!(t>0)){ flash('ยังไม่มีค่าใช้จ่ายในใบ — กรอกช่องค่าใช้จ่ายก่อนแล้วค่อยกดหัก','err'); return; }
+  const a=Math.min(v,t);
+  $("f_advance").value=a; recalc();
+  flash('หักจากเงินก้อน '+a.toLocaleString()+' บาท — ค่าที่ต้องโอนเหลือ '+(t-a).toLocaleString()+' บาท','ok');
+}
+/* ยอดก้อนสดเสมอ: ดึงใหม่เมื่อสลับกลับมาที่แท็บเว็บ (เช่น เพิ่งไปลงจ่ายก้อนในชีทมา) */
+async function refreshLump(){ try{ const url=endpoint(); if(!url.startsWith('http')) return; const m=await fetch(url+(url.includes('?')?'&':'?')+'master=1'+APPQS(),{method:'GET'}).then(r=>r.json()); if(m&&m.lump){ window.__lump=m.lump; drvLumpBar(); } }catch(e){} }
+let __lumpFT=0;
+window.addEventListener('focus',()=>{ if(Date.now()-__lumpFT>30000){ __lumpFT=Date.now(); refreshLump(); } });
 $("f_driver").addEventListener('input',drvLumpBar);
 function guardCheck(d){ // true = บันทึกต่อได้ / false = หยุดรอผู้ใช้ตัดสินใจใน popup
   if(window.__guardOk){ window.__guardOk=false; return true; }
@@ -809,19 +825,23 @@ function showGuard(kind,i){
   let ov=document.getElementById('guardOvl');
   if(!ov){
     ov=document.createElement('div'); ov.id='guardOvl';
-    ov.innerHTML='<div class="gcard"><div class="gic" id="gIc"></div><h3 id="gTitle"></h3><div class="gbody" id="gBody"></div><div class="grow"><button type="button" class="gback" id="gBack"></button><button type="button" class="ggo" id="gGo"></button></div></div>';
+    ov.innerHTML='<div class="gcard"><div class="gic" id="gIc"></div><h3 id="gTitle"></h3><div class="gbody" id="gBody"></div><button type="button" class="gauto" id="gAuto" style="display:none"></button><div class="grow"><button type="button" class="gback" id="gBack"></button><button type="button" class="ggo" id="gGo"></button></div></div>';
     document.body.appendChild(ov);
     $("gBack").addEventListener('click',()=>{ ov.style.display='none'; });
     $("gGo").addEventListener('click',()=>{ ov.style.display='none'; window.__guardOk=true; save(); });
+    $("gAuto").addEventListener('click',()=>{ ov.style.display='none'; const gi=window.__gInfo||{}; const a=Math.min(Number(gi.lump)||0,Number(gi.net)||0); if(a>0){ $("f_advance").value=a; recalc(); } window.__guardOk=true; save(); });
   }
   const nm=String(i.name||'คนขับ');
   if(kind==='A'){
-    $("gIc").textContent='⚠️'; $("gTitle").textContent='เสี่ยงโอนซ้ำ!';
-    $("gBody").innerHTML='<b>'+nm+'</b> ถือเงินก้อนอยู่ <b>'+i.lump.toLocaleString()+'</b> บาท แต่ใบงานนี้ไม่ได้กรอกช่อง “สำรองจ่าย”'
-      +'<div class="ghl">ถ้าบันทึกแบบนี้ ยอด “ค่าที่ต้องโอน” จะขึ้น <b>'+i.net.toLocaleString()+'</b> บาทในสรุป 4 ทุ่ม → เสี่ยงโอนซ้ำทั้งที่คนขับมีเงินก้อนอยู่แล้ว</div>'
-      +'ปกติ: กลับไปกรอกช่องสำรองจ่ายให้หักจากก้อน · เคสพิเศษที่ตั้งใจโอนจริง: กดยืนยัน';
-    $("gBack").textContent='← กลับไปกรอกสำรองจ่าย'; $("gGo").textContent='ยืนยันบันทึก ไม่หักก้อน';
+    window.__gInfo=i;
+    $("gIc").textContent='⚠️'; $("gTitle").textContent='คนขับถือเงินก้อนอยู่';
+    $("gBody").innerHTML='<b>'+nm+'</b> ถือเงินก้อนอยู่ <b>'+i.lump.toLocaleString()+'</b> บาท แต่ใบงานนี้ยังไม่ได้หักสำรองจ่าย'
+      +'<div class="ghl">ถ้าโอนตามยอด '+i.net.toLocaleString()+' บาท ทั้งที่มีเงินก้อน → เสี่ยงจ่ายซ้ำ</div>';
+    $("gAuto").style.display='block';
+    $("gAuto").textContent='💸 หักจากเงินก้อนให้เลย '+Math.min(i.lump,i.net).toLocaleString()+' บาท (แนะนำ)';
+    $("gBack").textContent='← กลับไปแก้เอง'; $("gGo").textContent='โอนปกติ ไม่หักก้อน';
   }else{
+    window.__gInfo=null; $("gAuto").style.display='none';
     $("gIc").textContent='🔺'; $("gTitle").textContent='สำรองจ่ายเกินก้อนที่ถือ';
     $("gBody").innerHTML='กรอกสำรองจ่าย <b>'+i.adv.toLocaleString()+'</b> บาท แต่ <b>'+nm+'</b> มีก้อนเหลือ <b>'+i.lump.toLocaleString()+'</b> บาท'
       +'<div class="ghl">ถ้ายืนยัน ก้อนของคนขับจะติดลบ '+(i.adv-i.lump).toLocaleString()+' บาท ในแท็บ 📒 บัญชีคนขับ — อาจลืมลงแถว “จ่ายก้อน” ในชีทสำรองจ่าย</div>';
