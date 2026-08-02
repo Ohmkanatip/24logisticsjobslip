@@ -1092,7 +1092,12 @@ function renderSearch(rows){
     <tbody>${body}</tbody></table></div>`;
   $("searchBody").querySelectorAll('.btnRet').forEach(b=>b.onclick=()=>markReturned(b.dataset.uid,b.dataset.c,b));
   $("searchBody").querySelectorAll('.btnUnret').forEach(b=>b.onclick=()=>unreturnJob(b.dataset.uid,b.dataset.c));
-  $("searchBody").querySelectorAll('.btnP').forEach(b=>b.onclick=()=>{ const w=openLoadingWindow(); if(!w){ flash('เบราว์เซอร์บล็อกป๊อปอัป — อนุญาตป๊อปอัปของเว็บนี้ก่อน','err'); return; } fetchOne(b.dataset.uid,rec=>printSlip(rec,w)); });
+  $("searchBody").querySelectorAll('.btnP').forEach(b=>b.onclick=()=>{ const w=openLoadingWindow(); if(!w){ flash('เบราว์เซอร์บล็อกป๊อปอัป — อนุญาตป๊อปอัปของเว็บนี้ก่อน','err'); return; }
+    const pUids=expandLinkedUids([b.dataset.uid]);
+    if(pUids.length>1){ // งานที่รวมกัน → พิมพ์บิลพร้อมใบคู่อัตโนมัติ แยกคนละบรรทัด
+      flash('งานนี้รวมกับใบคู่ — กำลังดึงมาพิมพ์ '+pUids.length+' บรรทัด…','ok');
+      fetchRecs(pUids).then(recs=>{ const rs=combineLinked(recs); if(rs.length) openInvoice(rs,w); else { try{w.close();}catch(e){} flash('ดึงข้อมูลไม่สำเร็จ — ลองใหม่','err'); } });
+    } else fetchOne(b.dataset.uid,rec=>printSlip(rec,w)); });
   $("searchBody").querySelectorAll('.btnE').forEach(b=>b.onclick=()=>fetchOne(b.dataset.uid,rec=>enterEdit(rec)));
   if(sel){
     const all=$("selAll"); if(all) all.onchange=()=>{ $("searchBody").querySelectorAll('.selchk').forEach(c=>c.checked=all.checked); updateDelSel(); };
