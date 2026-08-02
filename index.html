@@ -1159,20 +1159,16 @@ async function doLinkAct(mode){
     }
   }catch(e){ flash('เชื่อมต่อไม่สำเร็จ ลองใหม่','err'); }
 }
-/* รวมเลขใบที่ถูกผูกเป็นงานเดียวกัน → แถวเดียวสำหรับใบวางบิล (ใบหลัก = วันที่เก่าสุด) */
+/* งานที่รวมกัน → ในบิลแยกคนละบรรทัด (ไม่บวกยำ) แค่จัดให้ใบของงานเดียวกันเรียงติดกัน ใบหลัก (เก่ากว่า) ขึ้นก่อน */
 function combineLinked(recs){
   const groups={}, order=[];
   (recs||[]).forEach(r=>{ const g=(r.link&&String(r.link).indexOf('X:')!==0)?String(r.link):('__'+r.uid);
     if(!groups[g]){ groups[g]=[]; order.push(g); } groups[g].push(r); });
-  return order.map(g=>{ const arr=groups[g]; if(arr.length===1) return arr[0];
+  const out=[];
+  order.forEach(g=>{ const arr=groups[g];
     arr.sort((a,b)=>String(a.date||'').localeCompare(String(b.date||'')));
-    const m={...arr[0]};
-    for(let i=1;i<arr.length;i++){ const r=arr[i];
-      ['c_pier','c_lift','c_swap','c_recv','c_return','c_toll','c_mflow','c_maint','c_other','total','advance','net'].forEach(k=>m[k]=(Number(m[k])||0)+(Number(r[k])||0));
-      ['yardOut','loadPlace','yardIn','dateOut','mark'].forEach(k=>{ if(String(r[k]||'').trim()) m[k]=r[k]; });
-      if(!String(m.driver2||'').trim()&&String(r.driver||'').trim()&&r.driver!==m.driver){ m.driver2=r.driver; m.truck2=r.truck||''; m.trailer2=r.trailer||''; }
-    }
-    return m; });
+    arr.forEach(r=>out.push(r)); });
+  return out;
 }
 /* ติ๊กใบเดียวของงานที่รวมไว้ → ดึงใบคู่มาให้ครบเองตอนออกบิล */
 function expandLinkedUids(uids){
