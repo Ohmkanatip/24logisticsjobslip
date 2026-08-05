@@ -66,6 +66,12 @@
   .field .req{color:var(--warn)}
   .lump-bar{margin-top:6px;background:rgba(240,192,64,.16);border:1px solid rgba(214,158,38,.6);color:#7a5800;font-size:12.5px;border-radius:8px;padding:6px 9px;line-height:1.5}
   html[data-theme="dark"] .lump-bar{color:#ffd57a}
+  .resend-bar{display:flex;align-items:center;gap:12px;flex-wrap:wrap;background:rgba(240,192,64,.16);border:1px solid rgba(214,158,38,.6);color:#7a5800;border-radius:10px;padding:10px 14px;margin-bottom:10px;font-size:13px}
+  .resend-bar b{font-weight:800}
+  html[data-theme="dark"] .resend-bar{color:#ffd57a}
+  .resend-bar .rall{background:var(--accent);color:#fff;border:none;border-radius:8px;padding:7px 14px;font-size:12.5px;font-weight:700;cursor:pointer;font-family:inherit;margin-left:auto}
+  .resend-bar .rall:disabled{opacity:.5;cursor:default}
+  .rsend{background:var(--accent);color:#fff;border:none;border-radius:7px;padding:5px 10px;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit;margin-right:4px}
   #guardOvl{display:none;position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:9000;align-items:center;justify-content:center;padding:20px}
   #guardOvl .gcard{background:var(--panel);color:var(--ink);border-radius:14px;max-width:430px;width:100%;padding:20px;box-shadow:var(--shadow)}
   #guardOvl .gic{font-size:34px;text-align:center;margin-bottom:4px}
@@ -1007,26 +1013,66 @@ function clearSession(){
   session=[]; saveLog(); showAllSession=false; renderSession(); flash('ล้างรายการแล้ว','ok');
 }
 function removeSessionItem(i){ session.splice(i,1); saveLog(); renderSession(); }
+
+/* ---- ส่งซ้ำข้อมูลที่ค้างในเครื่อง (รีอัพโหลด) — เช็ค ID ในชีทก่อนเสมอ กันข้อมูลซ้ำ ---- */
+let __resendingAll=false;
+async function existsInSheet(uid){ // true=มีในชีท / false=ยังไม่มี / null=เช็คไม่ได้(เน็ต)
+  const url=endpoint(); if(!url.startsWith('http')||!uid) return null;
+  try{ const r=await fetch(url+(url.includes('?')?'&':'?')+'one='+encodeURIComponent(uid)+APPQS()); const j=await r.json(); return !!(j&&j.ok&&j.rec); }catch(e){ return null; }
+}
+function resendPayload(d){ const p={...d}; delete p.sent; delete p.__busy; p.photos=[]; p.app=appToken; p.idt=(window.idToken||''); return p; }
+async function resendItem(i,silent){
+  const d=session[i]; if(!d||d.sent) return 'skip';
+  const url=endpoint(); if(!url.startsWith('http')){ if(!silent)flash('ยังไม่ได้ตั้ง Sheet URL','err'); return 'nourl'; }
+  if(!d.uid){ if(!silent)flash('ใบนี้ไม่มี ID ส่งซ้ำไม่ได้','err'); return 'noid'; }
+  d.__busy=true; renderSession();
+  let ex=await existsInSheet(d.uid);
+  if(ex===true){ d.sent=true; delete d.__busy; saveLog(); renderSession(); if(!silent)flash('✅ '+(d.container||d.uid)+' — มีในชีทอยู่แล้ว เปลี่ยนเป็น “ส่งแล้ว” (ไม่ส่งซ้ำ กันข้อมูลซ้ำ)','ok'); return 'exist'; }
+  if(ex===null){ delete d.__busy; renderSession(); if(!silent)flash('เช็คไม่ได้ (เน็ตมีปัญหา) ลองใหม่','err'); return 'neterr'; }
+  try{ await fetch(url,{method:'POST',mode:'no-cors',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify(resendPayload(d))}); }catch(e){}
+  await new Promise(r=>setTimeout(r,1200));
+  let ok=await existsInSheet(d.uid);
+  delete d.__busy;
+  if(ok===true){ d.sent=true; saveLog(); renderSession(); if(!silent)flash('🟢 '+(d.container||d.uid)+' — ส่งขึ้นชีท + ยืนยันขึ้นจริงแล้ว','ok'); return 'sent'; }
+  renderSession(); if(!silent)flash('🟡 '+(d.container||d.uid)+' — ยังส่งไม่ได้ (เน็ตมีปัญหา) เก็บค้างไว้ ลองใหม่','err'); return 'fail';
+}
+async function resendAllPending(){
+  if(__resendingAll) return;
+  const idx=session.map((d,i)=>(!d.sent&&d.uid)?i:-1).filter(i=>i>=0);
+  if(!idx.length){ flash('ไม่มีใบค้าง ✓','ok'); return; }
+  __resendingAll=true; renderSession();
+  let done=0;
+  for(const i of idx){ const r=await resendItem(i,true); if(r==='exist'||r==='sent') done++; }
+  __resendingAll=false; renderSession();
+  flash('ส่งซ้ำเสร็จ — ขึ้นชีท '+done+'/'+idx.length+' ใบ'+(done<idx.length?' (เหลือค้าง '+(idx.length-done)+' ใบ เน็ตล่ม ลองใหม่ทีหลัง)':' ครบทุกใบ 🎉'),done===idx.length?'ok':'err');
+}
+
 function renderSession(){
   $("sessCount").textContent=session.length+" รายการ";
   if(!session.length){ $("sessBody").innerHTML='<div class="empty">ยังไม่มีรายการ — กรอกแล้วกดบันทึก</div>'; return; }
+  const pend=session.filter(d=>!d.sent).length;
+  const banner=pend>0
+    ? `<div class="resend-bar"><span>⚠️ มี <b>${pend}</b> ใบยังไม่ขึ้นชีท (เซฟค้างในเครื่องนี้) — ควรส่งซ้ำก่อนปิดเบราว์เซอร์</span><button class="rall" id="resendAllBtn" ${__resendingAll?'disabled':''}>${__resendingAll?'⟳ กำลังส่ง…':'⟳ ส่งซ้ำทั้งหมด'}</button></div>`
+    : '';
   const shown=showAllSession?session:session.slice(0,SESS_SHOW);
   const rows=shown.map((d,i)=>`<tr>
     <td>${d.date} ${d.time}</td><td class="mono">${escHtml(d.truck)}</td><td>${escHtml(d.driver)}</td>
     <td>${escHtml(d.customer)}</td><td class="mono">${escHtml(d.container)}</td>
-    <td>${escHtml(d.yardIn)} → ${escHtml(d.yardOut)}</td><td class="num">${d.total.toLocaleString('th-TH')}</td>
-    <td><span class="tag ${d.sent?'sent':'local'}">${d.sent?'ส่งแล้ว':'ในเครื่อง'}</span></td>
-    <td style="white-space:nowrap"><button class="btn btn-ghost pbtn" data-i="${i}" style="padding:5px 11px;font-size:12px">พิมพ์</button>
+    <td>${escHtml(d.yardIn)} → ${escHtml(d.yardOut)}</td><td class="num">${(d.total||0).toLocaleString('th-TH')}</td>
+    <td>${d.__busy?'<span class="tag" style="background:#1c2b44;color:#9cc0f0">⟳ กำลังส่ง…</span>':`<span class="tag ${d.sent?'sent':'local'}">${d.sent?'ส่งแล้ว':'ในเครื่อง'}</span>`}</td>
+    <td style="white-space:nowrap">${(!d.sent&&!d.__busy)?`<button class="rsend" data-i="${i}" title="เช็ค ID ในชีทก่อน แล้วส่งซ้ำถ้ายังไม่มี (กันข้อมูลซ้ำ)">⟳ ส่งซ้ำ</button>`:''}<button class="btn btn-ghost pbtn" data-i="${i}" style="padding:5px 11px;font-size:12px">พิมพ์</button>
       <button class="rmsess" data-i="${i}" title="เอาออกจากรายการ (ไม่แตะชีท)" style="border:none;background:none;color:var(--warn);font-weight:700;font-size:16px;cursor:pointer;padding:0 6px">×</button></td></tr>`).join('');
   const more=session.length>SESS_SHOW
     ? `<div style="text-align:center;padding:8px"><button class="btn btn-ghost" id="sessToggle" style="font-size:12.5px;padding:6px 14px">${showAllSession?'▲ ย่อ (แสดง '+SESS_SHOW+' ล่าสุด)':'▼ ดูทั้งหมด ('+session.length+' รายการ)'}</button></div>`
     : '';
-  $("sessBody").innerHTML=`<div style="overflow-x:auto"><table>
+  $("sessBody").innerHTML=`${banner}<div style="overflow-x:auto"><table>
     <thead><tr><th>วันเวลา</th><th>หัว</th><th>คนขับ</th><th>ลูกค้า</th><th>เบอร์ตู้</th><th>ลานรับ→คืน</th><th>รวมเบิก</th><th>สถานะ</th><th></th></tr></thead>
     <tbody>${rows}</tbody></table></div>${more}`;
   $("sessBody").querySelectorAll('.pbtn').forEach(b=>b.onclick=()=>printSlip(shown[+b.dataset.i]));
-  $("sessBody").querySelectorAll('.rmsess').forEach(b=>b.onclick=()=>removeSessionItem(showAllSession?+b.dataset.i:+b.dataset.i));
+  $("sessBody").querySelectorAll('.rsend').forEach(b=>b.onclick=()=>resendItem(+b.dataset.i));
+  $("sessBody").querySelectorAll('.rmsess').forEach(b=>b.onclick=()=>removeSessionItem(+b.dataset.i));
   const tg=$("sessToggle"); if(tg) tg.onclick=()=>{ showAllSession=!showAllSession; renderSession(); };
+  const rab=$("resendAllBtn"); if(rab) rab.onclick=resendAllPending;
 }
 function downloadCsv(){
   if(!session.length){ flash("ยังไม่มีรายการให้ดาวน์โหลด",'err'); return; }
