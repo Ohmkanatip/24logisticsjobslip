@@ -72,6 +72,40 @@
   .resend-bar .rall{background:var(--accent);color:#fff;border:none;border-radius:8px;padding:7px 14px;font-size:12.5px;font-weight:700;cursor:pointer;font-family:inherit;margin-left:auto}
   .resend-bar .rall:disabled{opacity:.5;cursor:default}
   .rsend{background:var(--accent);color:#fff;border:none;border-radius:7px;padding:5px 10px;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit;margin-right:4px}
+  /* ===== หน้ารอวางบิล ===== */
+  .billfilter{display:flex;gap:6px;flex-wrap:wrap}
+  .billfilter .fb{padding:6px 12px;border:1px solid var(--line);background:var(--field);border-radius:20px;font-size:12.5px;cursor:pointer;font-family:inherit;color:var(--ink-soft);font-weight:600}
+  .billfilter .fb.on{background:var(--accent);color:#fff;border-color:var(--accent)}
+  .billfilter .fb .b{display:inline-block;background:rgba(0,0,0,.12);border-radius:10px;padding:0 6px;margin-left:4px;font-size:11px}
+  .billfilter .fb.on .b{background:rgba(255,255,255,.25)}
+  .bill-bulk{display:flex;align-items:center;gap:8px;flex-wrap:wrap;background:var(--total-bg);color:var(--total-fg);border-radius:9px;padding:9px 12px;margin:0 0 10px;font-size:13px;position:sticky;top:4px;z-index:5}
+  .bill-bulk .btn{border:none;border-radius:7px;padding:7px 12px;font-size:12.5px;font-weight:700;cursor:pointer;font-family:inherit}
+  .bill-bulk .bp{background:var(--accent);color:#fff}.bill-bulk .bc{background:var(--ok);color:#fff}.bill-bulk .bx{background:transparent;color:#aeb8c8;margin-left:auto}
+  .bcard{border:1px solid var(--line);border-left:5px solid var(--line-strong);border-radius:10px;margin-bottom:11px;overflow:hidden;background:var(--panel)}
+  .bcard.st-printed{border-left-color:#e0a020;background:rgba(240,192,64,.06)}
+  .bcard.st-old{border-left-color:var(--warn)}
+  .bhead{display:flex;align-items:flex-start;gap:10px;padding:10px 12px}
+  .bhead .bchk{width:18px;height:18px;accent-color:var(--accent);flex:none;margin-top:2px}
+  .bhead .cust{font-weight:700;color:var(--accent)}
+  .bhead .meta{font-size:12px;color:var(--ink-soft);margin-top:2px}
+  .spill{font-size:11px;font-weight:700;border-radius:20px;padding:2px 10px;white-space:nowrap;flex:none}
+  .sp-white{background:var(--field);color:var(--ink-soft);border:1px solid var(--line)}
+  .sp-yellow{background:rgba(240,192,64,.2);color:#8a6100;border:1px solid #e0b84c}
+  .sp-red{background:rgba(178,59,46,.14);color:var(--warn);border:1px solid var(--warn)}
+  html[data-theme="dark"] .sp-yellow{color:#ffd57a}
+  .lchip{display:inline-block;background:#1a56db;color:#fff;font-size:10px;font-weight:700;border-radius:10px;padding:0 6px;margin-left:4px}
+  .brows{padding:0 12px 8px 30px}
+  .brow{display:flex;justify-content:space-between;font-size:12.5px;padding:4px 0;border-bottom:1px dashed var(--line);gap:8px}
+  .brow:last-child{border-bottom:none}.brow .d{color:var(--ink-soft);white-space:nowrap}
+  .brow.linked{background:var(--accent-soft);margin:0 -12px 0 -30px;padding:4px 12px 4px 30px}
+  .bstamp{font-size:11px;color:#8a6100;padding:0 12px 6px 30px;font-style:italic}
+  html[data-theme="dark"] .bstamp{color:#ffd57a}
+  .bstamp.old{color:var(--warn);font-weight:700}
+  .bacts{display:flex;gap:7px;padding:9px 12px;background:var(--paper);border-top:1px solid var(--line);flex-wrap:wrap}
+  .bacts .btn{border:none;border-radius:8px;padding:8px 13px;font-size:12.5px;font-weight:700;cursor:pointer;font-family:inherit}
+  .bacts .bview{background:var(--field);color:var(--ink)}
+  .bacts .bprint{background:var(--accent);color:#fff}
+  .bacts .bconfirm{background:var(--ok);color:#fff}
   #guardOvl{display:none;position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:9000;align-items:center;justify-content:center;padding:20px}
   #guardOvl .gcard{background:var(--panel);color:var(--ink);border-radius:14px;max-width:430px;width:100%;padding:20px;box-shadow:var(--shadow)}
   #guardOvl .gic{font-size:34px;text-align:center;margin-bottom:4px}
@@ -370,6 +404,23 @@
       <button class="btn btn-ghost" id="btnClearSess" style="color:var(--warn)">🧹 ล้างรายการ</button>
       <span class="hint" style="margin:0;align-self:center">ล้าง = ลบแค่รายการในเครื่องนี้ (ข้อมูลในชีทยังอยู่ครบ ค้นหาดึงกลับได้)</span>
     </div>
+  </div>
+
+  <div class="session" id="billCard">
+    <div class="session-head"><h3>🧾 รอวางบิล</h3><span class="count" id="billCount">—</span></div>
+    <div class="actions" style="background:var(--paper);border-top:none;align-items:center">
+      <button class="btn btn-primary" id="btnBillLoad">โหลดคิววางบิล</button>
+      <div class="billfilter" id="billFilter" style="display:none">
+        <button class="fb on" data-f="all">ทั้งหมด <span class="b" id="bc-all">0</span></button>
+        <button class="fb" data-f="unprinted">ยังไม่พิมพ์ <span class="b" id="bc-un">0</span></button>
+        <button class="fb" data-f="printed">พิมพ์แล้ว รอยืนยัน <span class="b" id="bc-pr">0</span></button>
+        <button class="fb" data-f="recent" title="บิลที่เพิ่งกดวางบิลวันนี้ — กดดึงกลับเข้าคิวได้ถ้าพลาด">↩ เพิ่งวางบิล</button>
+      </div>
+      <button class="btn btn-ghost" id="btnBillInit" style="display:none;color:var(--warn)" title="ตั้งค่าเริ่มต้นครั้งเดียว: ใบทั้งหมดที่มีตอนนี้ถือว่าวางบิลแล้ว คิวเริ่มสดจากใบใหม่">⚙️ ตั้งค่าเริ่มต้น (ใบเก่า=วางบิลแล้ว)</button>
+      <span class="hint" style="margin:0;align-self:center" id="billHint">คนวางบิลกด “โหลดคิววางบิล” เพื่อดูงานที่รอวางบิล</span>
+    </div>
+    <div id="billBulk" class="bill-bulk" style="display:none"></div>
+    <div id="billBody"><div class="empty">กด “โหลดคิววางบิล”</div></div>
   </div>
 
   <div class="session">
@@ -1074,6 +1125,172 @@ function renderSession(){
   const tg=$("sessToggle"); if(tg) tg.onclick=()=>{ showAllSession=!showAllSession; renderSession(); };
   const rab=$("resendAllBtn"); if(rab) rab.onclick=resendAllPending;
 }
+/* ============ หน้ารอวางบิล (คนวางบิลทำงานจบในที่เดียว) ============ */
+const BILL_DONE_TXT='วางบิลแล้ว', BILL_PRINT_TXT='พิมพ์แล้ว', BILL_OLD_DAYS=3;
+let billRows=[], billFilter='all', billSel={}, billMap={};
+function billWho(){ return (window.__me&&(window.__me.name||window.__me.email))||enteredUser||'เว็บ'; }
+function billGroupKey(r){ return (r.link&&String(r.link).indexOf('X:')!==0)?('G'+r.link):('U'+r.uid); }
+async function loadBillQueue(){
+  const url=endpoint(); if(!url.startsWith('http')){ flash('ยังไม่ได้ตั้ง Sheet URL','err'); return; }
+  $("billHint").textContent='กำลังโหลด…';
+  try{
+    const j=await callAct({act:'billqueue'});
+    if(j&&j.ok&&Array.isArray(j.rows)){ billRows=j.rows; $("billFilter").style.display='flex'; $("billHint").style.display='none'; if(adminToken)$("btnBillInit").style.display=''; renderBill(); }
+    else { flash('โหลดคิวไม่สำเร็จ','err'); $("billHint").textContent='โหลดไม่สำเร็จ ลองใหม่'; }
+  }catch(e){ flash('เชื่อมต่อไม่สำเร็จ','err'); $("billHint").textContent='เชื่อมต่อไม่สำเร็จ'; }
+}
+function billGroups(){
+  const g={}, order=[];
+  billRows.forEach(r=>{ const k=billGroupKey(r); if(!g[k]){ g[k]={key:k,cust:r.customer,rows:[],bill:'',billBy:'',billAtMs:0}; order.push(k); } g[k].rows.push(r); if((r.billAtMs||0)>g[k].billAtMs){ g[k].billAtMs=r.billAtMs; g[k].billBy=r.billBy; } });
+  order.forEach(k=>{ g[k].rows.sort((a,b)=>String(a.date).localeCompare(String(b.date)));
+    const rr=g[k].rows, hasEmpty=rr.some(r=>!String(r.bill||'').trim()), allDone=rr.every(r=>String(r.bill||'').trim()===BILL_DONE_TXT);
+    g[k].bill = hasEmpty ? '' : (allDone ? BILL_DONE_TXT : BILL_PRINT_TXT); }); // สถานะกลุ่มดูจากทุกแถว
+  let arr=order.map(k=>g[k]);
+  arr.sort((a,b)=>String(a.cust).localeCompare(String(b.cust))||String(a.rows[0].date).localeCompare(String(b.rows[0].date)));
+  billMap={}; arr.forEach(x=>billMap[x.key]=x);
+  return arr;
+}
+function billState(g){ return g.bill===BILL_PRINT_TXT?'printed':(g.bill===BILL_DONE_TXT?'done':'unprinted'); }
+function billDays(ms){ return ms?Math.floor((Date.now()-ms)/86400000):0; }
+function renderBill(){
+  const groups=billGroups();
+  const nUn=groups.filter(g=>billState(g)==='unprinted').length, nPr=groups.filter(g=>billState(g)==='printed').length;
+  $("billCount").textContent='รอวางบิล '+(nUn+nPr)+' บิล';
+  $("bc-all").textContent=nUn+nPr; $("bc-un").textContent=nUn; $("bc-pr").textContent=nPr;
+  const shown=groups.filter(g=>{ const s=billState(g); if(s==='done')return false; if(billFilter==='unprinted')return s==='unprinted'; if(billFilter==='printed')return s==='printed'; return true; });
+  const selKeys=Object.keys(billSel).filter(k=>billSel[k]&&billMap[k]);
+  const bb=$("billBulk");
+  if(selKeys.length){ bb.style.display='flex'; bb.innerHTML='เลือก '+selKeys.length+' บิล <button class="btn bp" onclick="billBulkPrint()">🖨 พิมพ์วางบิลที่เลือก</button><button class="btn bc" onclick="billBulkConfirm()">✓ ยืนยันวางบิลที่เลือก</button><button class="btn bx" onclick="billClearSel()">ล้าง</button>'; }
+  else bb.style.display='none';
+  if(!shown.length){ $("billBody").innerHTML='<div class="empty" style="color:var(--ok)">'+(billFilter==='printed'?'ไม่มีใบที่รอยืนยัน':(billFilter==='unprinted'?'ไม่มีใบที่ยังไม่พิมพ์ 🎉':'คิววางบิลว่างแล้ว 🎉'))+'</div>'; return; }
+  $("billBody").innerHTML=shown.map(billCard).join('');
+  $("billBody").querySelectorAll('.bchk').forEach(c=>c.onchange=()=>{ if(c.checked)billSel[c.dataset.k]=1; else delete billSel[c.dataset.k]; renderBill(); });
+  $("billBody").querySelectorAll('[data-act]').forEach(b=>b.onclick=()=>billAct(b.dataset.act,b.dataset.k));
+  document.querySelectorAll('.billfilter .fb').forEach(f=>f.classList.toggle('on',f.dataset.f===billFilter));
+}
+function billCard(g){
+  const s=billState(g), busy=billBusy[g.key], old=(s==='printed'&&billDays(g.billAtMs)>BILL_OLD_DAYS);
+  const pill= busy?'<span class="spill sp-white">⟳ กำลังบันทึก…</span>'
+    : s==='printed'?('<span class="spill '+(old?'sp-red':'sp-yellow')+'">'+(old?'🔴 ค้างนาน '+billDays(g.billAtMs)+' วัน':'🟡 พิมพ์แล้ว รอยืนยัน')+'</span>')
+    : '<span class="spill sp-white">⚪ ยังไม่พิมพ์</span>';
+  const lines=g.rows.map((r,i)=>{ const money=(Number(r.recv)||Number(r.ret))?('รับ '+(Number(r.recv)||0).toLocaleString()+' · คืน '+(Number(r.ret)||0).toLocaleString()):('รวมเบิก '+(Number(r.total)||0).toLocaleString());
+    return '<div class="brow'+(g.rows.length>1?' linked':'')+'"><span>'+(i+1)+'. '+escHtml(r.date)+' · '+escHtml(r.container||'-')+' · '+escHtml(r.driver||'-')+' ('+escHtml(r.truck||'-')+')'+(g.rows.length>1&&i>0?' <span class="lchip">ตู้ต่อ</span>':'')+'</span><span class="d">'+money+'</span></div>'; }).join('');
+  const stamp= s==='printed'?('<div class="bstamp'+(old?' old':'')+'">🖨 พิมพ์เมื่อ '+billDays(g.billAtMs)+' วันก่อน โดย '+escHtml(g.billBy||'-')+' — รอยืนยันปิดจ็อบ'+(old?' ⚠️ ค้างนานผิดปกติ':'')+'</div>'):'';
+  const grpchip=g.rows.length>1?'<span class="lchip">🔗 งานรวม '+g.rows.length+' บรรทัด</span>':'';
+  const acts= busy?'' : (s==='printed'
+    ? '<button class="btn bview" data-act="preview" data-k="'+g.key+'">👁 ดูตัวอย่าง</button><button class="btn bprint" data-act="print" data-k="'+g.key+'">🖨 พิมพ์ซ้ำ</button><button class="btn bconfirm" data-act="confirm" data-k="'+g.key+'">✓ ยืนยันวางบิล</button>'
+    : '<button class="btn bview" data-act="preview" data-k="'+g.key+'">👁 ดูตัวอย่าง</button><button class="btn bprint" data-act="print" data-k="'+g.key+'">🖨 พิมพ์วางบิล</button>');
+  return '<div class="bcard '+(s==='printed'?(old?'st-old':'st-printed'):'')+'">'
+    +'<div class="bhead"><input type="checkbox" class="bchk" data-k="'+g.key+'" '+(billSel[g.key]?'checked':'')+'>'
+    +'<div style="flex:1"><span class="cust">'+escHtml(g.cust||'-')+'</span> '+grpchip+'<div class="meta">ตู้ '+escHtml(g.rows.map(r=>r.container).filter(Boolean)[0]||'-')+' · รวมเบิก '+g.rows.reduce((s2,r)=>s2+(Number(r.total)||0),0).toLocaleString()+' บาท</div></div>'
+    +pill+'</div><div class="brows">'+lines+'</div>'+stamp
+    +'<div class="bacts">'+acts+'</div></div>';
+}
+let billBusy={};
+/* ดึงสถานะคิวสดจากชีทก่อนลงมือ (กัน 2 คนคนละเครื่องทำใบเดียวกัน) แล้ว re-lookup กลุ่มด้วย key เดิม */
+async function billFresh(){
+  try{ const j=await callAct({act:'billqueue'}); if(j&&j.ok&&Array.isArray(j.rows)){ billRows=j.rows; billGroups(); return true; } }catch(e){}
+  return false;
+}
+async function billAct(act,key){
+  if(billBusy[key]) return;
+  let g=billMap[key]; if(!g) return;
+  if(act==='preview'){ billPrintGroup(g,false); return; }   // ดูตัวอย่าง = อ่านอย่างเดียว ไม่แตะสถานะ
+  billBusy[key]=1; renderBill();
+  try{
+    await billFresh(); g=billMap[key];                        // เช็คสถานะสดก่อน
+    if(!g){ flash('บิลนี้ถูกจัดการไปแล้ว (รีเฟรชคิวให้แล้ว)','err'); return; }
+    if(act==='confirm'){
+      await new Promise(res=>billDialog('✓','ยืนยันวางบิล?','ตู้ '+escHtml(g.rows.map(r=>r.container).filter(Boolean)[0]||'')+' — ยืนยันแล้วจะหายจากคิว (ถ้าพลาด กดดึงกลับได้ในแท็บ “เพิ่งวางบิล”)','ยืนยันวางบิล','ยกเลิก',()=>{ g.__go=1; res(); },res));
+      if(g.__go){ await billSetInline(g.rows.map(r=>r.uid),'billed','✓ วางบิลแล้ว — หายจากคิว'); }
+      return;
+    }
+    if(act==='print'){
+      if(billState(g)==='printed'){ // สดแล้วยังพิมพ์แล้ว → เตือนซ้ำ
+        await new Promise(res=>billDialog('⚠️','ใบนี้พิมพ์วางบิลไปแล้ว','ตู้ '+escHtml(g.rows.map(r=>r.container).filter(Boolean)[0]||'')+' พิมพ์ไปแล้ว '+billDays(g.billAtMs)+' วันก่อน โดย <b>'+escHtml(g.billBy||'-')+'</b><br>ถ้าเป็นการพิมพ์ซ้ำโดยไม่ได้ตั้งใจ ให้กด “ไม่พิมพ์ซ้ำ”','พิมพ์ซ้ำอีกครั้ง','ไม่พิมพ์ซ้ำ',()=>{ g.__go=1; res(); },res));
+        if(g.__go) await billPrintGroup(g,false);
+        return;
+      }
+      await billPrintGroup(g,true);
+    }
+  } finally { delete billBusy[key]; renderBill(); }
+}
+async function billPrintGroup(g,markPrinted){
+  const url=endpoint(); if(!url.startsWith('http')){ flash('ยังไม่ได้ตั้ง Sheet URL','err'); return; }
+  const uids=g.rows.map(r=>r.uid);
+  const w=openLoadingWindow(); if(!w){ flash('เบราว์เซอร์บล็อกป๊อปอัป — อนุญาตป๊อปอัปก่อน','err'); return; }
+  const recs=combineLinked(await fetchRecs(uids));
+  if(!recs.length){ try{w.close();}catch(e){} flash('ดึงข้อมูลไม่สำเร็จ ลองใหม่','err'); return; }
+  openInvoice(recs,w);
+  if(markPrinted && billState(g)!=='printed'){ await billSetInline(uids,'printed','🖨 พิมพ์แล้ว — ขึ้น “รอยืนยัน” · เช็คก่อนกดยืนยันปิดจ็อบ'); }
+}
+/* setbill แบบไม่ reload ทั้งหน้า (ผู้เรียกจัดการ render เอง — ใช้ตอนอยู่ใน busy lock) */
+async function billSetInline(uids,state,okMsg){
+  try{ const j=await callAct({act:'setbill',uids:uids.join(','),state:state,by:billWho()});
+    if(j&&j.ok){ flash(okMsg||'บันทึกแล้ว','ok'); await billFresh(); }
+    else flash('บันทึกสถานะไม่สำเร็จ'+((j&&j.result)?': '+j.result:''),'err');
+  }catch(e){ flash('เชื่อมต่อไม่สำเร็จ ลองใหม่','err'); }
+}
+async function billSet(uids,state,okMsg){ await billSetInline(uids,state,okMsg); renderBill(); }
+async function billBulkPrint(){
+  const keys=Object.keys(billSel).filter(k=>billSel[k]&&billMap[k]); if(!keys.length) return;
+  const groups=keys.map(k=>billMap[k]);
+  const uids=[]; groups.forEach(g=>g.rows.forEach(r=>uids.push(r.uid)));
+  const w=openLoadingWindow(); if(!w){ flash('เบราว์เซอร์บล็อกป๊อปอัป — อนุญาตป๊อปอัปก่อน','err'); return; }
+  const recs=combineLinked(await fetchRecs(uids));
+  if(!recs.length){ try{w.close();}catch(e){} flash('ดึงข้อมูลไม่สำเร็จ','err'); return; }
+  openBulkInvoice(recs,w);
+  const pu=[]; groups.forEach(g=>{ if(billState(g)!=='printed') g.rows.forEach(r=>pu.push(r.uid)); });
+  billSel={};
+  if(pu.length){ await billSetInline(pu,'printed','🖨 พิมพ์วางบิล '+groups.length+' บิล → ขึ้น “รอยืนยัน”'); } else { flash('เปิดพิมพ์แล้ว (ทุกบิลเคยพิมพ์ไปก่อนหน้า)','ok'); }
+  renderBill();
+}
+function billBulkConfirm(){
+  const keys=Object.keys(billSel).filter(k=>billSel[k]&&billMap[k]); if(!keys.length) return;
+  billDialog('✓','ยืนยันวางบิล '+keys.length+' บิล?','บิลที่เลือกจะถูกทำเป็น “วางบิลแล้ว” และหายจากคิวพร้อมกัน<br>ถ้าพลาด กดดึงกลับได้ในแท็บ “เพิ่งวางบิล”','ยืนยันทั้งหมด','ยกเลิก',async()=>{
+    const ks=Object.keys(billSel).filter(k=>billSel[k]&&billMap[k]); const uids=[]; ks.forEach(k=>billMap[k].rows.forEach(r=>uids.push(r.uid))); billSel={};
+    await billSetInline(uids,'billed','✓ ยืนยันวางบิล '+ks.length+' บิลพร้อมกัน — หายจากคิว'); renderBill();
+  });
+}
+/* แท็บ “เพิ่งวางบิล” (วันนี้) — กดดึงกลับเข้าคิวได้ ถ้ากดยืนยันพลาด */
+async function loadBillRecent(){
+  try{ const j=await callAct({act:'billrecent'}); if(j&&j.ok&&Array.isArray(j.rows)){ billRecentRows=j.rows; renderBillRecent(); } else flash('โหลดไม่สำเร็จ','err'); }
+  catch(e){ flash('เชื่อมต่อไม่สำเร็จ','err'); }
+}
+let billRecentRows=[];
+function renderBillRecent(){
+  const g={},order=[];
+  billRecentRows.forEach(r=>{ const k=(r.link&&String(r.link).indexOf('X:')!==0)?('G'+r.link):('U'+r.uid); if(!g[k]){ g[k]={key:k,cust:r.customer,rows:[],billBy:r.billBy}; order.push(k);} g[k].rows.push(r); });
+  if(!order.length){ $("billBody").innerHTML='<div class="empty">วันนี้ยังไม่มีบิลที่เพิ่งวางบิล</div>'; return; }
+  $("billBody").innerHTML=order.map(k=>{ const x=g[k]; const cont=x.rows.map(r=>r.container).filter(Boolean)[0]||'-';
+    return '<div class="bcard st-printed"><div class="bhead"><div style="flex:1"><span class="cust">'+escHtml(x.cust||'-')+'</span> '+(x.rows.length>1?'<span class="lchip">🔗 '+x.rows.length+' บรรทัด</span>':'')+'<div class="meta">ตู้ '+escHtml(cont)+' · โดย '+escHtml(x.billBy||'-')+'</div></div><span class="spill sp-yellow">🟢 วางบิลแล้ววันนี้</span></div><div class="bacts"><button class="btn bview" onclick="billUndo(\''+x.key+'\')">↩ ดึงกลับเข้าคิว</button></div></div>';
+  }).join('');
+}
+async function billUndo(key){
+  const g={}; billRecentRows.forEach(r=>{ const k=(r.link&&String(r.link).indexOf('X:')!==0)?('G'+r.link):('U'+r.uid); (g[k]=g[k]||[]).push(r); });
+  const rows=g[key]; if(!rows) return;
+  try{ const j=await callAct({act:'setbill',uids:rows.map(r=>r.uid).join(','),state:'reset',by:billWho()});
+    if(j&&j.ok){ flash('↩ ดึงกลับเข้าคิวแล้ว','ok'); loadBillRecent(); } else flash('ไม่สำเร็จ','err');
+  }catch(e){ flash('เชื่อมต่อไม่สำเร็จ','err'); }
+}
+function billClearSel(){ billSel={}; renderBill(); }
+function billDialog(icon,title,bodyHtml,okText,cancelText,onOk,onCancel){
+  let ov=document.getElementById('billOvl'); if(ov) ov.remove();
+  ov=document.createElement('div'); ov.id='billOvl'; let done=false;
+  const fin=(fn)=>{ if(done)return; done=true; ov.remove(); if(fn)fn(); };
+  ov.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:9000;display:flex;align-items:center;justify-content:center;padding:20px';
+  ov.innerHTML='<div style="background:var(--panel);color:var(--ink);border-radius:14px;max-width:420px;width:100%;padding:20px;box-shadow:var(--shadow)"><div style="font-size:32px;text-align:center">'+icon+'</div><h3 style="text-align:center;margin:6px 0 10px;font-size:17px">'+title+'</h3><div style="font-size:13.5px;line-height:1.65;color:var(--ink)">'+bodyHtml+'</div><div style="display:flex;gap:8px;margin-top:14px"><button id="bdCancel" style="flex:1;padding:11px;border-radius:9px;border:1px solid var(--line-strong);background:transparent;color:var(--ink);font-weight:700;cursor:pointer;font-family:inherit">'+(cancelText||'ยกเลิก')+'</button><button id="bdOk" style="flex:1;padding:11px;border-radius:9px;border:none;background:var(--warn);color:#fff;font-weight:700;cursor:pointer;font-family:inherit">'+okText+'</button></div></div>';
+  document.body.appendChild(ov);
+  ov.onclick=e=>{ if(e.target===ov) fin(onCancel); };
+  document.getElementById('bdCancel').onclick=()=>fin(onCancel);
+  document.getElementById('bdOk').onclick=()=>fin(onOk);
+}
+function billInitRun(){
+  billDialog('⚙️','ตั้งค่าเริ่มต้นครั้งเดียว','ระบบจะทำเครื่องหมายว่า <b>ใบทั้งหมดที่มีตอนนี้ = วางบิลแล้ว</b> เพื่อให้คิว “รอวางบิล” เริ่มสดจากใบใหม่ที่จดหลังจากนี้<br><br>ทำครั้งเดียวตอนเริ่มใช้ · ใบเก่าไม่ได้ถูกลบ แค่ไม่ขึ้นคิว','ยืนยันตั้งค่าเริ่มต้น','ยกเลิก',async()=>{
+    try{ const j=await callAct({act:'billinit'}); if(j&&j.ok){ flash('ตั้งค่าเริ่มต้นแล้ว — ใบเก่า '+String(j.result).replace(/[^0-9]/g,'')+' ใบถือว่าวางบิลแล้ว','ok'); loadBillQueue(); } else if(j&&j.result==='billinit-already'){ flash('เคยตั้งค่าเริ่มต้นไปแล้ว — ข้ามได้เลย (กันเผลอกดซ้ำ)','ok'); } else flash('ไม่สำเร็จ'+((j&&j.result)?': '+j.result:''),'err'); }catch(e){ flash('เชื่อมต่อไม่สำเร็จ','err'); }
+  });
+}
+
 function downloadCsv(){
   if(!session.length){ flash("ยังไม่มีรายการให้ดาวน์โหลด",'err'); return; }
   const cols=["date","time","type","customer","container","driver","truck","trailer","c_pier","c_lift","c_swap","c_recv","c_return","c_toll","c_mflow","c_maint","maint","c_other","total","advance","net","driver2","truck2","trailer2","dateIn","dropoff","dropoffAt","dateOut","status","returned","size","yardIn","yardOut","loadPlace","mark","otherNote","savedAt","enteredBy","uid"];
@@ -1554,6 +1771,9 @@ function renderEditLog(rows){
 }
 $("btnSearch").addEventListener('click',doSearch);
 $("btnHistory").addEventListener('click',showHistory);
+$("btnBillLoad").addEventListener('click',loadBillQueue);
+$("btnBillInit").addEventListener('click',billInitRun);
+document.querySelectorAll('.billfilter .fb').forEach(f=>f.addEventListener('click',()=>{ billFilter=f.dataset.f; document.querySelectorAll('.billfilter .fb').forEach(x=>x.classList.toggle('on',x.dataset.f===billFilter)); $("billBulk").style.display='none'; if(billFilter==='recent') loadBillRecent(); else loadBillQueue(); }));
 $("btnTrash").addEventListener('click',doTrash);
 $("btnOpenCont").addEventListener('click',showOpenContainers);
 $("btnSummary").addEventListener('click',sendSummary);
