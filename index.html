@@ -1036,7 +1036,9 @@ async function save(){
   if(!d.truck){ flash("กรุณาเลือกทะเบียนหัว",'err'); return; }
   if(!d.date){ flash("กรุณาระบุวันที่",'err'); return; }
   if(!guardCheck(d)) return; // กันโอนซ้ำ: เช็คเงินก้อนคนขับก่อนบันทึก (ข้อมูลในเครื่อง ไม่หน่วง)
-  const btn=$("btnSave"); btn.disabled=true;
+  const btn=$("btnSave");
+  if(btn.disabled) return; // กันเรียกซ้อน — Ctrl+Enter เรียก save() ตรงๆ ไม่สนปุ่ม disabled กดรัวจะได้ใบซ้ำ
+  btn.disabled=true;
   const url=epUrl.value.trim();
 
   if(editUid){ // ---- โหมดแก้ไข (แอดมิน หรือ พนักงานที่ตั้งชื่อผู้กรอกแล้ว) ----
@@ -1083,7 +1085,7 @@ async function save(){
   // no-cors อ่านคำตอบไม่ได้อยู่แล้ว การ await จึงไม่ได้ข้อมูลอะไรเพิ่ม แค่ทำให้คนรอเปล่าๆ
   // เคลียร์ฟอร์มทันที แล้วให้ป้าย "⟳ กำลังส่ง…" กับตัวตรวจอัตโนมัติเป็นคนบอกผลจริงทีหลัง
   session.unshift({...dlog,sent:false,__busy:true}); saveLog(); renderSession();
-  flash('บันทึกแล้ว ✓ จดใบต่อไปได้เลย — กำลังส่งขึ้นชีท…','ok');
+  flash('บันทึกแล้ว ✓ จดใบต่อไปได้เลย — ระบบส่งขึ้นชีทให้เอง','ok');
   selectedPhotos=[]; renderPhotoPrev(); resetJobFields();
   // กันกดซ้ำ: เดิมปุ่มค้างตลอดที่รอเซิร์ฟเวอร์ ตอนนี้ไม่รอแล้วจึงต้องหน่วงเอง
   // (resetJobFields ไม่ล้างทะเบียนหัว/วันที่ กดพลาดสองทีจะได้ใบซ้ำในชีททันที)
@@ -2391,7 +2393,7 @@ async function buildBulkFromSelection(){
   openBulkInvoice(recs,w);
 }
 $("btnSave").addEventListener('click',save);
-$("btnClear").addEventListener('click',clearAll);
+$("btnClear").addEventListener('click',()=>{ exitEdit(); clearAll(); }); // ล้างฟอร์ม = ออกจากโหมดแก้ไขด้วย — เดิมค้าง editUid เงียบๆ ทำให้ใบต่อไปกลายเป็น "อัปเดตทับใบเก่า" โดยไม่รู้ตัว
 $("btnCsv").addEventListener('click',downloadCsv);
 $("btnClearSess").addEventListener('click',clearSession);
 document.addEventListener('keydown',e=>{ if((e.ctrlKey||e.metaKey)&&e.key==='Enter') save(); });
