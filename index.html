@@ -834,7 +834,24 @@ const endpoint=()=>epUrl.value.trim();
 /* ---- รหัสเข้าใช้งานระบบ (กันคนนอก) — แนบไปกับทุกคำขอ ---- */
 let appToken=(()=>{ try{ return localStorage.getItem('jobform_app')||''; }catch(e){ return ''; } })();
 function setAppToken(t){ appToken=t||''; try{ appToken?localStorage.setItem('jobform_app',appToken):localStorage.removeItem('jobform_app'); }catch(e){} }
-const APPQS=()=>'&idt='+encodeURIComponent(window.idToken||''); // แนบ Google ID token ไปกับทุก GET (ระบบล็อกอินใหม่)
+/* ---- บัตรผ่าน 30 วัน (session) ----
+   Google ID token อายุ 1 ชม. เปลี่ยนไม่ได้ · พอหมดอายุ Apps Script ปฏิเสธการเซฟเงียบๆ
+   บัตรผ่านนี้ Apps Script เป็นคนออกให้ (เก็บในแท็บ users) แล้วเราแนบไปกับทุกคำขอแทน
+   → ต่อให้ token ของ Google หมดอายุ การเซฟก็ยังขึ้นชีทตามปกติ
+   เจ้าของเพิกถอนได้ตลอด: เปลี่ยนสถานะเป็น disabled หรือลบบัตรในแท็บ users */
+const SESSKEY='jobform_sess', SESSEXPKEY='jobform_sess_exp';
+window.sessToken=(()=>{ try{ return localStorage.getItem(SESSKEY)||''; }catch(e){ return ''; } })();
+window.sessExp=(()=>{ try{ return +localStorage.getItem(SESSEXPKEY)||0; }catch(e){ return 0; } })();
+function setSession(tok,exp){
+  window.sessToken=tok||''; window.sessExp=+exp||0;
+  try{
+    if(tok){ localStorage.setItem(SESSKEY,tok); localStorage.setItem(SESSEXPKEY,String(window.sessExp)); }
+    else { localStorage.removeItem(SESSKEY); localStorage.removeItem(SESSEXPKEY); }
+  }catch(e){}
+}
+function sessionOk(){ return !!window.sessToken && window.sessExp>Date.now()+60000; }
+const SESSQS=()=>(window.sessToken?'&sess='+encodeURIComponent(window.sessToken):'');
+const APPQS=()=>'&idt='+encodeURIComponent(window.idToken||'')+SESSQS(); // แนบ Google ID token + บัตรผ่าน ไปกับทุก GET
 /* ตรวจรหัสตอนเปิดเว็บ: ถ้า backend บังคับรหัสแต่ยังไม่มี/ไม่ถูก → ให้ใส่ */
 async function ensureAppAccess(){
   const url=endpoint(); if(!url.startsWith('http')) return true;
@@ -896,14 +913,14 @@ function guardCheck(d){ // true = บันทึกต่อได้
 /* seed: เขียนค่าปัจจุบันทั้งชุดขึ้น Sheet (ใช้เฉพาะตอน Sheet ว่าง) */
 function seedMaster(){
   const url=endpoint(); if(!url.startsWith('http')) return;
-  const payload={_master:true, seed:true, trucks:store.trucks, lists:store.lists, custBook:store.custBook, app:appToken, idt:(window.idToken||'')};
+  const payload={_master:true, seed:true, trucks:store.trucks, lists:store.lists, custBook:store.custBook, app:appToken, idt:(window.idToken||''), sess:(window.sessToken||'')};
   try{ fetch(url,{method:'POST',mode:'no-cors',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify(payload)}); }catch(e){}
 }
 
 /* ส่งการแก้ทีละรายการ (เพิ่ม/ลบ) — ไม่ทับของคนอื่น */
 function opMaster(op,kind,value){
   const url=endpoint(); if(!url.startsWith('http')) return;
-  const payload={_master:true, op:op, kind:kind, value:value, app:appToken, idt:(window.idToken||'')};
+  const payload={_master:true, op:op, kind:kind, value:value, app:appToken, idt:(window.idToken||''), sess:(window.sessToken||'')};
   try{ fetch(url,{method:'POST',mode:'no-cors',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify(payload)}); }catch(e){}
 }
 
@@ -1005,11 +1022,14 @@ function tokenLeftSec(){ // วินาทีที่เหลือ · null =
   }catch(e){ return null; }
 }
 const TOKEN_MIN_LEFT=120; // เหลือน้อยกว่านี้ (วินาที) = ถือว่าใช้ไม่ได้แล้ว ไม่ต้องเสียเวลายิง
-function tokenExpired(){ const l=tokenLeftSec(); return l!==null && l<TOKEN_MIN_LEFT; }
+function tokenExpired(){
+  if(sessionOk()) return false;   // มีบัตรผ่าน 30 วันที่ยังใช้ได้ → ไม่ต้องพึ่ง token ของ Google
+  const l=tokenLeftSec(); return l!==null && l<TOKEN_MIN_LEFT;
+}
 
 async function save(){
   const d=collect();
-  d.app=appToken; d.idt=(window.idToken||''); // แนบ Google ID token (ระบบล็อกอินใหม่)
+  d.app=appToken; d.idt=(window.idToken||''); d.sess=(window.sessToken||''); // แนบ Google ID token + บัตรผ่าน
   if(!d.truck){ flash("กรุณาเลือกทะเบียนหัว",'err'); return; }
   if(!d.date){ flash("กรุณาระบุวันที่",'err'); return; }
   if(!guardCheck(d)) return; // กันโอนซ้ำ: เช็คเงินก้อนคนขับก่อนบันทึก (ข้อมูลในเครื่อง ไม่หน่วง)
@@ -1020,7 +1040,7 @@ async function save(){
     if(!adminToken && !enteredUser){ flash('ตั้งชื่อผู้กรอกก่อนแก้ไข (ปุ่ม “ตั้งผู้กรอก” มุมขวาบน)','err'); btn.disabled=false; return; }
     d.uid=editUid; d.enteredBy=editEnteredBy||enteredUser; // คงชื่อผู้กรอกเดิมไว้
     if(url.startsWith('http')){
-      try{ await fetch(url,{method:'POST',mode:'no-cors',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify({_edit:true,token:adminToken,byEmp:enteredUser,uid:editUid,rec:d,app:appToken,idt:(window.idToken||'')})}); }catch(e){}
+      try{ await fetch(url,{method:'POST',mode:'no-cors',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify({_edit:true,token:adminToken,byEmp:enteredUser,uid:editUid,rec:d,app:appToken,idt:(window.idToken||''),sess:(window.sessToken||'')})}); }catch(e){}
     }
     const i=session.findIndex(x=>x.uid===editUid);
     if(i>-1){ session[i]={...d,sent:true}; } else { session.unshift({...d,sent:true}); }
@@ -1094,7 +1114,7 @@ async function autoVerify(uid){
   d.sent=false; saveLog(); renderSession();
   flash('⚠️ '+(d.container||uid)+' — เว็บขึ้นว่าส่งแล้ว แต่ไม่พบในชีทจริง! เปลี่ยนเป็น “ในเครื่อง” — ตรวจว่ายังล็อกอินอยู่ แล้วกด “⟳ ส่งซ้ำทั้งหมด”','err');
 }
-function resendPayload(d){ const p={...d}; delete p.sent; delete p.__busy; p.photos=[]; p.app=appToken; p.idt=(window.idToken||''); return p; }
+function resendPayload(d){ const p={...d}; delete p.sent; delete p.__busy; p.photos=[]; p.app=appToken; p.idt=(window.idToken||''); p.sess=(window.sessToken||''); return p; }
 async function resendItem(i,silent){
   const d=session[i]; if(!d||d.sent) return 'skip';
   const url=endpoint(); if(!url.startsWith('http')){ if(!silent)flash('ยังไม่ได้ตั้ง Sheet URL','err'); return 'nourl'; }
@@ -2397,12 +2417,19 @@ recalc();
     var url=ep();
     if(!url||!/^https?:/.test(url)){ enterApp(); return; } // ยังไม่ตั้ง Sheet URL → เข้าไปตั้งก่อน (เซิร์ฟเวอร์ยังกันทุก request)
     try{
-      var r=await fetch(url+(url.includes('?')?'&':'?')+'verifyauth=1&idt='+encodeURIComponent(window.idToken));
+      var r=await fetch(url+(url.includes('?')?'&':'?')+'verifyauth=1&idt='+encodeURIComponent(window.idToken||'')+SESSQS());
       var j=await r.json();
-      if(j&&j.ok){ window.__me.role=j.role||'staff'; if(j.name) window.__me.name=j.name; enterApp(); }
-      else if(j&&j.status==='pending'){ showPending(window.__me.email); }
-      else if(j&&j.status==='disabled'){ showBlocked('บัญชีนี้ถูกปิดสิทธิ์การใช้งาน'); }
-      else { showBlocked(); }
+      if(j&&j.ok){
+        window.__me=window.__me||{};
+        window.__me.role=j.role||'staff';
+        if(j.name) window.__me.name=j.name;
+        if(j.email) window.__me.email=j.email;
+        if(j.sess) setSession(j.sess,j.sessExp);   // รับบัตรผ่าน/ต่ออายุบัตร
+        enterApp();
+      }
+      else if(j&&j.status==='pending'){ setSession('',0); showPending((window.__me&&window.__me.email)||j.email||''); }
+      else if(j&&j.status==='disabled'){ setSession('',0); showBlocked('บัญชีนี้ถูกปิดสิทธิ์การใช้งาน'); }
+      else { setSession('',0); if(window.idToken) showBlocked(); else showLogin(); } // บัตรหมดอายุ/ถูกเพิกถอน → กลับไปล็อกอิน Google ใหม่
     }catch(e){ enterApp(); } // endpoint มีปัญหา → ปล่อยเข้า (เซิร์ฟเวอร์ยังกันอยู่)
   }
 
@@ -2440,6 +2467,7 @@ recalc();
   function doLogout(){
     try{ if(window.google&&google.accounts&&google.accounts.id) google.accounts.id.disableAutoSelect(); }catch(e){}
     window.idToken=''; window.__me=null;
+    try{ setSession('',0); }catch(e){}   // ทิ้งบัตรผ่านของเครื่องนี้ด้วย
     try{ localStorage.removeItem('jobform_user'); }catch(e){}
     location.reload();
   }
@@ -2494,8 +2522,18 @@ recalc();
     }catch(e){ if(window.flash) flash('ผิดพลาด','err'); }
   }
 
-  if(document.readyState!=='loading') showLogin();
-  else document.addEventListener('DOMContentLoaded',showLogin);
+  /* เปิดเว็บ: ถ้ามีบัตรผ่านที่ยังไม่หมดอายุ เข้าได้เลยไม่ต้องรอ Google (ล็อกอินครั้งเดียว ใช้ 30 วัน)
+     ถ้าบัตรถูกเพิกถอน/หมดอายุ เซิร์ฟเวอร์จะปฏิเสธ แล้วเด้งกลับหน้าล็อกอินให้เอง */
+  function boot(){
+    if(sessionOk()){
+      inner.innerHTML='<div class="auth-emoji" style="font-size:30px">⏳</div><div class="co">กำลังเข้าสู่ระบบ…</div>';
+      checkStatus();
+      return;
+    }
+    showLogin();
+  }
+  if(document.readyState!=='loading') boot();
+  else document.addEventListener('DOMContentLoaded',boot);
 })();
 </script>
 </body>
