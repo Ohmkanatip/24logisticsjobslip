@@ -991,6 +991,22 @@ function collect(){
 }
 const now2=()=>new Date().toTimeString().slice(0,5);
 
+/* ---- ตรวจอายุล็อกอิน Google ก่อนส่ง ----
+   Google ID token มีอายุ 1 ชม. (เปลี่ยนไม่ได้) พอหมดอายุ Apps Script จะปฏิเสธและไม่เขียนชีท
+   แต่เราส่งแบบ no-cors จึงอ่านคำตอบไม่ได้ → เดิมจะขึ้น "ส่งแล้ว" ทั้งที่ชีทไม่มีอะไรเลย
+   (เคสจริง 6 ส.ค. 2569: บันทึกได้ถึง 07:35 แล้วเงียบไปทั้งเช้า)
+   ตรวจก่อนส่งจะได้ไม่ยิงทิ้งเปล่า และเก็บใบไว้ในเครื่องให้ครบ */
+function tokenLeftSec(){ // วินาทีที่เหลือ · null = ไม่ได้ใช้ล็อกอิน Google (ระบบเก่า/ยังไม่เปิด)
+  const t=window.idToken||''; if(!t) return null;
+  try{
+    const b=t.split('.')[1].replace(/-/g,'+').replace(/_/g,'/');
+    const p=JSON.parse(decodeURIComponent(escape(atob(b))));
+    return p.exp?Math.round(p.exp-Date.now()/1000):null;
+  }catch(e){ return null; }
+}
+const TOKEN_MIN_LEFT=120; // เหลือน้อยกว่านี้ (วินาที) = ถือว่าใช้ไม่ได้แล้ว ไม่ต้องเสียเวลายิง
+function tokenExpired(){ const l=tokenLeftSec(); return l!==null && l<TOKEN_MIN_LEFT; }
+
 async function save(){
   const d=collect();
   d.app=appToken; d.idt=(window.idToken||''); // แนบ Google ID token (ระบบล็อกอินใหม่)
@@ -1014,13 +1030,20 @@ async function save(){
   }
 
   let sent=false;
-  if(url.startsWith('http')){
+  const expired=tokenExpired();
+  if(expired){
+    // ล็อกอินหมดอายุ — ยิงไปเซิร์ฟเวอร์ก็ไม่รับ (และ no-cors จะหลอกเราว่า "ส่งแล้ว")
+    // จึงไม่ยิงเลย เก็บไว้ในเครื่องแทน ข้อมูลไม่หาย ล็อกอินใหม่แล้วกด ⟳ ส่งซ้ำได้
+  } else if(url.startsWith('http')){
     try{ await fetch(url,{method:'POST',mode:'no-cors',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify(d)}); sent=true; }catch(e){ sent=false; }
   }
   const dlog={...d}; dlog.photos=(d.photos&&d.photos.length)?('📷 '+d.photos.length+' รูป'):''; // ไม่เก็บ base64 ในเครื่อง
   session.unshift({...dlog,sent}); saveLog(); renderSession();
-  flash(sent?("บันทึกเข้า Sheet แล้ว ✓"+(d.photos&&d.photos.length?" (อัปโหลดรูปแล้ว)":"")):"เก็บไว้ในเครื่องแล้ว (ยังไม่ต่อ Sheet)",sent?'ok':'err');
+  flash(expired?"⚠️ ล็อกอินหมดอายุ — เก็บไว้ในเครื่องแล้ว (ยังไม่ขึ้นชีท) กรุณาล็อกอินใหม่ แล้วกด “⟳ ส่งซ้ำทั้งหมด”"
+       :sent?("บันทึกแล้ว — กำลังตรวจกับชีท…"+(d.photos&&d.photos.length?" (อัปโหลดรูปแล้ว)":""))
+       :"เก็บไว้ในเครื่องแล้ว (ยังไม่ต่อ Sheet)", sent?'ok':'err');
   selectedPhotos=[]; renderPhotoPrev(); resetJobFields(); btn.disabled=false;
+  if(sent&&d.uid) setTimeout(()=>autoVerify(d.uid),5000); // ตรวจกับชีทจริง กันเคส "ขึ้นว่าส่งแล้วแต่ไม่มีในชีท"
 }
 function resetJobFields(){
   ['f_container','f_loadPlace','f_mark','f_otherNote','f_trailer',
@@ -1048,15 +1071,36 @@ function removeSessionItem(i){ session.splice(i,1); saveLog(); renderSession(); 
 
 /* ---- ส่งซ้ำข้อมูลที่ค้างในเครื่อง (รีอัพโหลด) — เช็ค ID ในชีทก่อนเสมอ กันข้อมูลซ้ำ ---- */
 let __resendingAll=false;
-async function existsInSheet(uid){ // true=มีในชีท / false=ยังไม่มี / null=เช็คไม่ได้(เน็ต)
+async function existsInSheet(uid){ // true=มีในชีท / false=ยังไม่มี / null=เช็คไม่ได้(เน็ต/ล็อกอินหมดอายุ)
   const url=endpoint(); if(!url.startsWith('http')||!uid) return null;
-  try{ const r=await fetch(url+(url.includes('?')?'&':'?')+'one='+encodeURIComponent(uid)+APPQS()); const j=await r.json(); return !!(j&&j.ok&&j.rec); }catch(e){ return null; }
+  try{
+    const r=await fetch(url+(url.includes('?')?'&':'?')+'one='+encodeURIComponent(uid)+APPQS());
+    const j=await r.json();
+    // เซิร์ฟเวอร์ปฏิเสธเพราะล็อกอินหมดอายุ/ไม่มีสิทธิ์ = "เช็คไม่ได้" ไม่ใช่ "ไม่มีในชีท"
+    // (ถ้าไม่แยกตรงนี้ ตอน token หมดอายุจะเตือนผิดว่าใบหายทั้งที่อยู่ในชีทครบ)
+    if(j&&j.ok===false&&(j.result==='auth'||j.result==='app-forbidden')) return null;
+    return !!(j&&j.ok&&j.rec);
+  }catch(e){ return null; }
+}
+/* ---- ตรวจอัตโนมัติหลังบันทึก 5 วิ ----
+   เซฟผ่าน no-cors อ่านคำตอบไม่ได้ → "ส่งแล้ว" เป็นแค่การเดา
+   ตัวนี้เช็คกับชีทจริงด้วย ?one= (อ่านคำตอบได้จริง) แล้วแก้ป้ายให้ตรงความจริง
+   ไม่พบ = เปลี่ยนเป็น "ในเครื่อง" + เตือน ให้กด ⟳ ส่งซ้ำ */
+async function autoVerify(uid){
+  const i=session.findIndex(x=>x.uid===uid); if(i<0) return;
+  const d=session[i]; if(!d||!d.sent||d.__busy) return;
+  const ex=await existsInSheet(uid);
+  if(ex!==false) return;              // true=อยู่จริง · null=เช็คไม่ได้(เน็ต) → ปล่อยไว้ ให้ 🔄 ตรวจเองทีหลัง
+  d.sent=false; saveLog(); renderSession();
+  flash('⚠️ '+(d.container||uid)+' — เว็บขึ้นว่าส่งแล้ว แต่ไม่พบในชีทจริง! เปลี่ยนเป็น “ในเครื่อง” — ตรวจว่ายังล็อกอินอยู่ แล้วกด “⟳ ส่งซ้ำทั้งหมด”','err');
 }
 function resendPayload(d){ const p={...d}; delete p.sent; delete p.__busy; p.photos=[]; p.app=appToken; p.idt=(window.idToken||''); return p; }
 async function resendItem(i,silent){
   const d=session[i]; if(!d||d.sent) return 'skip';
   const url=endpoint(); if(!url.startsWith('http')){ if(!silent)flash('ยังไม่ได้ตั้ง Sheet URL','err'); return 'nourl'; }
   if(!d.uid){ if(!silent)flash('ใบนี้ไม่มี ID ส่งซ้ำไม่ได้','err'); return 'noid'; }
+  // ล็อกอินหมดอายุ = ส่งซ้ำไปก็ไม่ขึ้นชีท บอกให้ตรงสาเหตุ ไม่ใช่โทษเน็ต
+  if(tokenExpired()){ if(!silent)flash('⚠️ ล็อกอินหมดอายุ — รีเฟรชหน้าเว็บเพื่อเข้าสู่ระบบใหม่ก่อน แล้วค่อยกดส่งซ้ำ','err'); return 'auth'; }
   d.__busy=true; renderSession();
   let ex=await existsInSheet(d.uid);
   if(ex===true){ d.sent=true; delete d.__busy; saveLog(); renderSession(); if(!silent)flash('✅ '+(d.container||d.uid)+' — มีในชีทอยู่แล้ว เปลี่ยนเป็น “ส่งแล้ว” (ไม่ส่งซ้ำ กันข้อมูลซ้ำ)','ok'); return 'exist'; }
@@ -1072,6 +1116,8 @@ async function resendAllPending(){
   if(__resendingAll) return;
   const idx=session.map((d,i)=>(!d.sent&&d.uid)?i:-1).filter(i=>i>=0);
   if(!idx.length){ flash('ไม่มีใบค้าง ✓','ok'); return; }
+  // เช็คครั้งเดียวก่อนวนลูป — ล็อกอินหมดอายุแล้วส่งซ้ำทั้งหมดก็เสียเปล่าทุกใบ
+  if(tokenExpired()){ flash('⚠️ ล็อกอินหมดอายุ — รีเฟรชหน้าเว็บเพื่อเข้าสู่ระบบใหม่ก่อน แล้วค่อยกด “⟳ ส่งซ้ำทั้งหมด” ใหม่','err'); return; }
   __resendingAll=true; renderSession();
   let done=0;
   for(const i of idx){ const r=await resendItem(i,true); if(r==='exist'||r==='sent') done++; }
