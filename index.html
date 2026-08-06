@@ -78,6 +78,24 @@
   .billfilter .fb.on{background:var(--accent);color:#fff;border-color:var(--accent)}
   .billfilter .fb .b{display:inline-block;background:rgba(0,0,0,.12);border-radius:10px;padding:0 6px;margin-left:4px;font-size:11px}
   .billfilter .fb.on .b{background:rgba(255,255,255,.25)}
+  /* ---- ปุ่มเข้าหน้าวางบิล (บนสุด) + หน้าวางบิลเต็มจอ ---- */
+  .gobill{display:flex;align-items:center;justify-content:space-between;gap:10px;background:var(--accent-soft,#fff8e1);border:1.5px solid var(--warn,#d69e26);border-radius:14px;padding:12px 16px;cursor:pointer;margin:12px 0}
+  .gobill b{font-size:15.5px;color:var(--ink)}
+  .gobill .gb-sub{font-size:12px;color:var(--ink-soft);margin-top:2px}
+  .gobill .gb-arrow{font-size:22px;color:var(--warn)}
+  #billPage{position:fixed;inset:0;z-index:8000;background:var(--bg);overflow:auto;display:none;-webkit-overflow-scrolling:touch}
+  .bp-top{position:sticky;top:0;z-index:10;background:var(--panel);border-bottom:1px solid var(--line);padding:10px 14px;display:flex;align-items:center;gap:10px}
+  .bp-top .bp-title{font-weight:800;font-size:16.5px;flex:1;color:var(--ink)}
+  .bp-inner{max-width:1100px;margin:0 auto;padding:12px 12px 60px}
+  .ballrow{display:flex;align-items:center;gap:9px;font-size:13.5px;color:var(--ink);padding:4px 2px 10px;cursor:pointer;user-select:none}
+  .ballrow input{width:18px;height:18px;accent-color:var(--warn)}
+  .bundo{background:transparent;border:1px solid var(--line-strong);color:var(--ink-soft)}
+  /* ---- โหมดตู้ซ้ำ (รวมงานรายกลุ่ม) ---- */
+  .dupgrp{border:1.5px solid var(--warn);border-radius:12px;margin-bottom:12px;overflow:hidden;background:var(--panel)}
+  .dupgrp .dg-h{display:flex;align-items:center;gap:8px;flex-wrap:wrap;background:rgba(240,192,64,.14);padding:9px 12px;font-size:13.5px;color:var(--ink)}
+  .dupgrp .dg-h b{font-family:ui-monospace,Consolas,monospace}
+  .dupgrp .dg-r{display:flex;gap:8px;flex-wrap:wrap;font-size:13px;color:var(--ink);padding:8px 12px;border-top:1px dashed var(--line)}
+  .dupgrp .dg-acts{padding:9px 12px;border-top:1px solid var(--line);display:flex;gap:8px;flex-wrap:wrap}
   .bill-bulk{display:flex;align-items:center;gap:8px;flex-wrap:wrap;background:var(--total-bg);color:var(--total-fg);border-radius:9px;padding:9px 12px;margin:0 0 10px;font-size:13px;position:sticky;top:4px;z-index:5}
   .bill-bulk .btn{border:none;border-radius:7px;padding:7px 12px;font-size:12.5px;font-weight:700;cursor:pointer;font-family:inherit}
   .bill-bulk .bp{background:var(--accent);color:#fff}.bill-bulk .bc{background:var(--ok);color:#fff}.bill-bulk .bx{background:transparent;color:#aeb8c8;margin-left:auto}
@@ -277,6 +295,11 @@
     </div>
   </div>
 
+  <div class="gobill" id="goBill" role="button" tabindex="0">
+    <div><b>🧾 สำหรับคนวางบิล</b><div class="gb-sub">เปิดหน้าวางบิล — เลือกทั้งหมด · พิมพ์ · ยืนยัน · ดึงกลับ จบในหน้าเดียว</div></div>
+    <div class="gb-arrow">→</div>
+  </div>
+
   <div class="card">
     <div class="card-head">
       <div class="title">ใบเบิก<span>ค่าใช้จ่ายงานขนส่ง</span></div>
@@ -304,7 +327,6 @@
             <label>ชื่อคนขับ</label>
             <input id="f_driver" list="dl_driver" placeholder="พิมพ์ชื่อเพื่อค้นหา" autocomplete="off">
             <datalist id="dl_driver"></datalist>
-            <div class="lump-bar" id="drvLump" style="display:none"></div>
           </div>
           <div class="field" data-list="trailer">
             <label>ทะเบียนหาง</label>
@@ -401,11 +423,20 @@
     <div id="sessBody"><div class="empty">ยังไม่มีรายการ — กรอกแล้วกดบันทึก</div></div>
     <div class="actions" style="background:var(--paper)">
       <button class="btn btn-ghost" id="btnCsv">ดาวน์โหลด CSV (สำรอง)</button>
+      <button class="btn btn-ghost" id="btnVerifyAll" title="เช็คทุกใบกับชีทจริงทีละใบ — ใบไหนไม่พบจะเปลี่ยนเป็น “ในเครื่อง” ให้กดส่งซ้ำ (แก้เคสขึ้นว่าส่งแล้วแต่ไม่อยู่ในชีท)">🔄 ตรวจกับชีททั้งหมด</button>
       <button class="btn btn-ghost" id="btnClearSess" style="color:var(--warn)">🧹 ล้างรายการ</button>
       <span class="hint" style="margin:0;align-self:center">ล้าง = ลบแค่รายการในเครื่องนี้ (ข้อมูลในชีทยังอยู่ครบ ค้นหาดึงกลับได้)</span>
     </div>
   </div>
 
+  <div id="billPage">
+  <div class="bp-top">
+    <button class="btn btn-ghost" id="bpBack">← กลับหน้าจด</button>
+    <div class="bp-title">🧾 วางบิล — 24 Logistics</div>
+    <button class="btn btn-ghost" id="bpReload" title="ดึงคิวล่าสุดจากชีท">⟳ รีเฟรช</button>
+  </div>
+  <div class="bp-inner">
+  <p class="hint" style="margin:4px 0 10px">สถานะเก็บในชีท เห็นตรงกันทุกเครื่อง · ระบบดึงข้อมูลล่าสุดก่อนทำรายการทุกครั้ง · เข้าตรงได้ด้วยลิงก์ท้าย #bill</p>
   <div class="session" id="billCard">
     <div class="session-head"><h3>🧾 รอวางบิล</h3><span class="count" id="billCount">—</span></div>
     <div class="actions" style="background:var(--paper);border-top:none;align-items:center">
@@ -419,8 +450,11 @@
       <button class="btn btn-ghost" id="btnBillInit" style="display:none;color:var(--warn)" title="ตั้งค่าเริ่มต้นครั้งเดียว: ใบทั้งหมดที่มีตอนนี้ถือว่าวางบิลแล้ว คิวเริ่มสดจากใบใหม่">⚙️ ตั้งค่าเริ่มต้น (ใบเก่า=วางบิลแล้ว)</button>
       <span class="hint" style="margin:0;align-self:center" id="billHint">คนวางบิลกด “โหลดคิววางบิล” เพื่อดูงานที่รอวางบิล</span>
     </div>
+    <label class="ballrow" id="billSelAllRow" style="display:none"><input type="checkbox" id="billSelAll"><span>เลือกทั้งหมด <span class="hint" style="margin:0">(ตามตัวกรองที่เปิดอยู่)</span></span></label>
     <div id="billBulk" class="bill-bulk" style="display:none"></div>
     <div id="billBody"><div class="empty">กด “โหลดคิววางบิล”</div></div>
+  </div>
+  </div>
   </div>
 
   <div class="session">
@@ -436,8 +470,7 @@
       <button class="btn btn-ghost" id="btnTrash">🗑 งานที่ลบแล้ว</button>
       <button class="btn btn-primary" id="btnSummary" title="สรุปยอดวันนี้ ส่งเข้า LINE ให้พ่อ">📤 สรุปยอดวันนี้ → LINE</button>
       <button class="btn btn-ghost" id="btnAudit" title="ตรวจเบอร์ตู้ผิดมาตรฐาน / ตู้ซ้ำ / ยอดสูงผิดปกติ" style="display:none">🔍 ตรวจสอบความผิดปกติ</button>
-      <button class="btn btn-ghost" id="btnAutoAdv" title="ใบงานของคนขับที่ถือเงินก้อน แต่ยังไม่ได้กรอกสำรองจ่าย → ติ๊กเลือกใบแล้วหักให้" style="display:none">💸 หักเงินก้อนย้อนหลัง</button>
-      <button class="btn btn-ghost" id="btnRevAdv" title="ใบที่หักเงินก้อนไว้ → ติ๊กเลือกใบแล้วคืนกลับ (สำรองจ่ายกลับเป็น 0)" style="display:none">↩ ยกเลิกหักเงินก้อน</button>
+      <button class="btn btn-ghost" id="btnDups" style="display:none;border-color:var(--warn);color:var(--warn)" title="ดูเฉพาะกลุ่มตู้ซ้ำ — กดรวมงานเป็นรายกลุ่ม ปลอดภัยไม่ติ๊กข้ามกลุ่ม">⚠️ ตู้ซ้ำ (0)</button>
       <button class="btn btn-ghost" id="btnEditLog" title="ประวัติก่อน–หลังการแก้ไข (แอดมินเท่านั้น)" style="display:none">📝 ประวัติการแก้ไข</button>
       <button class="btn btn-primary" id="btnInvoice" style="display:none" title="รวมทุกใบที่เลือกเป็นบิลเดียว">🧾 บิลเดียว (0)</button>
       <button class="btn btn-primary" id="btnBulkInvoice" style="display:none" title="พิมพ์หลายบิลพร้อมกัน จัดกลุ่มเองได้">🖨 พิมพ์หลายบิล (0)</button>
@@ -832,7 +865,6 @@ async function fetchMaster(){
   try{
     const res=await fetch(url+(url.includes('?')?'&':'?')+'master=1'+APPQS(),{method:'GET'});
     const m=await res.json();
-    try{ if(m&&m.lump){ window.__lump=m.lump; drvLumpBar(); } }catch(e){}
     if(!m || !m.ok || !m.lists) return;
     const hasData=(Array.isArray(m.trucks)&&m.trucks.length) ||
       MASTER_KEYS.some(k=>Array.isArray(m.lists[k])&&m.lists[k].length);
@@ -849,67 +881,16 @@ async function fetchMaster(){
   }catch(e){ /* เน็ตล่ม/ยังไม่ deploy → ใช้ cache ต่อไปเงียบๆ */ }
 }
 
-/* ---- กันโอนซ้ำ: เงินก้อนคนขับ (โหลดมากับ ?master=1 ตอนเปิดเว็บ — ไม่หน่วงตอนบันทึก) ---- */
+/* ---- กันสำรองจ่ายเกินรวมเบิก (ระบบเงินก้อนถูกถอดออก 6 ส.ค. 2026 — เงินก้อนคุมในสมุดแยกนอกระบบ) ---- */
 let editAdv0=0, editDrv0='';
-function lumpOf(name){ const L=window.__lump; if(!L) return null; return Number(L[String(name||'').trim()])||0; }
-function drvLumpBar(){
-  const el=$("drvLump"); if(!el) return;
-  const v=lumpOf(($("f_driver")||{}).value);
-  if(v&&v>0){ el.innerHTML='💼 คนขับถือเงินก้อนอยู่ <b>'+v.toLocaleString()+'</b> บาท <button type="button" class="lumpBtn" onclick="lumpAutoFill()">💸 หักจากก้อนให้เลย</button>'; el.style.display='block'; }
-  else el.style.display='none';
-}
-/* กดปุ่มเดียว: ใส่สำรองจ่าย = ยอดเบิก (ไม่เกินก้อนที่เหลือ) → ค่าที่ต้องโอนลดเอง */
-function lumpAutoFill(){
-  const v=lumpOf(($("f_driver")||{}).value)||0;
-  const t=recalc();
-  if(!(v>0)){ flash('คนขับคนนี้ไม่มีเงินก้อนคงเหลือ','err'); return; }
-  if(!(t>0)){ flash('ยังไม่มีค่าใช้จ่ายในใบ — กรอกช่องค่าใช้จ่ายก่อนแล้วค่อยกดหัก','err'); return; }
-  const a=Math.min(v,t);
-  $("f_advance").value=a; recalc();
-  flash('หักจากเงินก้อน '+a.toLocaleString()+' บาท — ค่าที่ต้องโอนเหลือ '+(t-a).toLocaleString()+' บาท','ok');
-}
-/* ยอดก้อนสดเสมอ: ดึงใหม่เมื่อสลับกลับมาที่แท็บเว็บ (เช่น เพิ่งไปลงจ่ายก้อนในชีทมา) */
-async function refreshLump(){ try{ const url=endpoint(); if(!url.startsWith('http')) return; const m=await fetch(url+(url.includes('?')?'&':'?')+'master=1'+APPQS(),{method:'GET'}).then(r=>r.json()); if(m&&m.lump){ window.__lump=m.lump; drvLumpBar(); } }catch(e){} }
-let __lumpFT=0;
-window.addEventListener('focus',()=>{ if(Date.now()-__lumpFT>30000){ __lumpFT=Date.now(); refreshLump(); } });
-$("f_driver").addEventListener('input',drvLumpBar);
-function guardCheck(d){ // true = บันทึกต่อได้ / false = หยุดรอผู้ใช้ตัดสินใจใน popup
-  if(window.__guardOk){ window.__guardOk=false; return true; }
-  if(!window.__lump) return true; // ยังไม่มีข้อมูลก้อน (ออฟไลน์/โหลดไม่ทัน) → ทำงานแบบเดิม ไม่เตือนมั่ว
-  let lump=lumpOf(d.driver)||0;
-  if(editUid && String(d.driver||'').trim()===editDrv0) lump+=editAdv0; // แก้ใบเดิม: ไม่นับยอดที่ใบนี้เคยหักไว้ซ้ำ
-  const adv=Number(d.advance)||0, net=(Number(d.total)||0)-adv;
-  if(lump>0 && adv===0 && net>0){ showGuard('A',{name:d.driver,lump:lump,net:net}); return false; }
-  if(adv>0 && adv>lump){ showGuard('B',{name:d.driver,lump:lump,adv:adv}); return false; }
+function guardCheck(d){ // true = บันทึกต่อได้
+  const adv=Number(d.advance)||0, tot=Number(d.total)||0;
+  if(adv>tot){
+    flash('❌ สำรองจ่าย '+adv.toLocaleString()+' เกินรวมเบิก '+tot.toLocaleString()+' — ยอดโอนจะติดลบ แก้ตัวเลขก่อน','err');
+    try{ $("f_advance").focus(); }catch(e){}
+    return false;
+  }
   return true;
-}
-function showGuard(kind,i){
-  let ov=document.getElementById('guardOvl');
-  if(!ov){
-    ov=document.createElement('div'); ov.id='guardOvl';
-    ov.innerHTML='<div class="gcard"><div class="gic" id="gIc"></div><h3 id="gTitle"></h3><div class="gbody" id="gBody"></div><button type="button" class="gauto" id="gAuto" style="display:none"></button><div class="grow"><button type="button" class="gback" id="gBack"></button><button type="button" class="ggo" id="gGo"></button></div></div>';
-    document.body.appendChild(ov);
-    $("gBack").addEventListener('click',()=>{ ov.style.display='none'; });
-    $("gGo").addEventListener('click',()=>{ ov.style.display='none'; window.__guardOk=true; save(); });
-    $("gAuto").addEventListener('click',()=>{ ov.style.display='none'; const gi=window.__gInfo||{}; const a=Math.min(Number(gi.lump)||0,Number(gi.net)||0); if(a>0){ $("f_advance").value=a; recalc(); } window.__guardOk=true; save(); });
-  }
-  const nm=String(i.name||'คนขับ');
-  if(kind==='A'){
-    window.__gInfo=i;
-    $("gIc").textContent='⚠️'; $("gTitle").textContent='คนขับถือเงินก้อนอยู่';
-    $("gBody").innerHTML='<b>'+nm+'</b> ถือเงินก้อนอยู่ <b>'+i.lump.toLocaleString()+'</b> บาท แต่ใบงานนี้ยังไม่ได้หักสำรองจ่าย'
-      +'<div class="ghl">ถ้าโอนตามยอด '+i.net.toLocaleString()+' บาท ทั้งที่มีเงินก้อน → เสี่ยงจ่ายซ้ำ</div>';
-    $("gAuto").style.display='block';
-    $("gAuto").textContent='💸 หักจากเงินก้อนให้เลย '+Math.min(i.lump,i.net).toLocaleString()+' บาท (แนะนำ)';
-    $("gBack").textContent='← กลับไปแก้เอง'; $("gGo").textContent='โอนปกติ ไม่หักก้อน';
-  }else{
-    window.__gInfo=null; $("gAuto").style.display='none';
-    $("gIc").textContent='🔺'; $("gTitle").textContent='สำรองจ่ายเกินก้อนที่ถือ';
-    $("gBody").innerHTML='กรอกสำรองจ่าย <b>'+i.adv.toLocaleString()+'</b> บาท แต่ <b>'+nm+'</b> มีก้อนเหลือ <b>'+i.lump.toLocaleString()+'</b> บาท'
-      +'<div class="ghl">ถ้ายืนยัน ก้อนของคนขับจะติดลบ '+(i.adv-i.lump).toLocaleString()+' บาท ในแท็บ 📒 บัญชีคนขับ — อาจลืมลงแถว “จ่ายก้อน” ในชีทสำรองจ่าย</div>';
-    $("gBack").textContent='← กลับไปแก้ตัวเลข'; $("gGo").textContent='ยืนยัน (ก้อนติดลบ)';
-  }
-  ov.style.display='flex';
 }
 
 /* seed: เขียนค่าปัจจุบันทั้งชุดขึ้น Sheet (ใช้เฉพาะตอน Sheet ว่าง) */
@@ -1054,7 +1035,7 @@ function clearAll(){
   ['f_truck','f_driver','f_customer','f_size','f_yardIn','f_yardOut'].forEach(id=>$(id).value='');
   COSTS.forEach(c=>$(c.key).value=''); $("f_advance").value=''; selectedMaint=[]; renderMaintChips();
   selectedPhotos=[]; renderPhotoPrev();
-  $("f_status").value=STATUS_OPTIONS[0]; recalc(); drvLumpBar(); flash("ล้างฟอร์มแล้ว",'ok');
+  $("f_status").value=STATUS_OPTIONS[0]; recalc(); flash("ล้างฟอร์มแล้ว",'ok');
 }
 const SESS_SHOW=8; // แสดงล่าสุดกี่รายการก่อน (กันรก) — กด "ดูทั้งหมด" เพื่อเห็นทั้งหมด
 let showAllSession=false;
@@ -1098,6 +1079,28 @@ async function resendAllPending(){
   flash('ส่งซ้ำเสร็จ — ขึ้นชีท '+done+'/'+idx.length+' ใบ'+(done<idx.length?' (เหลือค้าง '+(idx.length-done)+' ใบ เน็ตล่ม ลองใหม่ทีหลัง)':' ครบทุกใบ 🎉'),done===idx.length?'ok':'err');
 }
 
+/* ---- 🔄 ตรวจกับชีทจริง (แก้เคส “ขึ้นว่าส่งแล้วแต่ไม่อยู่ในชีท”) — ไม่พบ = เปลี่ยนเป็นค้างส่ง ให้กดส่งซ้ำ ---- */
+async function verifyItem(i,silent){
+  const d=session[i]; if(!d||!d.uid){ if(!silent)flash('ใบนี้ไม่มี ID ตรวจไม่ได้','err'); return 'skip'; }
+  d.__busy=true; renderSession();
+  const ex=await existsInSheet(d.uid);
+  delete d.__busy;
+  if(ex===true){ if(!d.sent){ d.sent=true; saveLog(); } renderSession(); if(!silent)flash('✅ '+(d.container||d.uid)+' — อยู่ในชีทจริง','ok'); return 'ok'; }
+  if(ex===false){ if(d.sent){ d.sent=false; saveLog(); } renderSession(); if(!silent)flash('⚠️ '+(d.container||d.uid)+' — ไม่พบในชีท! เปลี่ยนเป็น “ในเครื่อง” แล้ว กด ⟳ ส่งซ้ำได้เลย','err'); return 'missing'; }
+  renderSession(); if(!silent)flash('เช็คไม่ได้ (เน็ตมีปัญหา) ลองใหม่','err'); return 'net';
+}
+async function verifyAllSheet(){
+  if(__resendingAll) return;
+  const idx=session.map((d,i)=>d.uid?i:-1).filter(i=>i>=0);
+  if(!idx.length){ flash('ไม่มีรายการให้ตรวจ','err'); return; }
+  __resendingAll=true; renderSession(); flash('🔄 กำลังตรวจ '+idx.length+' ใบกับชีทจริง…','ok');
+  let miss=0,okc=0,net=0;
+  for(const i of idx){ const r=await verifyItem(i,true); if(r==='missing')miss++; else if(r==='ok')okc++; else if(r==='net')net++; }
+  __resendingAll=false; renderSession();
+  flash(miss?('🔎 ตรวจ '+idx.length+' ใบ: อยู่จริง '+okc+' · ❌ ไม่พบ '+miss+' ใบ — เปลี่ยนเป็นค้างส่งแล้ว กด “⟳ ส่งซ้ำทั้งหมด” ต่อได้เลย')
+           :('🔎 ตรวจ '+idx.length+' ใบ — อยู่ในชีทครบทุกใบ ✓'+(net?' (เช็คไม่ได้ '+net+' ใบ เน็ตสะดุด)':'')), miss?'err':'ok');
+}
+
 function renderSession(){
   $("sessCount").textContent=session.length+" รายการ";
   if(!session.length){ $("sessBody").innerHTML='<div class="empty">ยังไม่มีรายการ — กรอกแล้วกดบันทึก</div>'; return; }
@@ -1111,7 +1114,7 @@ function renderSession(){
     <td>${escHtml(d.customer)}</td><td class="mono">${escHtml(d.container)}</td>
     <td>${escHtml(d.yardIn)} → ${escHtml(d.yardOut)}</td><td class="num">${(d.total||0).toLocaleString('th-TH')}</td>
     <td>${d.__busy?'<span class="tag" style="background:#1c2b44;color:#9cc0f0">⟳ กำลังส่ง…</span>':`<span class="tag ${d.sent?'sent':'local'}">${d.sent?'ส่งแล้ว':'ในเครื่อง'}</span>`}</td>
-    <td style="white-space:nowrap">${(!d.sent&&!d.__busy)?`<button class="rsend" data-i="${i}" title="เช็ค ID ในชีทก่อน แล้วส่งซ้ำถ้ายังไม่มี (กันข้อมูลซ้ำ)">⟳ ส่งซ้ำ</button>`:''}<button class="btn btn-ghost pbtn" data-i="${i}" style="padding:5px 11px;font-size:12px">พิมพ์</button>
+    <td style="white-space:nowrap">${(!d.sent&&!d.__busy)?`<button class="rsend" data-i="${i}" title="เช็ค ID ในชีทก่อน แล้วส่งซ้ำถ้ายังไม่มี (กันข้อมูลซ้ำ)">⟳ ส่งซ้ำ</button>`:''}${(d.sent&&!d.__busy&&d.uid)?`<button class="rsend" data-vfy="1" data-i="${i}" title="เช็คกับชีทจริง — ถ้าไม่พบ เปลี่ยนเป็น “ในเครื่อง” ให้กดส่งซ้ำ">🔄</button>`:''}<button class="btn btn-ghost pbtn" data-i="${i}" style="padding:5px 11px;font-size:12px">พิมพ์</button>
       <button class="rmsess" data-i="${i}" title="เอาออกจากรายการ (ไม่แตะชีท)" style="border:none;background:none;color:var(--warn);font-weight:700;font-size:16px;cursor:pointer;padding:0 6px">×</button></td></tr>`).join('');
   const more=session.length>SESS_SHOW
     ? `<div style="text-align:center;padding:8px"><button class="btn btn-ghost" id="sessToggle" style="font-size:12.5px;padding:6px 14px">${showAllSession?'▲ ย่อ (แสดง '+SESS_SHOW+' ล่าสุด)':'▼ ดูทั้งหมด ('+session.length+' รายการ)'}</button></div>`
@@ -1120,7 +1123,7 @@ function renderSession(){
     <thead><tr><th>วันเวลา</th><th>หัว</th><th>คนขับ</th><th>ลูกค้า</th><th>เบอร์ตู้</th><th>ลานรับ→คืน</th><th>รวมเบิก</th><th>สถานะ</th><th></th></tr></thead>
     <tbody>${rows}</tbody></table></div>${more}`;
   $("sessBody").querySelectorAll('.pbtn').forEach(b=>b.onclick=()=>printSlip(shown[+b.dataset.i]));
-  $("sessBody").querySelectorAll('.rsend').forEach(b=>b.onclick=()=>resendItem(+b.dataset.i));
+  $("sessBody").querySelectorAll('.rsend').forEach(b=>b.onclick=()=>{ if(b.dataset.vfy) verifyItem(+b.dataset.i); else resendItem(+b.dataset.i); });
   $("sessBody").querySelectorAll('.rmsess').forEach(b=>b.onclick=()=>removeSessionItem(+b.dataset.i));
   const tg=$("sessToggle"); if(tg) tg.onclick=()=>{ showAllSession=!showAllSession; renderSession(); };
   const rab=$("resendAllBtn"); if(rab) rab.onclick=resendAllPending;
@@ -1158,6 +1161,10 @@ function renderBill(){
   $("billCount").textContent='รอวางบิล '+(nUn+nPr)+' บิล';
   $("bc-all").textContent=nUn+nPr; $("bc-un").textContent=nUn; $("bc-pr").textContent=nPr;
   const shown=groups.filter(g=>{ const s=billState(g); if(s==='done')return false; if(billFilter==='unprinted')return s==='unprinted'; if(billFilter==='printed')return s==='printed'; return true; });
+  const sar=$("billSelAllRow"), sac=$("billSelAll");
+  if(sar){ sar.style.display=shown.length?'flex':'none';
+    if(sac){ sac.checked=shown.length>0&&shown.every(g=>billSel[g.key]);
+      sac.onchange=()=>{ if(sac.checked) shown.forEach(g=>billSel[g.key]=1); else shown.forEach(g=>delete billSel[g.key]); renderBill(); }; } }
   const selKeys=Object.keys(billSel).filter(k=>billSel[k]&&billMap[k]);
   const bb=$("billBulk");
   if(selKeys.length){ bb.style.display='flex'; bb.innerHTML='เลือก '+selKeys.length+' บิล <button class="btn bp" onclick="billBulkPrint()">🖨 พิมพ์วางบิลที่เลือก</button><button class="btn bc" onclick="billBulkConfirm()">✓ ยืนยันวางบิลที่เลือก</button><button class="btn bx" onclick="billClearSel()">ล้าง</button>'; }
@@ -1178,7 +1185,7 @@ function billCard(g){
   const stamp= s==='printed'?('<div class="bstamp'+(old?' old':'')+'">🖨 พิมพ์เมื่อ '+billDays(g.billAtMs)+' วันก่อน โดย '+escHtml(g.billBy||'-')+' — รอยืนยันปิดจ็อบ'+(old?' ⚠️ ค้างนานผิดปกติ':'')+'</div>'):'';
   const grpchip=g.rows.length>1?'<span class="lchip">🔗 งานรวม '+g.rows.length+' บรรทัด</span>':'';
   const acts= busy?'' : (s==='printed'
-    ? '<button class="btn bview" data-act="preview" data-k="'+g.key+'">👁 ดูตัวอย่าง</button><button class="btn bprint" data-act="print" data-k="'+g.key+'">🖨 พิมพ์ซ้ำ</button><button class="btn bconfirm" data-act="confirm" data-k="'+g.key+'">✓ ยืนยันวางบิล</button>'
+    ? '<button class="btn bview" data-act="preview" data-k="'+g.key+'">👁 ดูตัวอย่าง</button><button class="btn bprint" data-act="print" data-k="'+g.key+'">🖨 พิมพ์ซ้ำ</button><button class="btn bconfirm" data-act="confirm" data-k="'+g.key+'">✓ ยืนยันวางบิล</button><button class="btn bundo" data-act="unprint" data-k="'+g.key+'" title="กดพิมพ์ผิด — คืนสถานะเป็น ⚪ ยังไม่พิมพ์">↩</button>'
     : '<button class="btn bview" data-act="preview" data-k="'+g.key+'">👁 ดูตัวอย่าง</button><button class="btn bprint" data-act="print" data-k="'+g.key+'">🖨 พิมพ์วางบิล</button>');
   return '<div class="bcard '+(s==='printed'?(old?'st-old':'st-printed'):'')+'">'
     +'<div class="bhead"><input type="checkbox" class="bchk" data-k="'+g.key+'" '+(billSel[g.key]?'checked':'')+'>'
@@ -1203,6 +1210,11 @@ async function billAct(act,key){
     if(act==='confirm'){
       await new Promise(res=>billDialog('✓','ยืนยันวางบิล?','ตู้ '+escHtml(g.rows.map(r=>r.container).filter(Boolean)[0]||'')+' — ยืนยันแล้วจะหายจากคิว (ถ้าพลาด กดดึงกลับได้ในแท็บ “เพิ่งวางบิล”)','ยืนยันวางบิล','ยกเลิก',()=>{ g.__go=1; res(); },res));
       if(g.__go){ await billSetInline(g.rows.map(r=>r.uid),'billed','✓ วางบิลแล้ว — หายจากคิว'); }
+      return;
+    }
+    if(act==='unprint'){
+      await new Promise(res=>billDialog('↩','คืนเป็น “ยังไม่พิมพ์”?','ใช้ตอนกดพิมพ์ผิด — ใบนี้จะกลับเป็น ⚪ เข้าคิวใหม่ (ไม่มีข้อมูลหาย)','↩ คืนสถานะ','ยกเลิก',()=>{ g.__go=1; res(); },res));
+      if(g.__go){ g.__go=0; await billSetInline(g.rows.map(r=>r.uid),'reset','↩ คืนเป็น “ยังไม่พิมพ์” แล้ว — กลับเข้าคิว'); }
       return;
     }
     if(act==='print'){
@@ -1259,6 +1271,7 @@ async function loadBillRecent(){
 }
 let billRecentRows=[];
 function renderBillRecent(){
+  const sar=$("billSelAllRow"); if(sar) sar.style.display='none';
   const g={},order=[];
   billRecentRows.forEach(r=>{ const k=(r.link&&String(r.link).indexOf('X:')!==0)?('G'+r.link):('U'+r.uid); if(!g[k]){ g[k]={key:k,cust:r.customer,rows:[],billBy:r.billBy}; order.push(k);} g[k].rows.push(r); });
   if(!order.length){ $("billBody").innerHTML='<div class="empty">วันนี้ยังไม่มีบิลที่เพิ่งวางบิล</div>'; return; }
@@ -1356,6 +1369,13 @@ function renderSearch(rows){
     if(g.some(x=>String(x.link||'').indexOf('X:')===0)) return false;
     const st={}; g.forEach(x=>{ const l=String(x.link||''); st[(l&&l.indexOf('X:')!==0)?l:('u'+x.uid)]=1; });
     return Object.keys(st).length>1; };
+  // แถบตู้ซ้ำ: เก็บกลุ่มที่เข้าข่าย + อัปเดตปุ่ม (เห็นทุกคน)
+  window.__dupGroups=Object.keys(dupG).map(k=>dupG[k]).filter(g=>{
+    if(g.length<2) return false;
+    if(g.some(x=>String(x.link||'').indexOf('X:')===0)) return false;
+    const st={}; g.forEach(x=>{ const l=String(x.link||''); st[(l&&l.indexOf('X:')!==0)?l:('u'+x.uid)]=1; });
+    return Object.keys(st).length>1; });
+  (()=>{ const bd=$("btnDups"); if(bd){ const n=(window.__dupGroups||[]).length; bd.style.display=n?'':'none'; bd.textContent='⚠️ ตู้ซ้ำ ('+n+')'; } })();
   const lkB=r=>(r.link&&String(r.link).indexOf('X:')!==0)?' <span class="lkbdg" title="ถูกรวมเป็นงานเดียวกันแล้ว — บิล/จำนวนตู้นับเป็น 1">🔗 งานเดียวกัน</span>':'';
   const dupB=r=>isDup(r)?' <span class="dupbdg" title="ตู้เดียวกันยังไม่คืนมีมากกว่า 1 ใบ — ถ้าเป็นงานเดียวกัน ติ๊กเลือกแล้วกดปุ่ม รวมงานเดียวกัน">⚠️ ตู้ซ้ำ</span>':'';
   const body=rows.map(r=>`<tr>
@@ -1411,6 +1431,20 @@ function updateDelSel(){
     mg.textContent=allLinked?`↩ ยกเลิกรวมงาน (${n})`:`🔗 รวมงานเดียวกัน (${n})`;
     mg.disabled=n<2; mg.style.opacity=n>=2?'1':'.5'; }
 }
+/* ---- โหมดตู้ซ้ำ: โชว์เฉพาะกลุ่มซ้ำ + รวมเป็นรายกลุ่ม (ติ๊กข้ามกลุ่มผิดไม่ได้) ---- */
+function renderDupOnly(){
+  const gs=window.__dupGroups||[];
+  if(!gs.length){ flash('ไม่มีตู้ซ้ำในผลค้นหานี้ ✓','ok'); return; }
+  const html=gs.map((g,gi)=>{
+    const cont=g[0].container||'-';
+    const rws=g.map(r=>'<div class="dg-r"><span>'+escHtml(r.date||'')+'</span><span><b>'+escHtml(r.driver||'-')+'</b></span><span class="mono">'+escHtml(r.truck||'-')+'</span><span>'+escHtml(r.customer||'-')+'</span><span style="margin-left:auto">'+(r.returned?'คืนแล้ว':'ยังไม่คืน')+'</span></div>').join('');
+    return '<div class="dupgrp"><div class="dg-h">⚠️ ตู้ <b>'+escHtml(cont)+'</b> · '+g.length+' ใบ ยังไม่ได้รวมงาน — ถ้าเป็นตู้ต่อ (คนละคนขับ รับช่วงกัน) กดรวมได้เลย</div>'+rws
+      +'<div class="dg-acts"><button class="btn btn-primary dgm" data-gi="'+gi+'">🔗 รวมกลุ่มนี้เป็นงานเดียว ('+g.length+' ใบ)</button></div></div>';
+  }).join('');
+  $("searchBody").innerHTML='<div style="padding:10px 0;display:flex;gap:8px;align-items:center;flex-wrap:wrap"><button class="btn btn-ghost" id="dupBackBtn">← กลับผลค้นหา</button><span class="hint" style="margin:0">รวมทีละกลุ่ม เบอร์ตู้เดียวกันเท่านั้น · ตู้เดิมวนกลับมาอีกเที่ยว (ไม่ใช่งานเดียวกัน) กด “ไม่ใช่งานเดียวกัน” ในหน้าต่างยืนยัน</span></div>'+html;
+  $("dupBackBtn").onclick=()=>renderSearch(window.LAST_ROWS||[]);
+  $("searchBody").querySelectorAll('.dgm').forEach(b=>b.onclick=()=>{ const g=(window.__dupGroups||[])[+b.dataset.gi]||[]; if(g.length<2) return; window.__mrgWarn=''; showMergePop(g,g.map(r=>r.uid),false); });
+}
 /* ---- รวมงาน (ตู้ซ้ำ = งานเดียวกัน): ผูกใบด้วยคอลัมน์ "งานเดียวกัน" — แถวในชีทยังแยกคนละบรรทัด เงินใครเงินมัน ---- */
 async function mergeSelected(){
   const chks=selectedUids(); const uids=chks.map(c=>c.dataset.uid).filter(Boolean);
@@ -1418,6 +1452,14 @@ async function mergeSelected(){
   if(uids.length>5){ flash('รวมได้ครั้งละไม่เกิน 5 ใบ','err'); return; }
   const rows=(window.LAST_ROWS||[]).filter(r=>uids.includes(r.uid));
   const allLinked=rows.length===uids.length&&rows.every(r=>r.link&&String(r.link).indexOf('X:')!==0)&&(new Set(rows.map(r=>String(r.link)))).size===1;
+  window.__mrgWarn='';
+  if(!allLinked){ // ล็อก: รวมได้เฉพาะเบอร์ตู้เดียวกัน (กันรวมผิดใบ) — ต่างเบอร์ = แอดมินยืนยันพิเศษเท่านั้น
+    const conts=[...new Set(rows.map(r=>normCont(r.container)).filter(Boolean))];
+    if(conts.length>1){
+      if(!adminToken){ flash('❌ รวมได้เฉพาะใบที่ “เบอร์ตู้เดียวกัน” เท่านั้น — ที่เลือกมี '+conts.length+' เบอร์ ('+conts.join(', ')+')','err'); return; }
+      window.__mrgWarn='เบอร์ตู้ไม่ตรงกัน ('+conts.join(' / ')+') — ปกติงานเดียวกันต้องตู้เดียวกัน ยืนยันเฉพาะกรณีพิเศษ เช่น สลับตู้กลางทาง';
+    }
+  }
   showMergePop(rows.length?rows:uids.map(u=>({uid:u})),uids,allLinked);
 }
 function showMergePop(rows,uids,unlinkMode){
@@ -1429,6 +1471,7 @@ function showMergePop(rows,uids,unlinkMode){
     ? `<div class="gic">↩</div><h3>ยกเลิกการรวมงาน?</h3><div class="gbody">${list}<div class="ghl2">ใบทั้งหมดจะกลับเป็นงานแยกกันเหมือนก่อนรวม (ไม่มีข้อมูลหาย)</div></div>
        <div class="grow"><button type="button" class="gback" onclick="document.getElementById('mrgOvl').remove()">ปิด</button><button type="button" class="ggo2" onclick="doLinkAct('unlink')">↩ ยืนยันยกเลิกรวม</button></div>`
     : `<div class="gic">🔗</div><h3>รวม ${rows.length} ใบเป็นงานเดียว?</h3><div class="gbody">${list}
+       ${window.__mrgWarn?'<div class="ghl" style="color:var(--warn);font-weight:700">⚠️ '+escHtml(window.__mrgWarn)+'</div>':''}
        <div class="ghl2">✓ ตู้จะนับเป็น 1 (จำนวนตู้/ตู้ค้าง/เตือน 8 โมง)<br>✓ ใบวางบิลออกในบิลเดียว <b>แยกคนละบรรทัด</b> ขาแรก/ขาต่อเรียงติดกัน เลขใครเลขมัน — ติ๊กใบเดียวระบบดึงใบคู่มาให้ครบเอง<br>✓ ในชีทยังแยกคนละบรรทัด — เงินโอน 4 ทุ่มแยกตามคนขับของแต่ละใบเหมือนเดิม<br>✓ ยกเลิกรวมได้ตลอด ไม่มีอะไรถูกลบ</div></div>
        <div class="grow"><button type="button" class="gback" onclick="document.getElementById('mrgOvl').remove()">ยกเลิก</button><button type="button" class="ggo2" onclick="doLinkAct('link')">🔗 ยืนยันรวมงาน</button></div>
        ${uids.length===2?'<button type="button" class="gdis" onclick="doLinkAct(\'dismiss\')">🚫 ไม่ใช่งานเดียวกัน — เลิกเตือนตู้ซ้ำคู่นี้ (ตู้ใบเดิมวนกลับมาอีกเที่ยว)</button>':''}`;
@@ -1558,7 +1601,7 @@ let adminToken=(()=>{ try{ return localStorage.getItem('jobform_admin')||''; }ca
 function updateAdminUI(){
   $("adminBtn").textContent=adminToken?'แอดมิน ✓':'แอดมิน'; $("adminBtn").style.color=adminToken?'var(--ok)':'';
   const vis=adminToken?'':'none';
-  ['btnAudit','btnEditLog','btnAutoAdv','btnRevAdv'].forEach(id=>{ const b=$(id); if(b) b.style.display=vis; }); // เครื่องมือตรวจสอบ = แอดมินเท่านั้น
+  ['btnAudit','btnEditLog'].forEach(id=>{ const b=$(id); if(b) b.style.display=vis; }); // เครื่องมือตรวจสอบ = แอดมินเท่านั้น
 }
 function setAdmin(t){ adminToken=t; try{ t?localStorage.setItem('jobform_admin',t):localStorage.removeItem('jobform_admin'); }catch(e){} updateAdminUI(); }
 async function tryAdmin(t){
@@ -1606,7 +1649,7 @@ let editEnteredBy='';
 function enterEdit(rec){
   if(!adminToken && !enteredUser){ flash('ตั้งชื่อผู้กรอกก่อนแก้ไข (ปุ่ม “ตั้งผู้กรอก” มุมขวาบน)','err'); return; }
   loadIntoForm(rec); editUid=rec.uid; editEnteredBy=rec.enteredBy||'';
-  editAdv0=Number(rec.advance)||0; editDrv0=String(rec.driver||'').trim(); drvLumpBar();
+  editAdv0=Number(rec.advance)||0; editDrv0=String(rec.driver||'').trim();
   $("btnSave").textContent='อัปเดตใบนี้';
   $("btnCancelEdit").style.display=''; $("editBadge").style.display='';
   window.scrollTo({top:0,behavior:'smooth'});
@@ -1773,58 +1816,25 @@ $("btnSearch").addEventListener('click',doSearch);
 $("btnHistory").addEventListener('click',showHistory);
 $("btnBillLoad").addEventListener('click',loadBillQueue);
 $("btnBillInit").addEventListener('click',billInitRun);
+/* ---- หน้าวางบิลเต็มจอ (เข้าด้วยปุ่มบนสุด หรือลิงก์ #bill) ---- */
+function billPageSync(){
+  const on=(location.hash==='#bill');
+  const p=$("billPage"); if(p) p.style.display=on?'block':'none';
+  document.body.style.overflow=on?'hidden':'';
+  if(on){ if(!billRows.length) loadBillQueue(); else renderBill(); }
+}
+window.addEventListener('hashchange',billPageSync);
+$("goBill").addEventListener('click',()=>{ location.hash='bill'; });
+$("bpBack").addEventListener('click',()=>{ location.hash=''; });
+$("bpReload").addEventListener('click',()=>{ billSel={}; if(billFilter==='recent') loadBillRecent(); else loadBillQueue(); flash('ดึงคิวล่าสุดจากชีทแล้ว','ok'); });
+billPageSync();
+$("btnVerifyAll").addEventListener('click',verifyAllSheet);
+$("btnDups").addEventListener('click',renderDupOnly);
 document.querySelectorAll('.billfilter .fb').forEach(f=>f.addEventListener('click',()=>{ billFilter=f.dataset.f; document.querySelectorAll('.billfilter .fb').forEach(x=>x.classList.toggle('on',x.dataset.f===billFilter)); $("billBulk").style.display='none'; if(billFilter==='recent') loadBillRecent(); else loadBillQueue(); }));
 $("btnTrash").addEventListener('click',doTrash);
 $("btnOpenCont").addEventListener('click',showOpenContainers);
 $("btnSummary").addEventListener('click',sendSummary);
 $("btnAudit").addEventListener('click',runAudit);
-$("btnAutoAdv").addEventListener('click',()=>advTool('deduct',false));
-$("btnRevAdv").addEventListener('click',()=>advTool('revert',false));
-/* เครื่องมือเงินก้อน: หักย้อนหลัง / คืนกลับ — ติ๊กเลือกใบเองได้ ยืนยันแล้วจึงแก้ (ลงประวัติแก้ไขทุกครั้ง) */
-async function advTool(kind,all){
-  const url=endpoint(); if(!url.startsWith('http')){ flash('ยังไม่ได้ตั้ง Sheet URL','err'); return; }
-  const rev=(kind==='revert');
-  flash(rev?'กำลังตรวจใบที่หักเงินก้อนไว้…':'กำลังตรวจใบที่ยังไม่หักเงินก้อน…','ok');
-  let j; try{ j=await callAct({act:'autoadv',mode:rev?'revertpreview':'preview',all:all?'1':''}); }catch(e){ flash('เชื่อมต่อไม่สำเร็จ','err'); return; }
-  if(!j||!j.ok){ flash(ACT_ERR[(j&&j.result)||'']||('ไม่สำเร็จ: '+((j&&j.result)||'')),'err'); return; }
-  let list=[]; try{ list=JSON.parse(String(j.result).replace(/^preview-ok\s*/,''))||[]; }catch(e){}
-  if(!list.length){
-    if(!all){ flash('ใบวันนี้ไม่มีรายการ — กำลังดูย้อนหลังทั้งหมด…','ok'); advTool(kind,true); return; }
-    flash(rev?'ไม่มีใบที่หักเงินก้อนไว้':'ไม่มีใบไหนต้องหักเงินก้อนแล้ว ✓','ok'); return;
-  }
-  showAdvPop(kind,all,list);
-}
-function showAdvPop(kind,all,list){
-  const rev=(kind==='revert');
-  let ov=document.getElementById('mrgOvl'); if(ov) ov.remove();
-  ov=document.createElement('div'); ov.id='mrgOvl';
-  const rows=list.map(x=>`<label class="mrow arow"><input type="checkbox" class="advchk" data-u="${escAttr(x.u||'')}" data-a="${Number(x.a)||0}" checked><span><b>${escHtml(x.d)}</b> · ตู้ ${escHtml(x.c||'-')} · เบิก ${Number(x.t).toLocaleString()} → <b style="color:${rev?'var(--warn)':'var(--ok)'}">${rev?'คืนก้อน':'หักก้อน'} ${Number(x.a).toLocaleString()}</b> · ก้อนเหลือ ${Number(x.l).toLocaleString()}</span></label>`).join('');
-  ov.innerHTML=`<div class="gcard"><div class="gic">${rev?'↩':'💸'}</div>
-    <h3>${rev?'ยกเลิกหักเงินก้อน':'หักเงินก้อนย้อนหลัง'}</h3>
-    <label class="mrow arow" style="background:var(--accent-soft);border-color:var(--accent)"><input type="checkbox" id="advAll" checked><span><b>เลือกทั้งหมด (${list.length} ใบ)</b> · ${all?'ย้อนหลังทั้งหมด':'เฉพาะใบวันนี้'}</span></label>
-    <div class="gbody advlist">${rows}</div>
-    <div class="ghl2" id="advSum"></div>
-    <div class="grow"><button type="button" class="gback" onclick="document.getElementById('mrgOvl').remove()">ปิด</button><button type="button" class="ggo2" id="advGo">${rev?'↩ ยืนยันคืนก้อน':'💸 ยืนยันหักก้อน'}</button></div>
-    ${all?'':`<button type="button" class="gdis" onclick="document.getElementById('mrgOvl').remove(); advTool('${kind}',true)">ดูย้อนหลังทั้งหมด (ไม่เฉพาะวันนี้)</button>`}</div>`;
-  document.body.appendChild(ov); ov.style.display='flex';
-  const chks=()=>[...ov.querySelectorAll('.advchk')];
-  const upd=()=>{ const s=chks().filter(c=>c.checked), sum=s.reduce((a,c)=>a+(Number(c.dataset.a)||0),0);
-    $("advSum").innerHTML=`เลือก <b>${s.length}</b> ใบ · รวม <b>${sum.toLocaleString()}</b> บาท`+(rev?' — จะคืนเข้าเงินก้อนคนขับ และยอดที่ต้องโอนกลับมาเท่ายอดเบิก':' — ยอดที่ต้องโอนของใบที่เลือกจะลดลงเท่ากัน');
-    const g=$("advGo"); g.disabled=!s.length; g.style.opacity=s.length?'1':'.45'; };
-  ov.querySelector('#advAll').onchange=e=>{ chks().forEach(c=>c.checked=e.target.checked); upd(); };
-  chks().forEach(c=>c.onchange=upd); upd();
-  $("advGo").onclick=()=>{ const uids=chks().filter(c=>c.checked).map(c=>c.dataset.u).filter(Boolean); ov.remove(); doAdvApply(kind,all,uids); };
-}
-async function doAdvApply(kind,all,uids){
-  if(!uids.length){ flash('ยังไม่ได้เลือกใบ','err'); return; }
-  const rev=(kind==='revert');
-  flash(rev?'กำลังคืนเงินก้อน…':'กำลังหักเงินก้อน…','ok');
-  try{
-    const j=await callAct({act:'autoadv',mode:rev?'revert':'apply',all:all?'1':'',uids:uids.join(',')});
-    if(j&&j.ok){ flash((rev?'คืนเงินก้อนเรียบร้อย ✓ ':'หักเงินก้อนเรียบร้อย ✓ ')+String(j.result).replace('autoadv-ok','').trim()+' ใบ','ok'); refreshLump(); doSearch(); }
-    else flash(ACT_ERR[(j&&j.result)||'']||('ไม่สำเร็จ: '+((j&&j.result)||'')),'err');
-  }catch(e){ flash('เชื่อมต่อไม่สำเร็จ ลองใหม่','err'); }
-}
 $("btnEditLog").addEventListener('click',doEditLog);
 $("btnInvoice").addEventListener('click',buildInvoiceFromSelection);
 $("btnBulkInvoice").addEventListener('click',buildBulkFromSelection);
