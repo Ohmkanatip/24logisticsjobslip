@@ -1084,13 +1084,18 @@ async function save(){
   // เคลียร์ฟอร์มทันที แล้วให้ป้าย "⟳ กำลังส่ง…" กับตัวตรวจอัตโนมัติเป็นคนบอกผลจริงทีหลัง
   session.unshift({...dlog,sent:false,__busy:true}); saveLog(); renderSession();
   flash('บันทึกแล้ว ✓ จดใบต่อไปได้เลย — กำลังส่งขึ้นชีท…','ok');
-  finish();
+  selectedPhotos=[]; renderPhotoPrev(); resetJobFields();
+  // กันกดซ้ำ: เดิมปุ่มค้างตลอดที่รอเซิร์ฟเวอร์ ตอนนี้ไม่รอแล้วจึงต้องหน่วงเอง
+  // (resetJobFields ไม่ล้างทะเบียนหัว/วันที่ กดพลาดสองทีจะได้ใบซ้ำในชีททันที)
+  setTimeout(()=>{ btn.disabled=false; },700);
   sendInBackground(url,d);
 }
 
 /* ยิงขึ้นชีทแบบไม่รอ · keepalive = ให้คำขอวิ่งต่อได้แม้ปิดหน้าเว็บทันที (จำกัด 64KB จึงใช้เฉพาะใบไม่มีรูป) */
 function sendInBackground(url,d){
+  let settled=false;
   const done=ok=>{
+    if(settled) return; settled=true;
     const it=session.find(x=>x.uid===d.uid);
     if(it){ delete it.__busy; it.sent=ok; saveLog(); renderSession(); }
     if(ok){ if(d.uid) setTimeout(()=>autoVerify(d.uid),5000); }   // ยังตรวจกับชีทจริงเหมือนเดิม
@@ -1101,6 +1106,10 @@ function sendInBackground(url,d){
       headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify(d)})
       .then(()=>done(true)).catch(()=>done(false));
   }catch(e){ done(false); }
+  // กันค้าง: ถ้าเลย 30 วิแล้วยังไม่รู้ผล ถือว่าไม่สำเร็จไว้ก่อน
+  // (ปล่อยไว้ป้าย "⟳ กำลังส่ง…" จะค้างถาวรและไม่มีปุ่ม ⟳ ให้กด)
+  // ส่งซ้ำปลอดภัยเสมอ เพราะเช็ค ID ในชีทก่อนทุกครั้ง
+  setTimeout(()=>done(false),30000);
 }
 function resetJobFields(){
   ['f_container','f_loadPlace','f_mark','f_otherNote','f_trailer',
