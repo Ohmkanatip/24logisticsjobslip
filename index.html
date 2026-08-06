@@ -978,6 +978,9 @@ renderStatus();
 const LOGKEY='jobform_log';
 let session=(()=>{ try{ const r=localStorage.getItem(LOGKEY); if(r) return JSON.parse(r); }catch(e){} return []; })();
 function saveLog(){ try{ session=session.slice(0,500); localStorage.setItem(LOGKEY,JSON.stringify(session)); }catch(e){} }
+// ปิดเว็บ/รีเฟรชกลางคันตอนกำลังส่ง → ป้าย "⟳ กำลังส่ง…" จะค้างถาวรและกดส่งซ้ำไม่ได้
+// ล้างทิ้งตอนเปิดเว็บ ให้กลับเป็น "ในเครื่อง" (ตัวส่งซ้ำเช็ค ID ในชีทก่อนเสมอ ไม่มีทางซ้ำ)
+session.forEach(d=>{ if(d.__busy) delete d.__busy; });
 let editUid=null; // ถ้ามีค่า = กำลังแก้ไขใบนั้น (แอดมิน)
 const num=id=>{const v=parseFloat($(id).value);return isNaN(v)?0:v;};
 function collect(){
@@ -1049,21 +1052,55 @@ async function save(){
     exitEdit(); clearAll(); btn.disabled=false; return;
   }
 
-  let sent=false;
+  const hasPhotos=!!(d.photos&&d.photos.length);
   const expired=tokenExpired();
-  if(expired){
-    // ล็อกอินหมดอายุ — ยิงไปเซิร์ฟเวอร์ก็ไม่รับ (และ no-cors จะหลอกเราว่า "ส่งแล้ว")
-    // จึงไม่ยิงเลย เก็บไว้ในเครื่องแทน ข้อมูลไม่หาย ล็อกอินใหม่แล้วกด ⟳ ส่งซ้ำได้
-  } else if(url.startsWith('http')){
-    try{ await fetch(url,{method:'POST',mode:'no-cors',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify(d)}); sent=true; }catch(e){ sent=false; }
+  const dlog={...d}; dlog.photos=hasPhotos?('📷 '+d.photos.length+' รูป'):''; // ไม่เก็บ base64 ในเครื่อง
+  const finish=()=>{ selectedPhotos=[]; renderPhotoPrev(); resetJobFields(); btn.disabled=false; };
+
+  // ---- ส่งไม่ได้แน่ๆ (ล็อกอินหมดอายุ / ยังไม่ตั้ง Sheet URL) → เก็บในเครื่องอย่างเดียว ----
+  if(expired || !url.startsWith('http')){
+    session.unshift({...dlog,sent:false}); saveLog(); renderSession();
+    flash(expired?"⚠️ ล็อกอินหมดอายุ — เก็บไว้ในเครื่องแล้ว (ยังไม่ขึ้นชีท) กรุณาล็อกอินใหม่ แล้วกด “⟳ ส่งซ้ำทั้งหมด”"
+                 :"เก็บไว้ในเครื่องแล้ว (ยังไม่ต่อ Sheet)",'err');
+    finish(); return;
   }
-  const dlog={...d}; dlog.photos=(d.photos&&d.photos.length)?('📷 '+d.photos.length+' รูป'):''; // ไม่เก็บ base64 ในเครื่อง
-  session.unshift({...dlog,sent}); saveLog(); renderSession();
-  flash(expired?"⚠️ ล็อกอินหมดอายุ — เก็บไว้ในเครื่องแล้ว (ยังไม่ขึ้นชีท) กรุณาล็อกอินใหม่ แล้วกด “⟳ ส่งซ้ำทั้งหมด”"
-       :sent?("บันทึกแล้ว — กำลังตรวจกับชีท…"+(d.photos&&d.photos.length?" (อัปโหลดรูปแล้ว)":""))
-       :"เก็บไว้ในเครื่องแล้ว (ยังไม่ต่อ Sheet)", sent?'ok':'err');
-  selectedPhotos=[]; renderPhotoPrev(); resetJobFields(); btn.disabled=false;
-  if(sent&&d.uid) setTimeout(()=>autoVerify(d.uid),5000); // ตรวจกับชีทจริง กันเคส "ขึ้นว่าส่งแล้วแต่ไม่มีในชีท"
+
+  // ---- ใบที่แนบรูป: ยังรอเหมือนเดิม ----
+  // ข้อมูลรูปใหญ่เกินขีด keepalive (64KB) ถ้าปิดจอกลางคันคำขออาจไม่ถึงเซิร์ฟเวอร์
+  // และ resendPayload ตัด photos ออกตอนส่งซ้ำ → รูปจะหายถาวร ต้องถ่ายใหม่
+  // จึงยอมรอ เพื่อให้แน่ใจว่ารูปถึงปลายทางจริง
+  if(hasPhotos){
+    let sent=false;
+    try{ await fetch(url,{method:'POST',mode:'no-cors',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify(d)}); sent=true; }catch(e){ sent=false; }
+    session.unshift({...dlog,sent}); saveLog(); renderSession();
+    flash(sent?"บันทึกแล้ว (อัปโหลดรูปแล้ว) — กำลังตรวจกับชีท…":"เก็บไว้ในเครื่องแล้ว (ยังไม่ต่อ Sheet)",sent?'ok':'err');
+    finish();
+    if(sent&&d.uid) setTimeout(()=>autoVerify(d.uid),5000);
+    return;
+  }
+
+  // ---- ใบทั่วไป (ไม่มีรูป): ยิงแล้วไม่รอ ----
+  // no-cors อ่านคำตอบไม่ได้อยู่แล้ว การ await จึงไม่ได้ข้อมูลอะไรเพิ่ม แค่ทำให้คนรอเปล่าๆ
+  // เคลียร์ฟอร์มทันที แล้วให้ป้าย "⟳ กำลังส่ง…" กับตัวตรวจอัตโนมัติเป็นคนบอกผลจริงทีหลัง
+  session.unshift({...dlog,sent:false,__busy:true}); saveLog(); renderSession();
+  flash('บันทึกแล้ว ✓ จดใบต่อไปได้เลย — กำลังส่งขึ้นชีท…','ok');
+  finish();
+  sendInBackground(url,d);
+}
+
+/* ยิงขึ้นชีทแบบไม่รอ · keepalive = ให้คำขอวิ่งต่อได้แม้ปิดหน้าเว็บทันที (จำกัด 64KB จึงใช้เฉพาะใบไม่มีรูป) */
+function sendInBackground(url,d){
+  const done=ok=>{
+    const it=session.find(x=>x.uid===d.uid);
+    if(it){ delete it.__busy; it.sent=ok; saveLog(); renderSession(); }
+    if(ok){ if(d.uid) setTimeout(()=>autoVerify(d.uid),5000); }   // ยังตรวจกับชีทจริงเหมือนเดิม
+    else flash('⚠️ '+(d.container||d.uid||'')+' — ส่งไม่ผ่าน เก็บไว้ในเครื่องแล้ว กด “⟳ ส่งซ้ำทั้งหมด” ได้เลย','err');
+  };
+  try{
+    fetch(url,{method:'POST',mode:'no-cors',keepalive:true,
+      headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify(d)})
+      .then(()=>done(true)).catch(()=>done(false));
+  }catch(e){ done(false); }
 }
 function resetJobFields(){
   ['f_container','f_loadPlace','f_mark','f_otherNote','f_trailer',
@@ -1116,7 +1153,7 @@ async function autoVerify(uid){
 }
 function resendPayload(d){ const p={...d}; delete p.sent; delete p.__busy; p.photos=[]; p.app=appToken; p.idt=(window.idToken||''); p.sess=(window.sessToken||''); return p; }
 async function resendItem(i,silent){
-  const d=session[i]; if(!d||d.sent) return 'skip';
+  const d=session[i]; if(!d||d.sent||d.__busy) return 'skip';
   const url=endpoint(); if(!url.startsWith('http')){ if(!silent)flash('ยังไม่ได้ตั้ง Sheet URL','err'); return 'nourl'; }
   if(!d.uid){ if(!silent)flash('ใบนี้ไม่มี ID ส่งซ้ำไม่ได้','err'); return 'noid'; }
   // ล็อกอินหมดอายุ = ส่งซ้ำไปก็ไม่ขึ้นชีท บอกให้ตรงสาเหตุ ไม่ใช่โทษเน็ต
@@ -1134,7 +1171,7 @@ async function resendItem(i,silent){
 }
 async function resendAllPending(){
   if(__resendingAll) return;
-  const idx=session.map((d,i)=>(!d.sent&&d.uid)?i:-1).filter(i=>i>=0);
+  const idx=session.map((d,i)=>(!d.sent&&!d.__busy&&d.uid)?i:-1).filter(i=>i>=0); // ข้ามใบที่กำลังส่งอยู่
   if(!idx.length){ flash('ไม่มีใบค้าง ✓','ok'); return; }
   // เช็คครั้งเดียวก่อนวนลูป — ล็อกอินหมดอายุแล้วส่งซ้ำทั้งหมดก็เสียเปล่าทุกใบ
   if(tokenExpired()){ flash('⚠️ ล็อกอินหมดอายุ — รีเฟรชหน้าเว็บเพื่อเข้าสู่ระบบใหม่ก่อน แล้วค่อยกด “⟳ ส่งซ้ำทั้งหมด” ใหม่','err'); return; }
@@ -1170,7 +1207,7 @@ async function verifyAllSheet(){
 function renderSession(){
   $("sessCount").textContent=session.length+" รายการ";
   if(!session.length){ $("sessBody").innerHTML='<div class="empty">ยังไม่มีรายการ — กรอกแล้วกดบันทึก</div>'; return; }
-  const pend=session.filter(d=>!d.sent).length;
+  const pend=session.filter(d=>!d.sent&&!d.__busy).length; // ไม่นับใบที่กำลังส่งอยู่ แถบเตือนจะได้ไม่กะพริบทุกใบ
   const banner=pend>0
     ? `<div class="resend-bar"><span>⚠️ มี <b>${pend}</b> ใบยังไม่ขึ้นชีท (เซฟค้างในเครื่องนี้) — ควรส่งซ้ำก่อนปิดเบราว์เซอร์</span><button class="rall" id="resendAllBtn" ${__resendingAll?'disabled':''}>${__resendingAll?'⟳ กำลังส่ง…':'⟳ ส่งซ้ำทั้งหมด'}</button></div>`
     : '';
