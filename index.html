@@ -1503,14 +1503,7 @@ function renderSearch(rows){
     const st={}; g.forEach(x=>{ const l=String(x.link||''); st[(l&&l.indexOf('X:')!==0)?l:('u'+x.uid)]=1; });
     return Object.keys(st).length>1; });
   (()=>{ const bd=$("btnDups"); if(bd){ const n=(window.__dupGroups||[]).length; bd.style.display=n?'':'none'; bd.textContent='⚠️ ตู้ซ้ำ ('+n+')'; } })();
-  // ปุ่มกรองสถานะตรวจสอบ (นับจากผลค้นหาชุดนี้)
-  (()=>{ const w=$("btnVwait"), d=$("btnVdone"), f=$("btnVflag");
-    const nW=rows.filter(r=>!String(r.verify||'').trim()).length;
-    const nD=rows.filter(r=>String(r.verify||'').trim()==='ตรวจแล้ว').length;
-    const nF=rows.filter(r=>{ const v=String(r.verify||'').trim(); return v==='แก้หลังตรวจ'||v==='โต้แย้ง'; }).length;
-    if(w){ w.style.display=nW?'':'none'; w.textContent='⚪ ยังไม่ตรวจ ('+nW+')'; }
-    if(d){ d.style.display=nD?'':'none'; d.textContent='✅ ตรวจแล้ว ('+nD+')'; }
-    if(f){ f.style.display=nF?'':'none'; f.textContent='⚠️ แก้หลังตรวจ/โต้แย้ง ('+nF+')'; } })();
+  updateVerChips(rows); // ปุ่มกรองสถานะตรวจสอบ
   const lkB=r=>(r.link&&String(r.link).indexOf('X:')!==0)?' <span class="lkbdg" title="ถูกรวมเป็นงานเดียวกันแล้ว — บิล/จำนวนตู้นับเป็น 1">🔗 งานเดียวกัน</span>':'';
   const dupB=r=>isDup(r)?' <span class="dupbdg" title="ตู้เดียวกันยังไม่คืนมีมากกว่า 1 ใบ — ถ้าเป็นงานเดียวกัน ติ๊กเลือกแล้วกดปุ่ม รวมงานเดียวกัน">⚠️ ตู้ซ้ำ</span>':'';
   // ตรวจสอบสองตา: ป้ายสถานะ + ปุ่ม (หลังบ้านบังคับกติกาอีกชั้น — ที่นี่แค่ซ่อนปุ่มใบตัวเอง)
@@ -1631,6 +1624,16 @@ async function setVerifyUi(uid,state,note,btn){
   }catch(e){ flash('เชื่อมต่อไม่สำเร็จ ลองใหม่','err'); }
   finally{ delete __verBusy[uid]; if(btn&&document.contains(btn)){ btn.disabled=false; btn.textContent=old; } }
 }
+/* ปุ่มกรองสถานะตรวจ — นับจากรายการที่ส่งมา (ตอนอยู่ในโหมดกรอง ให้ส่งผลค้นหาเต็มชุด ปุ่มจะได้ไม่หาย สลับมุมมองได้ทันที) */
+function updateVerChips(list){
+  const w=$("btnVwait"), d=$("btnVdone"), f=$("btnVflag"); list=list||[];
+  const nW=list.filter(r=>!String(r.verify||'').trim()).length;
+  const nD=list.filter(r=>String(r.verify||'').trim()==='ตรวจแล้ว').length;
+  const nF=list.filter(r=>{ const v=String(r.verify||'').trim(); return v==='แก้หลังตรวจ'||v==='โต้แย้ง'; }).length;
+  if(w){ w.style.display=nW?'':'none'; w.textContent='⚪ ยังไม่ตรวจ ('+nW+')'; }
+  if(d){ d.style.display=nD?'':'none'; d.textContent='✅ ตรวจแล้ว ('+nD+')'; }
+  if(f){ f.style.display=nF?'':'none'; f.textContent='⚠️ แก้หลังตรวจ/โต้แย้ง ('+nF+')'; }
+}
 /* ---- โหมดกรองสถานะตรวจ: โชว์เฉพาะใบค้างตรวจ / ใบแก้หลังตรวจ+โต้แย้ง ---- */
 function renderVerOnly(mode){
   const all=window.LAST_ROWS||[];
@@ -1639,6 +1642,7 @@ function renderVerOnly(mode){
   if(!sub.length){ flash(mode==='wait'?'ไม่มีใบค้างตรวจในผลค้นหานี้ ✓':mode==='done'?'ยังไม่มีใบที่ตรวจแล้วในผลค้นหานี้':'ไม่มีใบแก้หลังตรวจ/โต้แย้ง ✓','ok'); return; }
   renderSearch(sub);
   window.LAST_ROWS=all; // คงผลค้นหาเต็มไว้ให้ปุ่มกลับ/ปุ่มตรวจใช้ต่อ
+  updateVerChips(all);  // ปุ่มกรองทุกตัวโชว์ค้างไว้ (นับจากผลเต็ม) — กดสลับมุมมองได้เลยไม่ต้องกดย้อนกลับ
   const bar=document.createElement('div');
   bar.style.cssText='padding:10px 0;display:flex;gap:8px;align-items:center;flex-wrap:wrap';
   bar.innerHTML='<button class="btn btn-ghost" id="verBackBtn">← กลับผลค้นหา</button><span class="hint" style="margin:0">'
