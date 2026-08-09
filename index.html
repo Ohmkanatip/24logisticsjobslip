@@ -1322,10 +1322,15 @@ async function billAct(act,key){
   if(billBusy[key]) return;
   let g=billMap[key]; if(!g) return;
   if(act==='preview'){ billPrintGroup(g,false); return; }   // ดูตัวอย่าง = อ่านอย่างเดียว ไม่แตะสถานะ
+  let w=null;
+  if(act==='print'){ // ต้องเปิดหน้าต่างทันทีที่คลิก — ถ้าไปเปิดหลัง await เบราว์เซอร์จะบล็อกป๊อปอัปเงียบๆ
+    w=openLoadingWindow();
+    if(!w){ flash('เบราว์เซอร์บล็อกป๊อปอัป — กดไอคอนป๊อปอัปมุมขวาของช่องที่อยู่ แล้วเลือก “อนุญาต” ของเว็บนี้','err'); return; }
+  }
   billBusy[key]=1; renderBill();
   try{
     await billFresh(); g=billMap[key];                        // เช็คสถานะสดก่อน
-    if(!g){ flash('บิลนี้ถูกจัดการไปแล้ว (รีเฟรชคิวให้แล้ว)','err'); return; }
+    if(!g){ try{ if(w) w.close(); }catch(e){} flash('บิลนี้ถูกจัดการไปแล้ว (รีเฟรชคิวให้แล้ว)','err'); return; }
     if(act==='confirm'){
       await new Promise(res=>billDialog('✓','ยืนยันวางบิล?','ตู้ '+escHtml(g.rows.map(r=>r.container).filter(Boolean)[0]||'')+' — ยืนยันแล้วจะหายจากคิว (ถ้าพลาด กดดึงกลับได้ในแท็บ “เพิ่งวางบิล”)','ยืนยันวางบิล','ยกเลิก',()=>{ g.__go=1; res(); },res));
       if(g.__go){ await billSetInline(g.rows.map(r=>r.uid),'billed','✓ วางบิลแล้ว — หายจากคิว'); }
@@ -1338,18 +1343,19 @@ async function billAct(act,key){
     }
     if(act==='print'){
       if(billState(g)==='printed'){ // สดแล้วยังพิมพ์แล้ว → เตือนซ้ำ
+        g.__go=0;
         await new Promise(res=>billDialog('⚠️','ใบนี้พิมพ์วางบิลไปแล้ว','ตู้ '+escHtml(g.rows.map(r=>r.container).filter(Boolean)[0]||'')+' พิมพ์ไปแล้ว '+billDays(g.billAtMs)+' วันก่อน โดย <b>'+escHtml(g.billBy||'-')+'</b><br>ถ้าเป็นการพิมพ์ซ้ำโดยไม่ได้ตั้งใจ ให้กด “ไม่พิมพ์ซ้ำ”','พิมพ์ซ้ำอีกครั้ง','ไม่พิมพ์ซ้ำ',()=>{ g.__go=1; res(); },res));
-        if(g.__go) await billPrintGroup(g,false);
+        if(g.__go) await billPrintGroup(g,false,w); else { try{ if(w) w.close(); }catch(e){} }
         return;
       }
-      await billPrintGroup(g,true);
+      await billPrintGroup(g,true,w);
     }
   } finally { delete billBusy[key]; renderBill(); }
 }
-async function billPrintGroup(g,markPrinted){
-  const url=endpoint(); if(!url.startsWith('http')){ flash('ยังไม่ได้ตั้ง Sheet URL','err'); return; }
+async function billPrintGroup(g,markPrinted,wOpt){
+  const url=endpoint(); if(!url.startsWith('http')){ try{ if(wOpt) wOpt.close(); }catch(e){} flash('ยังไม่ได้ตั้ง Sheet URL','err'); return; }
   const uids=g.rows.map(r=>r.uid);
-  const w=openLoadingWindow(); if(!w){ flash('เบราว์เซอร์บล็อกป๊อปอัป — อนุญาตป๊อปอัปก่อน','err'); return; }
+  const w=wOpt||openLoadingWindow(); if(!w){ flash('เบราว์เซอร์บล็อกป๊อปอัป — กดไอคอนป๊อปอัปมุมขวาของช่องที่อยู่ แล้วเลือก “อนุญาต” ของเว็บนี้','err'); return; }
   const recs=combineLinked(await fetchRecs(uids));
   if(!recs.length){ try{w.close();}catch(e){} flash('ดึงข้อมูลไม่สำเร็จ ลองใหม่','err'); return; }
   openInvoice(recs,w);
