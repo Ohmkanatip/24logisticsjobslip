@@ -1357,14 +1357,26 @@ async function billPrintGroup(g,markPrinted){
 }
 /* setbill แบบไม่ reload ทั้งหน้า (ผู้เรียกจัดการ render เอง — ใช้ตอนอยู่ใน busy lock) */
 async function billSetInline(uids,state,okMsg){
-  try{ const j=await callAct({act:'setbill',uids:uids.join(','),state:state,by:billWho()});
-    if(j&&j.ok){ flash(okMsg||'บันทึกแล้ว','ok'); await billFresh(); }
-    else flash('บันทึกสถานะไม่สำเร็จ'+((j&&j.result)?': '+j.result:''),'err');
-  }catch(e){ flash('เชื่อมต่อไม่สำเร็จ ลองใหม่','err'); }
+  const CH=25; // แบ่งส่งก้อนละ 25 ใบ — กันลิงก์คำขอยาวเกินตอนทำทีละหลายร้อยใบ
+  try{
+    if(uids.length>CH) flash('กำลังบันทึก '+uids.length+' ใบ อาจใช้เวลาสักครู่…','ok');
+    let done=0;
+    for(let i=0;i<uids.length;i+=CH){
+      const part=uids.slice(i,i+CH);
+      const j=await callAct({act:'setbill',uids:part.join(','),state:state,by:billWho()});
+      if(!(j&&j.ok)){
+        flash('บันทึกสถานะไม่สำเร็จ'+((j&&j.result)?': '+j.result:'')+(done?' (สำเร็จไปก่อนหน้า '+done+' ใบ — กดรีเฟรชดูสถานะจริง)':''),'err');
+        await billFresh(); return;
+      }
+      done+=part.length;
+    }
+    flash(okMsg||'บันทึกแล้ว','ok'); await billFresh();
+  }catch(e){ flash('เชื่อมต่อไม่สำเร็จ ลองใหม่ (กด 🔄 รีเฟรชดูสถานะจริงก่อน)','err'); try{ await billFresh(); }catch(_){} }
 }
 async function billSet(uids,state,okMsg){ await billSetInline(uids,state,okMsg); renderBill(); }
 async function billBulkPrint(){
   const keys=Object.keys(billSel).filter(k=>billSel[k]&&billMap[k]); if(!keys.length) return;
+  if(keys.length>100){ flash('พิมพ์ได้ครั้งละไม่เกิน 100 บิล (เลือกไว้ '+keys.length+') — แบ่งพิมพ์เป็นรอบ','err'); return; }
   const groups=keys.map(k=>billMap[k]);
   const uids=[]; groups.forEach(g=>g.rows.forEach(r=>uids.push(r.uid)));
   const w=openLoadingWindow(); if(!w){ flash('เบราว์เซอร์บล็อกป๊อปอัป — อนุญาตป๊อปอัปก่อน','err'); return; }
@@ -2130,10 +2142,11 @@ function openLoadingWindow(){
 /* ดึงหลายใบพร้อมกัน — ลอง batch ก่อน (1 คำขอ เร็วสุด) ถ้าไม่ได้ fallback ดึงขนาน */
 async function fetchRecs(uids){
   const url=endpoint();
-  try{ // batch: ต้อง deploy Apps Script ล่าสุด (เร็วสุด)
-    const r=await fetch(url+(url.includes('?')?'&':'?')+'many='+encodeURIComponent(uids.join(','))+APPQS());
-    const j=await r.json();
-    if(j&&j.ok&&Array.isArray(j.recs)&&j.recs.length) return j.recs;
+  try{ // batch: แบ่งก้อนละ 25 ใบ กันลิงก์คำขอยาวเกินจนเซิร์ฟเวอร์ปัด (เลือกทีละเป็นร้อยใบได้)
+    const CH=25, chunks=[]; for(let i=0;i<uids.length;i+=CH) chunks.push(uids.slice(i,i+CH));
+    const rs=await Promise.all(chunks.map(c=>fetch(url+(url.includes('?')?'&':'?')+'many='+encodeURIComponent(c.join(','))+APPQS()).then(r=>r.json()).catch(()=>null)));
+    const recs=[]; rs.forEach(j=>{ if(j&&j.ok&&Array.isArray(j.recs)) recs.push(...j.recs); });
+    if(recs.length) return recs;
   }catch(e){}
   try{ // fallback: ดึงพร้อมกันแบบขนาน (ใช้ได้แม้ยังไม่ deploy backend ใหม่)
     const res=await Promise.all(uids.map(u=>fetch(url+(url.includes('?')?'&':'?')+'one='+encodeURIComponent(u)+APPQS()).then(r=>r.json()).catch(()=>null)));
