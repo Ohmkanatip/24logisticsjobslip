@@ -111,6 +111,8 @@
   .sp-yellow{background:rgba(240,192,64,.2);color:#8a6100;border:1px solid #e0b84c}
   .sp-red{background:rgba(178,59,46,.14);color:var(--warn);border:1px solid var(--warn)}
   html[data-theme="dark"] .sp-yellow{color:#ffd57a}
+  .sp-green{background:var(--tag-sent-bg);color:var(--tag-sent-fg);border:1px solid var(--tag-sent-fg)}
+  .vwho{display:block;font-size:10.5px;color:var(--ink-soft);margin-top:2px;white-space:normal;max-width:230px}
   .lchip{display:inline-block;background:#1a56db;color:#fff;font-size:10px;font-weight:700;border-radius:10px;padding:0 6px;margin-left:4px}
   .brows{padding:0 12px 8px 30px}
   .brow{display:flex;justify-content:space-between;font-size:12.5px;padding:4px 0;border-bottom:1px dashed var(--line);gap:8px}
@@ -471,6 +473,8 @@
       <button class="btn btn-primary" id="btnSummary" title="สรุปยอดวันนี้ ส่งเข้า LINE ให้พ่อ">📤 สรุปยอดวันนี้ → LINE</button>
       <button class="btn btn-ghost" id="btnAudit" title="ตรวจเบอร์ตู้ผิดมาตรฐาน / ตู้ซ้ำ / ยอดสูงผิดปกติ" style="display:none">🔍 ตรวจสอบความผิดปกติ</button>
       <button class="btn btn-ghost" id="btnDups" style="display:none;border-color:var(--warn);color:var(--warn)" title="ดูเฉพาะกลุ่มตู้ซ้ำ — กดรวมงานเป็นรายกลุ่ม ปลอดภัยไม่ติ๊กข้ามกลุ่ม">⚠️ ตู้ซ้ำ (0)</button>
+      <button class="btn btn-ghost" id="btnVwait" style="display:none" title="ดูเฉพาะใบที่ยังไม่มีคนตรวจเทียบใบจริง">⚪ ยังไม่ตรวจ (0)</button>
+      <button class="btn btn-ghost" id="btnVflag" style="display:none;border-color:var(--warn);color:var(--warn)" title="ใบที่ถูกแก้หลังตรวจแล้ว หรือถูกโต้แย้ง — ต้องตรวจใหม่">⚠️ แก้หลังตรวจ/โต้แย้ง (0)</button>
       <button class="btn btn-ghost" id="btnEditLog" title="ประวัติก่อน–หลังการแก้ไข (แอดมินเท่านั้น)" style="display:none">📝 ประวัติการแก้ไข</button>
       <button class="btn btn-primary" id="btnInvoice" style="display:none" title="รวมทุกใบที่เลือกเป็นบิลเดียว">🧾 บิลเดียว (0)</button>
       <button class="btn btn-primary" id="btnBulkInvoice" style="display:none" title="พิมพ์หลายบิลพร้อมกัน จัดกลุ่มเองได้">🖨 พิมพ์หลายบิล (0)</button>
@@ -1474,7 +1478,7 @@ function showHistory(){ $("q").value=''; $("qFrom").value=''; $("qTo").value='';
 function renderSearch(rows){
   const sel=true; // ทุกคนติ๊กเลือกได้ (ใช้ออกใบวางบิล/รวมงาน) — ปุ่มลบยังเป็นแอดมินเท่านั้น
   window.LAST_ROWS=rows;
-  if(!rows.length){ $("searchBody").innerHTML='<div class="empty">ไม่พบรายการ</div>'; updateDelSel(); return; }
+  if(!rows.length){ $("searchBody").innerHTML='<div class="empty">ไม่พบรายการ</div>'; ['btnVwait','btnVflag'].forEach(id=>{ const b=$(id); if(b) b.style.display='none'; }); updateDelSel(); return; }
   // ตู้ซ้ำ: เบอร์เดียวกัน ยังไม่คืน >1 ใบ ที่ยังไม่ได้รวมงาน/ไม่ได้กด "คนละงาน"
   const nrmC=c=>String(c||'').replace(/[\s-]/g,'').toUpperCase();
   const dupG={};
@@ -1490,8 +1494,35 @@ function renderSearch(rows){
     const st={}; g.forEach(x=>{ const l=String(x.link||''); st[(l&&l.indexOf('X:')!==0)?l:('u'+x.uid)]=1; });
     return Object.keys(st).length>1; });
   (()=>{ const bd=$("btnDups"); if(bd){ const n=(window.__dupGroups||[]).length; bd.style.display=n?'':'none'; bd.textContent='⚠️ ตู้ซ้ำ ('+n+')'; } })();
+  // ปุ่มกรองสถานะตรวจสอบ (นับจากผลค้นหาชุดนี้)
+  (()=>{ const w=$("btnVwait"), f=$("btnVflag");
+    const nW=rows.filter(r=>!String(r.verify||'').trim()).length;
+    const nF=rows.filter(r=>{ const v=String(r.verify||'').trim(); return v==='แก้หลังตรวจ'||v==='โต้แย้ง'; }).length;
+    if(w){ w.style.display=nW?'':'none'; w.textContent='⚪ ยังไม่ตรวจ ('+nW+')'; }
+    if(f){ f.style.display=nF?'':'none'; f.textContent='⚠️ แก้หลังตรวจ/โต้แย้ง ('+nF+')'; } })();
   const lkB=r=>(r.link&&String(r.link).indexOf('X:')!==0)?' <span class="lkbdg" title="ถูกรวมเป็นงานเดียวกันแล้ว — บิล/จำนวนตู้นับเป็น 1">🔗 งานเดียวกัน</span>':'';
   const dupB=r=>isDup(r)?' <span class="dupbdg" title="ตู้เดียวกันยังไม่คืนมีมากกว่า 1 ใบ — ถ้าเป็นงานเดียวกัน ติ๊กเลือกแล้วกดปุ่ม รวมงานเดียวกัน">⚠️ ตู้ซ้ำ</span>':'';
+  // ตรวจสอบสองตา: ป้ายสถานะ + ปุ่ม (หลังบ้านบังคับกติกาอีกชั้น — ที่นี่แค่ซ่อนปุ่มใบตัวเอง)
+  const meE=String((window.__me&&window.__me.email)||'').trim().toLowerCase();
+  const meN=String((window.__me&&window.__me.name)||enteredUser||'').trim().toLowerCase();
+  const isMineV=r=>{ const re=String(r.enteredEmail||'').trim().toLowerCase();
+    if(re) return !!meE&&re===meE;
+    const rn=String(r.enteredBy||'').trim().toLowerCase();
+    return !!meN&&!!rn&&rn===meN; };
+  const vAt=s=>escHtml(String(s||'').replace('T',' '));
+  const vBtn=(cls,uid,txt,warn)=>`<button class="btn btn-ghost ${cls}" data-uid="${escAttr(uid)}" style="padding:4px 8px;font-size:11.5px;margin-top:3px${warn?';color:var(--warn)':''}">${txt}</button>`;
+  const selfNote='<span class="vwho">จดเอง — ให้อีกคนตรวจ</span>';
+  const verCell=r=>{ const v=String(r.verify||'').trim(), mine=isMineV(r);
+    if(v==='ตรวจแล้ว') return '<span class="spill sp-green">✅ ตรวจแล้ว</span><span class="vwho">'+escHtml(r.verifyBy||'')+(r.verifyAt?' · '+vAt(r.verifyAt):'')+'</span>'
+      +(mine?'':'<br>'+vBtn('btnVundo',r.uid,'↩ ยกเลิกการตรวจ',true));
+    if(v==='แก้หลังตรวจ') return '<span class="spill sp-yellow" title="เคยตรวจผ่านแล้ว แต่ถูกแก้ทีหลัง — ต้องตรวจใหม่">⚠️ แก้หลังตรวจ</span>'
+      +(r.verifyBy?'<span class="vwho">ตรวจไว้: '+escHtml(r.verifyBy)+(r.verifyAt?' · '+vAt(r.verifyAt):'')+'</span>':'')
+      +(mine?selfNote:'<br>'+vBtn('btnVok',r.uid,'✅ ตรวจใหม่')+' '+vBtn('btnVno',r.uid,'⚠ ไม่ตรง',true));
+    if(v==='โต้แย้ง') return '<span class="spill sp-red">⚠️ โต้แย้ง</span><span class="vwho">'+escHtml(r.verifyBy||'')+(r.verifyAt?' · '+vAt(r.verifyAt):'')
+      +(r.verifyNote?' — “'+escHtml(r.verifyNote)+'”':'')+'</span>'
+      +(mine?selfNote:'<br>'+vBtn('btnVok',r.uid,'✅ ตรวจใหม่')+' '+vBtn('btnVundo',r.uid,'↩ ถอน',true));
+    return '<span class="spill sp-white">⚪ ยังไม่ตรวจ</span>'
+      +(mine?selfNote:'<br>'+vBtn('btnVok',r.uid,'✅ ตรวจแล้ว')+' '+vBtn('btnVno',r.uid,'⚠ ไม่ตรง',true)); };
   const body=rows.map(r=>`<tr>
     ${sel?`<td style="text-align:center"><input type="checkbox" class="selchk" data-uid="${escAttr(r.uid)}" data-c="${escAttr(r.container)}" style="width:17px;height:17px;accent-color:var(--warn)"></td>`:''}
     <td>${escHtml(r.date)} ${escHtml(r.time)}</td><td class="mono">${escHtml(r.container)}${adminToken&&r.container&&!contValid(r.container).ok?' <span title="เบอร์ตู้ไม่ผ่านมาตรฐาน ISO 6346 — เช็กก่อนเบิก" style="color:var(--warn);cursor:help">⚠</span>':''}${lkB(r)}${dupB(r)}</td>
@@ -1500,7 +1531,9 @@ function renderSearch(rows){
     <td class="retcell">${r.returned
       ? '<span class="tag sent">คืนแล้ว'+(r.returnedAt?' '+escHtml(r.returnedAt):'')+'</span>'+(r.lateDays>0?' <span class="tag local" style="background:#fdeee3;color:#a85520">ช้า '+r.lateDays+' ว.</span>':'')
       : '<span class="tag local">'+escHtml(r.status||'ยังไม่คืน')+'</span>'+(r.lateDays>0?' <span class="tag" style="background:#f4c7c3;color:#7d281f">ค้าง '+r.lateDays+' ว.</span>':'')}</td>
+    <td class="num">${(+r.total||0).toLocaleString('th-TH')}</td>
     <td>${escHtml(r.enteredBy||'-')}</td>
+    <td class="vercell">${verCell(r)}</td>
     <td style="white-space:nowrap">
       <button class="btn btn-ghost btnP" data-uid="${escAttr(r.uid)}" style="padding:5px 10px;font-size:12px">พิมพ์</button>
       ${r.photos&&String(r.photos).trim()?`<a href="${escAttr(String(r.photos).split('\n')[0].trim())}" target="_blank" class="btn btn-ghost" style="padding:5px 8px;font-size:12px;text-decoration:none" title="ดูรูปตอนจดตู้ (${String(r.photos).split('\n').filter(Boolean).length} รูป)">📷</a>`:''}
@@ -1510,7 +1543,7 @@ function renderSearch(rows){
         : `<button class="btn btn-primary btnRet" data-uid="${escAttr(r.uid)}" data-c="${escAttr(r.container)}" style="padding:5px 10px;font-size:12px">✓ คืนตู้</button>`}
     </td></tr>`).join('');
   $("searchBody").innerHTML=`<div style="overflow-x:auto"><table>
-    <thead><tr>${sel?'<th style="text-align:center"><input type="checkbox" id="selAll" style="width:17px;height:17px;accent-color:var(--warn)"></th>':''}<th>วันเวลา</th><th>เบอร์ตู้</th><th>ลูกค้า</th><th>หัว</th><th>คนขับ</th><th>วันคืน</th><th>สถานะ</th><th>ผู้กรอก</th><th></th></tr></thead>
+    <thead><tr>${sel?'<th style="text-align:center"><input type="checkbox" id="selAll" style="width:17px;height:17px;accent-color:var(--warn)"></th>':''}<th>วันเวลา</th><th>เบอร์ตู้</th><th>ลูกค้า</th><th>หัว</th><th>คนขับ</th><th>วันคืน</th><th>สถานะ</th><th style="text-align:right">รวมเบิก</th><th>ผู้กรอก</th><th>ตรวจสอบ</th><th></th></tr></thead>
     <tbody>${body}</tbody></table></div>`;
   $("searchBody").querySelectorAll('.btnRet').forEach(b=>b.onclick=()=>markReturned(b.dataset.uid,b.dataset.c,b));
   $("searchBody").querySelectorAll('.btnUnret').forEach(b=>b.onclick=()=>unreturnJob(b.dataset.uid,b.dataset.c));
@@ -1521,6 +1554,13 @@ function renderSearch(rows){
       fetchRecs(pUids).then(recs=>{ const rs=combineLinked(recs); if(rs.length) openInvoice(rs,w); else { try{w.close();}catch(e){} flash('ดึงข้อมูลไม่สำเร็จ — ลองใหม่','err'); } });
     } else fetchOne(b.dataset.uid,rec=>printSlip(rec,w)); });
   $("searchBody").querySelectorAll('.btnE').forEach(b=>b.onclick=()=>fetchOne(b.dataset.uid,rec=>enterEdit(rec)));
+  $("searchBody").querySelectorAll('.btnVok').forEach(b=>b.onclick=()=>setVerifyUi(b.dataset.uid,'checked','',b));
+  $("searchBody").querySelectorAll('.btnVno').forEach(b=>b.onclick=()=>{
+    const note=prompt('ไม่ตรงกับใบจริงตรงไหน? (จำเป็นต้องใส่ — จะโชว์ในชีทให้คนแก้เห็น)','');
+    if(note===null) return; const t=note.trim();
+    if(!t){ flash('ต้องใส่หมายเหตุว่าไม่ตรงตรงไหน','err'); return; }
+    setVerifyUi(b.dataset.uid,'dispute',t.slice(0,200),b); });
+  $("searchBody").querySelectorAll('.btnVundo').forEach(b=>b.onclick=()=>setVerifyUi(b.dataset.uid,'reset','',b));
   if(sel){
     const all=$("selAll"); if(all) all.onchange=()=>{ $("searchBody").querySelectorAll('.selchk').forEach(c=>c.checked=all.checked); updateDelSel(); };
     $("searchBody").querySelectorAll('.selchk').forEach(c=>c.onchange=updateDelSel);
@@ -1558,6 +1598,42 @@ function renderDupOnly(){
   $("searchBody").innerHTML='<div style="padding:10px 0;display:flex;gap:8px;align-items:center;flex-wrap:wrap"><button class="btn btn-ghost" id="dupBackBtn">← กลับผลค้นหา</button><span class="hint" style="margin:0">รวมทีละกลุ่ม เบอร์ตู้เดียวกันเท่านั้น · ตู้เดิมวนกลับมาอีกเที่ยว (ไม่ใช่งานเดียวกัน) กด “ไม่ใช่งานเดียวกัน” ในหน้าต่างยืนยัน</span></div>'+html;
   $("dupBackBtn").onclick=()=>renderSearch(window.LAST_ROWS||[]);
   $("searchBody").querySelectorAll('.dgm').forEach(b=>b.onclick=()=>{ const g=(window.__dupGroups||[])[+b.dataset.gi]||[]; if(g.length<2) return; window.__mrgWarn=''; showMergePop(g,g.map(r=>r.uid),false); });
+}
+/* ---- ตรวจสอบสองตา: ตั้ง/ถอนสถานะตรวจของใบเดียว แล้ววาดตารางใหม่ ----
+   กติกา "จดเอง ตรวจเอง/ถอนเองไม่ได้" บังคับจริงที่หลังบ้าน (act setverify) — ปุ่มที่ซ่อนในเว็บเป็นแค่ความสะดวก */
+const __verBusy={};
+async function setVerifyUi(uid,state,note,btn){
+  if(__verBusy[uid]) return; __verBusy[uid]=1;
+  const old=btn?btn.textContent:''; if(btn){ btn.disabled=true; btn.textContent='⟳ …'; }
+  try{
+    const j=await callAct({act:'setverify',uid:uid,state:state,note:note||''});
+    if(j&&j.ok){
+      const me=(window.__me&&(window.__me.name||window.__me.email))||enteredUser||'ฉัน';
+      const r=(window.LAST_ROWS||[]).find(x=>x.uid===uid);
+      if(r){ if(state==='checked'){ r.verify='ตรวจแล้ว'; r.verifyBy=me; r.verifyAt='เมื่อครู่'; r.verifyNote=''; }
+        else if(state==='dispute'){ r.verify='โต้แย้ง'; r.verifyBy=me; r.verifyAt='เมื่อครู่'; r.verifyNote=note||''; }
+        else { r.verify=''; r.verifyBy=''; r.verifyAt=''; r.verifyNote=''; } }
+      flash(state==='checked'?'บันทึกผลตรวจแล้ว ✓':state==='dispute'?'บันทึกโต้แย้งแล้ว — บอกคนกรอกให้แก้ใบนี้ด้วย':'ถอนการตรวจแล้ว','ok');
+      renderSearch(window.LAST_ROWS||[]);
+    } else { const res=String((j&&j.result)||'');
+      flash('บันทึกไม่สำเร็จ: '+(ACT_ERR[res]||(res.indexOf('auth-')===0?'ล็อกอินหมดอายุ — รีเฟรชหน้าเว็บแล้วล็อกอินใหม่':res||'ไม่ทราบสาเหตุ')),'err'); }
+  }catch(e){ flash('เชื่อมต่อไม่สำเร็จ ลองใหม่','err'); }
+  finally{ delete __verBusy[uid]; if(btn&&document.contains(btn)){ btn.disabled=false; btn.textContent=old; } }
+}
+/* ---- โหมดกรองสถานะตรวจ: โชว์เฉพาะใบค้างตรวจ / ใบแก้หลังตรวจ+โต้แย้ง ---- */
+function renderVerOnly(mode){
+  const all=window.LAST_ROWS||[];
+  const sub=all.filter(r=>{ const v=String(r.verify||'').trim();
+    return mode==='wait' ? !v : (v==='แก้หลังตรวจ'||v==='โต้แย้ง'); });
+  if(!sub.length){ flash(mode==='wait'?'ไม่มีใบค้างตรวจในผลค้นหานี้ ✓':'ไม่มีใบแก้หลังตรวจ/โต้แย้ง ✓','ok'); return; }
+  renderSearch(sub);
+  window.LAST_ROWS=all; // คงผลค้นหาเต็มไว้ให้ปุ่มกลับ/ปุ่มตรวจใช้ต่อ
+  const bar=document.createElement('div');
+  bar.style.cssText='padding:10px 0;display:flex;gap:8px;align-items:center;flex-wrap:wrap';
+  bar.innerHTML='<button class="btn btn-ghost" id="verBackBtn">← กลับผลค้นหา</button><span class="hint" style="margin:0">'
+    +(mode==='wait'?'เฉพาะใบที่ยังไม่มีคนตรวจเทียบใบจริง':'เฉพาะใบที่ถูกแก้หลังตรวจ/โต้แย้ง — เทียบใบจริงแล้วกดตรวจใหม่ได้เลย')+'</span>';
+  $("searchBody").prepend(bar);
+  $("verBackBtn").onclick=()=>renderSearch(window.LAST_ROWS||[]);
 }
 /* ---- รวมงาน (ตู้ซ้ำ = งานเดียวกัน): ผูกใบด้วยคอลัมน์ "งานเดียวกัน" — แถวในชีทยังแยกคนละบรรทัด เงินใครเงินมัน ---- */
 async function mergeSelected(){
@@ -1637,7 +1713,10 @@ async function callAct(params){
 const ACT_ERR={forbidden:'รหัสแอดมินไม่ถูกต้อง (เช็ก ADMIN_TOKEN ในสคริปต์)',
   'no-id-col':'ชีทยังไม่มีคอลัมน์ ID — รัน migrateSheet ในชีทก่อน',
   'not-found':'ไม่พบใบนี้ในชีท (อาจถูกลบไปแล้ว)','bad-request':'ข้อมูลไม่ครบ','busy':'ระบบไม่ว่าง ลองใหม่',
-  'no-return-col':'ชีทยังไม่มีคอลัมน์ “วันคืนจริง” — รัน reorderSheet ในชีทก่อน'};
+  'no-return-col':'ชีทยังไม่มีคอลัมน์ “วันคืนจริง” — รัน reorderSheet ในชีทก่อน',
+  'self-verify':'จดเอง ตรวจเอง/ถอนเองไม่ได้ — ต้องให้อีกคนเป็นคนตรวจ',
+  'reset-locked':'ป้าย “แก้หลังตรวจ” ถอนไม่ได้ — เทียบใบจริงแล้วกด ✅ ตรวจใหม่เท่านั้น',
+  'unknown-act':'หลังบ้านยังไม่ได้อัปเดต — ต้อง deploy Apps Script เวอร์ชันใหม่ก่อน'};
 async function deleteSelected(){
   const url=endpoint(); if(!url.startsWith('http')){ flash('ยังไม่ได้ตั้ง Sheet URL','err'); return; }
   if(!adminToken){ flash('ต้องเข้าโหมดแอดมินก่อนลบ','err'); return; }
@@ -1944,6 +2023,8 @@ $("bpReload").addEventListener('click',()=>{ billSel={}; if(billFilter==='recent
 billPageSync();
 $("btnVerifyAll").addEventListener('click',verifyAllSheet);
 $("btnDups").addEventListener('click',renderDupOnly);
+$("btnVwait").addEventListener('click',()=>renderVerOnly('wait'));
+$("btnVflag").addEventListener('click',()=>renderVerOnly('flag'));
 document.querySelectorAll('.billfilter .fb').forEach(f=>f.addEventListener('click',()=>{ billFilter=f.dataset.f; document.querySelectorAll('.billfilter .fb').forEach(x=>x.classList.toggle('on',x.dataset.f===billFilter)); $("billBulk").style.display='none'; if(billFilter==='recent') loadBillRecent(); else loadBillQueue(); }));
 $("btnTrash").addEventListener('click',doTrash);
 $("btnOpenCont").addEventListener('click',showOpenContainers);
