@@ -1381,17 +1381,26 @@ async function billSetInline(uids,state,okMsg){
 }
 async function billSet(uids,state,okMsg){ await billSetInline(uids,state,okMsg); renderBill(); }
 async function billBulkPrint(){
-  const keys=Object.keys(billSel).filter(k=>billSel[k]&&billMap[k]); if(!keys.length) return;
-  if(keys.length>100){ flash('พิมพ์ได้ครั้งละไม่เกิน 100 บิล (เลือกไว้ '+keys.length+') — แบ่งพิมพ์เป็นรอบ','err'); return; }
+  let keys=Object.keys(billSel).filter(k=>billSel[k]&&billMap[k]); if(!keys.length) return;
+  const total=keys.length;
+  if(total>100){ // ติ๊กเกิน 100 ได้ — รอบนี้หยิบ 100 บิลแรกตามลำดับคิวให้อัตโนมัติ ที่เหลือติ๊กค้างไว้พิมพ์รอบถัดไป
+    const sel=new Set(keys);
+    keys=billGroups().map(x=>x.key).filter(k=>sel.has(k)).slice(0,100);
+  }
   const groups=keys.map(k=>billMap[k]);
   const uids=[]; groups.forEach(g=>g.rows.forEach(r=>uids.push(r.uid)));
-  const w=openLoadingWindow(); if(!w){ flash('เบราว์เซอร์บล็อกป๊อปอัป — อนุญาตป๊อปอัปก่อน','err'); return; }
+  const w=openLoadingWindow(); if(!w){ flash('เบราว์เซอร์บล็อกป๊อปอัป — กดไอคอนป๊อปอัปมุมขวาของช่องที่อยู่ แล้วเลือก “อนุญาต” ของเว็บนี้','err'); return; }
   const recs=combineLinked(await fetchRecs(uids));
-  if(!recs.length){ try{w.close();}catch(e){} flash('ดึงข้อมูลไม่สำเร็จ','err'); return; }
+  if(!recs.length){ try{w.close();}catch(e){} flash('ดึงข้อมูลไม่สำเร็จ ลองใหม่','err'); return; }
   openBulkInvoice(recs,w);
-  const pu=[]; groups.forEach(g=>{ if(billState(g)!=='printed') g.rows.forEach(r=>pu.push(r.uid)); });
-  billSel={};
-  if(pu.length){ await billSetInline(pu,'printed','🖨 พิมพ์วางบิล '+groups.length+' บิล → ขึ้น “รอยืนยัน”'); } else { flash('เปิดพิมพ์แล้ว (ทุกบิลเคยพิมพ์ไปก่อนหน้า)','ok'); }
+  // ความจริงต้องตรงกัน: ตีสถานะ "พิมพ์แล้ว" เฉพาะใบที่ดึงเข้าหน้าพิมพ์ได้จริง — ใบที่ดึงไม่สำเร็จคงสถานะเดิม
+  const got=new Set(recs.map(r=>String(r.uid||'')));
+  const pu=[]; groups.forEach(g=>{ if(billState(g)!=='printed') g.rows.forEach(r=>{ if(got.has(String(r.uid))) pu.push(r.uid); }); });
+  const missing=uids.filter(u=>!got.has(String(u))).length;
+  keys.forEach(k=>{ delete billSel[k]; }); // ล้างติ๊กเฉพาะที่พิมพ์รอบนี้ — ที่เหลือค้างไว้กดพิมพ์รอบต่อไป
+  if(pu.length){ await billSetInline(pu,'printed','🖨 พิมพ์วางบิล '+groups.length+' บิล → ขึ้น “รอยืนยัน”'+(total>100?' · เหลืออีก '+(total-100)+' บิล กดพิมพ์รอบถัดไปได้เลย':'')); }
+  else if(!missing){ flash('เปิดพิมพ์แล้ว (ทุกบิลเคยพิมพ์ไปก่อนหน้า)','ok'); }
+  if(missing) flash('⚠️ ดึงข้อมูลได้ '+(uids.length-missing)+'/'+uids.length+' ใบ — ใบที่ขาดยังสถานะเดิม ไม่ถูกตีว่าพิมพ์แล้ว กดพิมพ์ซ้ำได้','err');
   renderBill();
 }
 function billBulkConfirm(){
