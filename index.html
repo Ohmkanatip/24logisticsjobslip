@@ -98,7 +98,7 @@
   .dupgrp .dg-acts{padding:9px 12px;border-top:1px solid var(--line);display:flex;gap:8px;flex-wrap:wrap}
   .bill-bulk{display:flex;align-items:center;gap:8px;flex-wrap:wrap;background:var(--total-bg);color:var(--total-fg);border-radius:9px;padding:9px 12px;margin:0 0 10px;font-size:13px;position:sticky;top:4px;z-index:5}
   .bill-bulk .btn{border:none;border-radius:7px;padding:7px 12px;font-size:12.5px;font-weight:700;cursor:pointer;font-family:inherit}
-  .bill-bulk .bp{background:var(--accent);color:#fff}.bill-bulk .bc{background:var(--ok);color:#fff}.bill-bulk .bx{background:transparent;color:#aeb8c8;margin-left:auto}
+  .bill-bulk .bp{background:var(--accent);color:#fff}.bill-bulk .bc{background:var(--ok);color:#fff}.bill-bulk .bu{background:var(--warn);color:#fff}.bill-bulk .bx{background:transparent;color:#aeb8c8;margin-left:auto}
   .bcard{border:1px solid var(--line);border-left:5px solid var(--line-strong);border-radius:10px;margin-bottom:11px;overflow:hidden;background:var(--panel)}
   .bcard.st-printed{border-left-color:#e0a020;background:rgba(240,192,64,.06)}
   .bcard.st-old{border-left-color:var(--warn)}
@@ -1286,7 +1286,7 @@ function renderBill(){
       sac.onchange=()=>{ if(sac.checked) shown.forEach(g=>billSel[g.key]=1); else shown.forEach(g=>delete billSel[g.key]); renderBill(); }; } }
   const selKeys=Object.keys(billSel).filter(k=>billSel[k]&&billMap[k]);
   const bb=$("billBulk");
-  if(selKeys.length){ bb.style.display='flex'; bb.innerHTML='เลือก '+selKeys.length+' บิล <button class="btn bp" onclick="billBulkPrint()">🖨 พิมพ์วางบิลที่เลือก</button><button class="btn bc" onclick="billBulkConfirm()">✓ ยืนยันวางบิลที่เลือก</button><button class="btn bx" onclick="billClearSel()">ล้าง</button>'; }
+  if(selKeys.length){ bb.style.display='flex'; bb.innerHTML='เลือก '+selKeys.length+' บิล <button class="btn bp" onclick="billBulkPrint()">🖨 พิมพ์วางบิลที่เลือก</button><button class="btn bc" onclick="billBulkConfirm()">✓ ยืนยันวางบิลที่เลือก</button><button class="btn bu" onclick="billBulkUnprint()">↩ ย้อนสถานะที่เลือก</button><button class="btn bx" onclick="billClearSel()">ล้าง</button>'; }
   else bb.style.display='none';
   if(!shown.length){ $("billBody").innerHTML='<div class="empty" style="color:var(--ok)">'+(billFilter==='printed'?'ไม่มีใบที่รอยืนยัน':(billFilter==='unprinted'?'ไม่มีใบที่ยังไม่พิมพ์ 🎉':'คิววางบิลว่างแล้ว 🎉'))+'</div>'; return; }
   $("billBody").innerHTML=shown.map(billCard).join('');
@@ -1406,6 +1406,14 @@ async function billUndo(key){
   }catch(e){ flash('เชื่อมต่อไม่สำเร็จ','err'); }
 }
 function billClearSel(){ billSel={}; renderBill(); }
+/* ↩ ย้อนสถานะหลายบิลพร้อมกัน — กลับเป็น "ยังไม่พิมพ์" ทั้งชุด (ใช้เคลียร์ของค้าง/กดพิมพ์ผิด) */
+function billBulkUnprint(){
+  const keys=Object.keys(billSel).filter(k=>billSel[k]&&billMap[k]); if(!keys.length) return;
+  billDialog('↩','ย้อนสถานะ '+keys.length+' บิล?','บิลที่เลือกจะกลับเป็น “⚪ ยังไม่พิมพ์” ทั้งหมด<br>ไม่มีข้อมูลหาย — แค่สถานะการพิมพ์ถูกล้าง กดพิมพ์ใหม่ได้ตลอด','ย้อนทั้งหมด','ยกเลิก',async()=>{
+    const ks=Object.keys(billSel).filter(k=>billSel[k]&&billMap[k]); const uids=[]; ks.forEach(k=>billMap[k].rows.forEach(r=>uids.push(r.uid))); billSel={};
+    await billSetInline(uids,'reset','↩ ย้อนสถานะ '+ks.length+' บิลแล้ว — กลับเป็น “ยังไม่พิมพ์”'); renderBill();
+  });
+}
 function billDialog(icon,title,bodyHtml,okText,cancelText,onOk,onCancel){
   let ov=document.getElementById('billOvl'); if(ov) ov.remove();
   ov=document.createElement('div'); ov.id='billOvl'; let done=false;
@@ -2297,9 +2305,11 @@ function bulkWindowMain(){
   function gv(el){var v=(el.value!==undefined&&el.value!==null)?el.value:(el.textContent||'');return parseFloat(String(v).replace(/,/g,''))||0;}
   function bahtText(num){num=Math.round((Number(num)||0)*100)/100;var baht=Math.floor(num),satang=Math.round((num-baht)*100);var digits=['ศูนย์','หนึ่ง','สอง','สาม','สี่','ห้า','หก','เจ็ด','แปด','เก้า'];var places=['','สิบ','ร้อย','พัน','หมื่น','แสน'];function rc(chunk){var r='',len=chunk.length;for(var i=0;i<len;i++){var d=+chunk[i],pos=len-1-i;if(d===0)continue;if(pos===0&&d===1&&len>1)r+='เอ็ด';else if(pos===1&&d===2)r+='ยี่'+places[pos];else if(pos===1&&d===1)r+=places[pos];else r+=digits[d]+places[pos];}return r;}function nt(s){s=String(s);if(s==='0')return '';var g=[];while(s.length>6){g.unshift(s.slice(-6));s=s.slice(0,-6);}g.unshift(s);return g.map(rc).join('ล้าน');}if(baht===0&&satang===0)return 'ศูนย์บาทถ้วน';var w='';if(baht>0)w+=nt(baht)+'บาท';if(satang>0)w+=nt(satang)+'สตางค์';else if(baht>0)w+='ถ้วน';return w;}
 
-  // จัดกลุ่มเริ่มต้นตามลูกค้า
-  var custOrder=[];
-  var assign=RECS.map(function(r){var c=(r.customer||'').trim();var i=custOrder.indexOf(c);if(i<0){custOrder.push(c);i=custOrder.length-1;}return i+1;});
+  // จัดกลุ่มเริ่มต้น: บิลละงาน · งานที่กด "รวมงาน" ไว้ = บิลเดียวกัน
+  var grpOrder=[];
+  var assign=RECS.map(function(r,idx){var g=r.link?('L'+r.link):('U'+idx);var i=grpOrder.indexOf(g);if(i<0){grpOrder.push(g);i=grpOrder.length-1;}return i+1;});
+  // แก้เลขบิล # แล้วจัดเลขทั้งชุดให้เรียง 1,2,3,… ใหม่อัตโนมัติ (แถวที่เลขเดียวกันยังอยู่บิลเดียวกัน)
+  function compactAssign(){var seen={},next=1;assign=assign.map(function(v){if(!(v in seen)){seen[v]=next++;}return seen[v];});}
 
   var COLGROUP='<colgroup><col style="width:4%"><col style="width:5%"><col style="width:8%"><col style="width:7%"><col style="width:6%"><col style="width:6%"><col style="width:11%"><col style="width:10%"><col style="width:10%"><col style="width:10%"><col style="width:8%"><col style="width:8%"><col style="width:7%"></colgroup>';
   var THEAD='<thead><tr><th>Item</th><th>Job.Ref</th><th>date</th><th>Truck.no</th><th rowspan="2">B/L</th><th>Qty</th><th>Cont. no</th><th>CY</th><th>LOAD</th><th>Return</th><th>CY</th><th>Rtn.</th><th>Transport</th></tr><tr><th>ลำดับ</th><th>เลขอ้างอิง</th><th>วันวิ่งงาน</th><th>ทะเบียน</th><th>จำนวน</th><th>เบอร์ตู้</th><th>รับตู้</th><th>ที่บรรจุ/ส่ง</th><th>คืนตู้</th><th>ค่ารับตู้</th><th>ค่าคืนตู้</th><th>ค่าขนส่ง</th></tr></thead>';
@@ -2310,7 +2320,7 @@ function bulkWindowMain(){
     }).join('');
     $('groupBody').innerHTML=rows;
     Array.prototype.forEach.call(document.querySelectorAll('.gno'),function(inp){
-      inp.onchange=function(){assign[+inp.dataset.i]=Math.max(1,parseInt(inp.value)||1);};
+      inp.onchange=function(){assign[+inp.dataset.i]=Math.max(1,parseInt(inp.value)||1);compactAssign();renderGroup();};
     });
   }
 
@@ -2412,7 +2422,7 @@ function openBulkInvoice(recs,win){
   const data={
     company:{name:COMPANY.name,addr:COMPANY.addr,tax:COMPANY.tax,tel:COMPANY.tel,bank:COMPANY.bank},
     custBook:store.custBook||{}, logo:BULK_LOGO,
-    recs:recs.map(r=>({date:r.date||'',truck:r.truck||'',container:r.container||'',size:r.size||'',yardIn:r.yardIn||'',loadPlace:r.loadPlace||'',yardOut:r.yardOut||'',c_recv:Number(r.c_recv)||0,c_return:Number(r.c_return)||0,customer:r.customer||''}))
+    recs:recs.map(r=>({date:r.date||'',truck:r.truck||'',container:r.container||'',size:r.size||'',yardIn:r.yardIn||'',loadPlace:r.loadPlace||'',yardOut:r.yardOut||'',c_recv:Number(r.c_recv)||0,c_return:Number(r.c_return)||0,customer:r.customer||'',link:(r.link&&String(r.link).indexOf('X:')!==0)?String(r.link):''}))
   };
   const css='*{box-sizing:border-box}body{font-family:Sarabun,sans-serif;color:#000;margin:0;padding:10mm 5mm;font-size:12px}'
     +'.tool{background:#0f6e78;color:#fff;padding:8px 12px;border-radius:8px;margin-bottom:10px;display:flex;gap:8px;flex-wrap:wrap;align-items:center;position:sticky;top:0;z-index:5}'
@@ -2454,7 +2464,7 @@ function openBulkInvoice(recs,win){
     +'<button id="doPrint" style="display:none">🖨 พิมพ์ทั้งหมด (<span id="billCount">0</span> ใบ)</button>'
     +'<span>INV prefix</span><input id="invPrefix" placeholder="เช่น INV-6907-"><span>เลขเริ่ม</span><input id="invStart" type="number" value="1">'
     +'<span style="margin-left:auto">กรอกค่าขนส่ง/B-L ในบิลก่อนพิมพ์ · ยอดคำนวณอัตโนมัติ</span></div>'
-    +'<div id="grpHint">จัดกลุ่ม: ตู้ที่อยู่ “บิลเดียวกัน” ใส่เลข <b>บิล #</b> ให้ตรงกัน (ค่าเริ่มต้นแยกตามลูกค้า) แล้วกด “➡ สร้างบิล”</div>'
+    +'<div id="grpHint">ค่าเริ่มต้น: <b>บิลละงาน</b> · งานที่กดรวมไว้=บิลเดียวกัน · อยากรวมเพิ่ม ใส่เลข <b>บิล #</b> ให้ตรงกัน (แก้แล้วเลขแถวล่างขยับตามเอง) แล้วกด “➡ สร้างบิล”</div>'
     +'<div id="groupPanel"><table><thead><tr><th>#</th><th>เบอร์ตู้</th><th>ลูกค้า</th><th>วันที่</th><th>ค่ารับ+คืน</th><th>บิล #</th></tr></thead><tbody id="groupBody"></tbody></table></div>'
     +'<div id="billsPanel" style="display:none"></div>';
   const doc='<!doctype html><html lang="th"><head><meta charset="utf-8"><title>ใบวางบิลหลายใบ</title>'
