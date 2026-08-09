@@ -474,6 +474,7 @@
       <button class="btn btn-ghost" id="btnAudit" title="ตรวจเบอร์ตู้ผิดมาตรฐาน / ตู้ซ้ำ / ยอดสูงผิดปกติ" style="display:none">🔍 ตรวจสอบความผิดปกติ</button>
       <button class="btn btn-ghost" id="btnDups" style="display:none;border-color:var(--warn);color:var(--warn)" title="ดูเฉพาะกลุ่มตู้ซ้ำ — กดรวมงานเป็นรายกลุ่ม ปลอดภัยไม่ติ๊กข้ามกลุ่ม">⚠️ ตู้ซ้ำ (0)</button>
       <button class="btn btn-ghost" id="btnVwait" style="display:none" title="ดูเฉพาะใบที่ยังไม่มีคนตรวจเทียบใบจริง">⚪ ยังไม่ตรวจ (0)</button>
+      <button class="btn btn-ghost" id="btnVdone" style="display:none;border-color:var(--ok);color:var(--ok)" title="ดูเฉพาะใบที่ตรวจแล้ว — เห็นว่าใครตรวจอะไรเมื่อไหร่">✅ ตรวจแล้ว (0)</button>
       <button class="btn btn-ghost" id="btnVflag" style="display:none;border-color:var(--warn);color:var(--warn)" title="ใบที่ถูกแก้หลังตรวจแล้ว หรือถูกโต้แย้ง — ต้องตรวจใหม่">⚠️ แก้หลังตรวจ/โต้แย้ง (0)</button>
       <button class="btn btn-ghost" id="btnEditLog" title="ประวัติก่อน–หลังการแก้ไข (แอดมินเท่านั้น)" style="display:none">📝 ประวัติการแก้ไข</button>
       <button class="btn btn-primary" id="btnInvoice" style="display:none" title="รวมทุกใบที่เลือกเป็นบิลเดียว">🧾 บิลเดียว (0)</button>
@@ -1464,7 +1465,7 @@ async function doSearch(){
   const url=endpoint(); if(!url.startsWith('http')){ flash('ยังไม่ได้ตั้ง Sheet URL','err'); return; }
   const q=$("q").value.trim(), open=$("qOpen").checked?'&open=1':'';
   const from=$("qFrom").value, to=$("qTo").value;
-  let p='rows=1&limit=50'+open;
+  let p='rows=1&limit=100'+open;
   if(q) p+='&q='+encodeURIComponent(q);
   if(from) p+='&from='+from;
   if(to) p+='&to='+to;
@@ -1478,7 +1479,7 @@ function showHistory(){ $("q").value=''; $("qFrom").value=''; $("qTo").value='';
 function renderSearch(rows){
   const sel=true; // ทุกคนติ๊กเลือกได้ (ใช้ออกใบวางบิล/รวมงาน) — ปุ่มลบยังเป็นแอดมินเท่านั้น
   window.LAST_ROWS=rows;
-  if(!rows.length){ $("searchBody").innerHTML='<div class="empty">ไม่พบรายการ</div>'; ['btnVwait','btnVflag'].forEach(id=>{ const b=$(id); if(b) b.style.display='none'; }); updateDelSel(); return; }
+  if(!rows.length){ $("searchBody").innerHTML='<div class="empty">ไม่พบรายการ</div>'; ['btnVwait','btnVdone','btnVflag'].forEach(id=>{ const b=$(id); if(b) b.style.display='none'; }); updateDelSel(); return; }
   // ตู้ซ้ำ: เบอร์เดียวกัน ยังไม่คืน >1 ใบ ที่ยังไม่ได้รวมงาน/ไม่ได้กด "คนละงาน"
   const nrmC=c=>String(c||'').replace(/[\s-]/g,'').toUpperCase();
   const dupG={};
@@ -1495,10 +1496,12 @@ function renderSearch(rows){
     return Object.keys(st).length>1; });
   (()=>{ const bd=$("btnDups"); if(bd){ const n=(window.__dupGroups||[]).length; bd.style.display=n?'':'none'; bd.textContent='⚠️ ตู้ซ้ำ ('+n+')'; } })();
   // ปุ่มกรองสถานะตรวจสอบ (นับจากผลค้นหาชุดนี้)
-  (()=>{ const w=$("btnVwait"), f=$("btnVflag");
+  (()=>{ const w=$("btnVwait"), d=$("btnVdone"), f=$("btnVflag");
     const nW=rows.filter(r=>!String(r.verify||'').trim()).length;
+    const nD=rows.filter(r=>String(r.verify||'').trim()==='ตรวจแล้ว').length;
     const nF=rows.filter(r=>{ const v=String(r.verify||'').trim(); return v==='แก้หลังตรวจ'||v==='โต้แย้ง'; }).length;
     if(w){ w.style.display=nW?'':'none'; w.textContent='⚪ ยังไม่ตรวจ ('+nW+')'; }
+    if(d){ d.style.display=nD?'':'none'; d.textContent='✅ ตรวจแล้ว ('+nD+')'; }
     if(f){ f.style.display=nF?'':'none'; f.textContent='⚠️ แก้หลังตรวจ/โต้แย้ง ('+nF+')'; } })();
   const lkB=r=>(r.link&&String(r.link).indexOf('X:')!==0)?' <span class="lkbdg" title="ถูกรวมเป็นงานเดียวกันแล้ว — บิล/จำนวนตู้นับเป็น 1">🔗 งานเดียวกัน</span>':'';
   const dupB=r=>isDup(r)?' <span class="dupbdg" title="ตู้เดียวกันยังไม่คืนมีมากกว่า 1 ใบ — ถ้าเป็นงานเดียวกัน ติ๊กเลือกแล้วกดปุ่ม รวมงานเดียวกัน">⚠️ ตู้ซ้ำ</span>':'';
@@ -1624,14 +1627,14 @@ async function setVerifyUi(uid,state,note,btn){
 function renderVerOnly(mode){
   const all=window.LAST_ROWS||[];
   const sub=all.filter(r=>{ const v=String(r.verify||'').trim();
-    return mode==='wait' ? !v : (v==='แก้หลังตรวจ'||v==='โต้แย้ง'); });
-  if(!sub.length){ flash(mode==='wait'?'ไม่มีใบค้างตรวจในผลค้นหานี้ ✓':'ไม่มีใบแก้หลังตรวจ/โต้แย้ง ✓','ok'); return; }
+    return mode==='wait' ? !v : mode==='done' ? v==='ตรวจแล้ว' : (v==='แก้หลังตรวจ'||v==='โต้แย้ง'); });
+  if(!sub.length){ flash(mode==='wait'?'ไม่มีใบค้างตรวจในผลค้นหานี้ ✓':mode==='done'?'ยังไม่มีใบที่ตรวจแล้วในผลค้นหานี้':'ไม่มีใบแก้หลังตรวจ/โต้แย้ง ✓','ok'); return; }
   renderSearch(sub);
   window.LAST_ROWS=all; // คงผลค้นหาเต็มไว้ให้ปุ่มกลับ/ปุ่มตรวจใช้ต่อ
   const bar=document.createElement('div');
   bar.style.cssText='padding:10px 0;display:flex;gap:8px;align-items:center;flex-wrap:wrap';
   bar.innerHTML='<button class="btn btn-ghost" id="verBackBtn">← กลับผลค้นหา</button><span class="hint" style="margin:0">'
-    +(mode==='wait'?'เฉพาะใบที่ยังไม่มีคนตรวจเทียบใบจริง':'เฉพาะใบที่ถูกแก้หลังตรวจ/โต้แย้ง — เทียบใบจริงแล้วกดตรวจใหม่ได้เลย')+'</span>';
+    +(mode==='wait'?'เฉพาะใบที่ยังไม่มีคนตรวจเทียบใบจริง':mode==='done'?'เฉพาะใบที่ตรวจแล้ว — เห็นว่าใครตรวจ เมื่อไหร่':'เฉพาะใบที่ถูกแก้หลังตรวจ/โต้แย้ง — เทียบใบจริงแล้วกดตรวจใหม่ได้เลย')+'</span>';
   $("searchBody").prepend(bar);
   $("verBackBtn").onclick=()=>renderSearch(window.LAST_ROWS||[]);
 }
@@ -2024,6 +2027,7 @@ billPageSync();
 $("btnVerifyAll").addEventListener('click',verifyAllSheet);
 $("btnDups").addEventListener('click',renderDupOnly);
 $("btnVwait").addEventListener('click',()=>renderVerOnly('wait'));
+$("btnVdone").addEventListener('click',()=>renderVerOnly('done'));
 $("btnVflag").addEventListener('click',()=>renderVerOnly('flag'));
 document.querySelectorAll('.billfilter .fb').forEach(f=>f.addEventListener('click',()=>{ billFilter=f.dataset.f; document.querySelectorAll('.billfilter .fb').forEach(x=>x.classList.toggle('on',x.dataset.f===billFilter)); $("billBulk").style.display='none'; if(billFilter==='recent') loadBillRecent(); else loadBillQueue(); }));
 $("btnTrash").addEventListener('click',doTrash);
