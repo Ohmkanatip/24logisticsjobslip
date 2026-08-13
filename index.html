@@ -143,6 +143,12 @@
   .billfilter .fb.on{background:var(--primary);color:var(--primary-fg);border-color:var(--primary-line)}
   .billfilter .fb .b{display:inline-block;background:rgba(0,0,0,.12);border-radius:10px;padding:0 6px;margin-left:4px;font-size:11px}
   .billfilter .fb.on .b{background:rgba(255,255,255,.25)}
+  .billsearch{display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end;padding:10px 14px;background:var(--paper);border-top:1px solid var(--line)}
+  .billsearch .hf{display:flex;flex-direction:column;gap:3px}
+  .billsearch input{width:auto}
+  /* ป้ายบอกผลค้น — ใช้สีเน้นของระบบ ไม่ใช้ .hint เพราะจางเกินจนอ่านไม่ออกบนพื้นครีม */
+  #billQInfo:empty{display:none}
+  #billQInfo{align-self:center;font-size:12.5px;font-weight:700;color:var(--accent);background:var(--accent-soft);border:1px solid var(--accent);border-radius:20px;padding:5px 11px}
   /* ---- ปุ่มเข้าหน้าวางบิล (บนสุด) + หน้าวางบิลเต็มจอ ---- */
   .gobill{display:flex;align-items:center;justify-content:space-between;gap:10px;background:var(--panel);border:1px solid var(--signal);border-radius:14px;padding:12px 16px;cursor:pointer;margin:12px 0;box-shadow:var(--shadow)}
   .gobill b{font-size:15.5px;color:var(--ink)}
@@ -217,6 +223,21 @@
   .lumpBtn{margin-left:6px;padding:3px 10px;border:none;border-radius:7px;background:#d69e26;color:#fff;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit}
   .dupbdg{display:inline-block;font-size:10.5px;font-weight:700;border-radius:20px;padding:0 7px;background:rgba(178,59,46,.13);color:var(--warn);border:1px solid rgba(178,59,46,.4);vertical-align:1px}
   .lkbdg{display:inline-block;font-size:10.5px;font-weight:700;border-radius:20px;padding:0 7px;background:var(--accent-soft);color:var(--accent);border:1px solid var(--accent);vertical-align:1px}
+  /* ป๊อปอัพสรุปรายเดือน — ดูอย่างเดียว ไม่ยิงอะไรจนกว่าจะกด "ส่งเข้าอีเมล" */
+  #monOvl{display:none;position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:9200;align-items:flex-start;justify-content:center;padding:24px 14px;overflow:auto}
+  #monOvl .mcard{background:var(--panel);color:var(--ink);border-radius:14px;max-width:720px;width:100%;box-shadow:var(--shadow);display:flex;flex-direction:column;max-height:92vh}
+  #monOvl .mhead{display:flex;align-items:center;gap:10px;padding:14px 18px;border-bottom:1px solid var(--line);flex-wrap:wrap}
+  #monOvl .mhead h3{font-size:17px;margin:0;flex:1;min-width:150px}
+  #monOvl .mhead select{width:auto;min-width:150px;padding:7px 10px;font-size:13.5px}
+  #monOvl .mx{border:none;background:transparent;color:var(--ink-soft);font-size:22px;line-height:1;cursor:pointer;padding:2px 6px;font-family:inherit}
+  #monOvl .mbody{overflow:auto;padding:14px 18px;flex:1}
+  #monOvl pre{margin:0;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:13px;line-height:1.6;white-space:pre-wrap;word-break:break-word;color:var(--ink)}
+  #monOvl .mfoot{display:flex;gap:8px;padding:12px 18px;border-top:1px solid var(--line);flex-wrap:wrap}
+  #monOvl .mfoot button{flex:1;min-width:110px;padding:11px 6px;border-radius:9px;font-size:13.5px;font-weight:700;cursor:pointer;font-family:inherit}
+  #monOvl .mmail{border:none;background:var(--primary);color:var(--primary-fg)}
+  #monOvl .mprint{border:1px solid var(--line-strong);background:transparent;color:var(--ink)}
+  #monOvl .mclose{border:1px solid var(--line-strong);background:transparent;color:var(--ink-soft)}
+  /* พิมพ์ = เปิดหน้าต่างใหม่ (เหมือนพิมพ์บิล) — ไม่ใส่ @media print ในหน้านี้ จะได้ไม่ไปกวนการพิมพ์อย่างอื่น */
   #mrgOvl{display:none;position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:9000;align-items:center;justify-content:center;padding:20px}
   #mrgOvl .gcard{background:var(--panel);color:var(--ink);border-radius:14px;max-width:460px;width:100%;padding:20px;box-shadow:var(--shadow);max-height:90vh;overflow:auto}
   #mrgOvl .gic{font-size:32px;text-align:center;margin-bottom:4px}
@@ -617,7 +638,15 @@
       <button class="btn btn-ghost" id="btnBillInit" style="display:none;color:var(--warn)" title="ตั้งค่าเริ่มต้นครั้งเดียว: ใบทั้งหมดที่มีตอนนี้ถือว่าวางบิลแล้ว คิวเริ่มสดจากใบใหม่">⚙️ ตั้งค่าเริ่มต้น (ใบเก่า=วางบิลแล้ว)</button>
       <span class="hint" style="margin:0;align-self:center" id="billHint">คนวางบิลกด “โหลดคิววางบิล” เพื่อดูงานที่รอวางบิล</span>
     </div>
-    <label class="ballrow" id="billSelAllRow" style="display:none"><input type="checkbox" id="billSelAll"><span>เลือกทั้งหมด <span class="hint" style="margin:0">(ตามตัวกรองที่เปิดอยู่)</span></span></label>
+      <!-- ค้นในคิววางบิล — กรองจากข้อมูลที่โหลดมาแล้วในเครื่อง ไม่ยิงหลังบ้านเพิ่ม (พิมพ์ปุ๊บกรองปั๊บ) -->
+    <div class="billsearch" id="billSearch" style="display:none">
+      <input id="billQ" placeholder="🔍 ค้นในคิว — เบอร์ตู้ / ลูกค้า / ทะเบียน / คนขับ / วันที่" style="max-width:320px">
+      <div class="hf"><label style="font-size:11.5px;color:var(--ink-soft);font-weight:600">วันที่ จาก</label><input type="date" id="billFrom" style="width:150px"></div>
+      <div class="hf"><label style="font-size:11.5px;color:var(--ink-soft);font-weight:600">ถึง</label><input type="date" id="billTo" style="width:150px"></div>
+      <button class="btn btn-ghost" id="billQClear" style="display:none;padding:8px 12px;font-size:12.5px">✕ ล้างคำค้น</button>
+      <span id="billQInfo"></span>
+    </div>
+  <label class="ballrow" id="billSelAllRow" style="display:none"><input type="checkbox" id="billSelAll"><span>เลือกทั้งหมด <span class="hint" style="margin:0">(ตามตัวกรอง + คำค้นที่เปิดอยู่)</span></span></label>
     <div id="billBulk" class="bill-bulk" style="display:none"></div>
     <div id="billBody"><div class="empty">กด “โหลดคิววางบิล”</div></div>
   </div>
@@ -636,6 +665,7 @@
       <button class="btn btn-primary" id="btnOpenCont" title="ตู้ที่ยังไม่คืน แยกค้าง/ครบวันนี้/พรุ่งนี้">🚩 ตู้ค้าง / ยังไม่คืน</button>
       <button class="btn btn-ghost" id="btnTrash">🗑 งานที่ลบแล้ว</button>
       <button class="btn btn-primary" id="btnSummary" title="สรุปยอดวันนี้ ส่งเข้า LINE ให้พ่อ">📤 สรุปยอดวันนี้ → LINE</button>
+      <button class="btn btn-primary" id="btnMonth" title="สรุปทั้งเดือน — ดูในเว็บได้ไม่จำกัด ไม่ยิงไลน์ · มีปุ่มส่งเข้าอีเมลแยก">📅 สรุปรายเดือน</button>
       <button class="btn btn-ghost" id="btnAudit" title="ตรวจเบอร์ตู้ผิดมาตรฐาน / ตู้ซ้ำ / ยอดสูงผิดปกติ" style="display:none">🔍 ตรวจสอบความผิดปกติ</button>
       <button class="btn btn-ghost" id="btnDups" style="display:none;border-color:var(--warn);color:var(--warn)" title="ดูเฉพาะกลุ่มตู้ซ้ำ — กดรวมงานเป็นรายกลุ่ม ปลอดภัยไม่ติ๊กข้ามกลุ่ม">⚠️ ตู้ซ้ำ (0)</button>
       <button class="btn btn-ghost" id="btnVwait" style="display:none" title="ดูเฉพาะใบที่ยังไม่มีคนตรวจเทียบใบจริง">⚪ ยังไม่ตรวจ (0)</button>
@@ -1423,7 +1453,7 @@ async function loadBillQueue(){
   $("billHint").textContent='กำลังโหลด…';
   try{
     const j=await callAct({act:'billqueue'});
-    if(j&&j.ok&&Array.isArray(j.rows)){ billRows=j.rows; $("billFilter").style.display='flex'; $("billHint").style.display='none'; if(adminToken)$("btnBillInit").style.display=''; renderBill(); }
+    if(j&&j.ok&&Array.isArray(j.rows)){ billRows=j.rows; $("billFilter").style.display='flex'; $("billSearch").style.display='flex'; $("billHint").style.display='none'; if(adminToken)$("btnBillInit").style.display=''; renderBill(); }
     else { flash('โหลดคิวไม่สำเร็จ','err'); $("billHint").textContent='โหลดไม่สำเร็จ ลองใหม่'; }
   }catch(e){ flash('เชื่อมต่อไม่สำเร็จ','err'); $("billHint").textContent='เชื่อมต่อไม่สำเร็จ'; }
 }
@@ -1438,14 +1468,46 @@ function billGroups(){
   billMap={}; arr.forEach(x=>billMap[x.key]=x);
   return arr;
 }
+/* ---- ค้นในคิววางบิล ----
+   ตัดช่องว่าง/ขีดออกทั้งคำค้นและข้อมูล → "TCLU 1234567", "TCLU-1234567", "tclu1234567" หากันเจอหมด
+   วันที่ในคิวเป็น YYYY-MM-DD อยู่แล้ว เทียบเป็นข้อความตรงๆ ได้ · พิมพ์ "08-12" ก็เจอ */
+let billQ='', billDFrom='', billDTo='';
+function billNorm(s){ return String(s==null?'':s).toLowerCase().replace(/[\s\-]/g,''); }
+function billSearchOn(){ return !!(billQ||billDFrom||billDTo); }
+function billMatch(g){
+  if(billDFrom||billDTo){ // ทั้งบิลผ่านถ้ามีอย่างน้อย 1 บรรทัดอยู่ในช่วงวัน (งานรวมอาจคร่อมวัน)
+    const ok=g.rows.some(r=>{ const d=String(r.date||''); if(!d) return false;
+      if(billDFrom&&d<billDFrom) return false;
+      if(billDTo&&d>billDTo) return false;
+      return true; });
+    if(!ok) return false;
+  }
+  if(!billQ) return true;
+  const qn=billNorm(billQ); if(!qn) return true;
+  if(billNorm(g.cust).includes(qn)) return true;
+  return g.rows.some(r=>billNorm([r.container,r.customer,r.driver,r.truck,r.date].join(' ')).includes(qn));
+}
+function billSearchSync(){
+  billQ=($("billQ")||{}).value||''; billDFrom=($("billFrom")||{}).value||''; billDTo=($("billTo")||{}).value||'';
+  const c=$("billQClear"); if(c) c.style.display=billSearchOn()?'':'none';
+  renderBill();
+}
+function billSearchClear(){
+  if($("billQ")) $("billQ").value=''; if($("billFrom")) $("billFrom").value=''; if($("billTo")) $("billTo").value='';
+  billSearchSync();
+}
 function billState(g){ return g.bill===BILL_PRINT_TXT?'printed':(g.bill===BILL_DONE_TXT?'done':'unprinted'); }
 function billDays(ms){ return ms?Math.floor((Date.now()-ms)/86400000):0; }
 function renderBill(){
   const groups=billGroups();
-  const nUn=groups.filter(g=>billState(g)==='unprinted').length, nPr=groups.filter(g=>billState(g)==='printed').length;
-  $("billCount").textContent='รอวางบิล '+(nUn+nPr)+' บิล';
+  const base=groups.filter(g=>billState(g)!=='done');          // ทั้งคิว (ไม่สนคำค้น) — ใช้บอกยอดรวมจริง
+  const matched=base.filter(billMatch);                        // เฉพาะที่ตรงกับคำค้น/ช่วงวัน
+  const nUn=matched.filter(g=>billState(g)==='unprinted').length, nPr=matched.filter(g=>billState(g)==='printed').length;
+  $("billCount").textContent='รอวางบิล '+base.length+' บิล';   // หัวการ์ดโชว์ยอดคิวจริงเสมอ กันเข้าใจผิดว่าคิวหมดแล้ว
   $("bc-all").textContent=nUn+nPr; $("bc-un").textContent=nUn; $("bc-pr").textContent=nPr;
-  const shown=groups.filter(g=>{ const s=billState(g); if(s==='done')return false; if(billFilter==='unprinted')return s==='unprinted'; if(billFilter==='printed')return s==='printed'; return true; });
+  const qi=$("billQInfo");
+  if(qi) qi.textContent=billSearchOn()?('🔍 ตรงกับที่ค้น '+matched.length+' จาก '+base.length+' บิล'):'';
+  const shown=matched.filter(g=>{ const s=billState(g); if(billFilter==='unprinted')return s==='unprinted'; if(billFilter==='printed')return s==='printed'; return true; });
   const sar=$("billSelAllRow"), sac=$("billSelAll");
   if(sar){ sar.style.display=shown.length?'flex':'none';
     if(sac){ sac.checked=shown.length>0&&shown.every(g=>billSel[g.key]);
@@ -1454,7 +1516,14 @@ function renderBill(){
   const bb=$("billBulk");
   if(selKeys.length){ bb.style.display='flex'; bb.innerHTML='เลือก '+selKeys.length+' บิล <button class="btn bp" onclick="billBulkPrint()">🖨 พิมพ์วางบิลที่เลือก</button><button class="btn bc" onclick="billBulkConfirm()">✓ ยืนยันวางบิลที่เลือก</button><button class="btn bu" onclick="billBulkUnprint()">↩ ย้อนสถานะที่เลือก</button><button class="btn bx" onclick="billClearSel()">ล้าง</button>'; }
   else bb.style.display='none';
-  if(!shown.length){ $("billBody").innerHTML='<div class="empty" style="color:var(--ok)">'+(billFilter==='printed'?'ไม่มีใบที่รอยืนยัน':(billFilter==='unprinted'?'ไม่มีใบที่ยังไม่พิมพ์ 🎉':'คิววางบิลว่างแล้ว 🎉'))+'</div>'; return; }
+  if(!shown.length){
+    if(billSearchOn() && matched.length)      // เจอของ แต่ไปอยู่แท็บสถานะอื่น — บอกให้ชัด ไม่งั้นนึกว่าค้นไม่เจอ
+      $("billBody").innerHTML='<div class="empty">คำค้นนี้เจอ '+matched.length+' บิล แต่ไม่ได้อยู่ในสถานะ “'+(billFilter==='unprinted'?'ยังไม่พิมพ์':'พิมพ์แล้ว รอยืนยัน')+'”<div class="hint" style="margin:6px 0 0">กดปุ่ม “ทั้งหมด” เพื่อดูทั้งหมดที่ค้นเจอ</div></div>';
+    else if(billSearchOn())
+      $("billBody").innerHTML='<div class="empty">ไม่พบบิลที่ตรงกับที่ค้น<div class="hint" style="margin:6px 0 0">คิวยังมี '+base.length+' บิล — กด “✕ ล้างคำค้น” เพื่อดูทั้งหมด</div></div>';
+    else
+      $("billBody").innerHTML='<div class="empty" style="color:var(--ok)">'+(billFilter==='printed'?'ไม่มีใบที่รอยืนยัน':(billFilter==='unprinted'?'ไม่มีใบที่ยังไม่พิมพ์ 🎉':'คิววางบิลว่างแล้ว 🎉'))+'</div>';
+    return; }
   $("billBody").innerHTML=shown.map(billCard).join('');
   $("billBody").querySelectorAll('.bchk').forEach(c=>c.onchange=()=>{ if(c.checked)billSel[c.dataset.k]=1; else delete billSel[c.dataset.k]; renderBill(); });
   $("billBody").querySelectorAll('[data-act]').forEach(b=>b.onclick=()=>billAct(b.dataset.act,b.dataset.k));
@@ -1584,6 +1653,7 @@ async function loadBillRecent(){
 let billRecentRows=[];
 function renderBillRecent(){
   const sar=$("billSelAllRow"); if(sar) sar.style.display='none';
+  const bs=$("billSearch"); if(bs) bs.style.display='none'; // โหมด "เพิ่งวางบิล" ใช้ข้อมูลคนละชุด — ซ่อนช่องค้นกันสับสน
   const g={},order=[];
   billRecentRows.forEach(r=>{ const k=(r.link&&String(r.link).indexOf('X:')!==0)?('G'+r.link):('U'+r.uid); if(!g[k]){ g[k]={key:k,cust:r.customer,rows:[],billBy:r.billBy}; order.push(k);} g[k].rows.push(r); });
   if(!order.length){ $("billBody").innerHTML='<div class="empty">วันนี้ยังไม่มีบิลที่เพิ่งวางบิล</div>'; return; }
@@ -2108,6 +2178,73 @@ async function sendSummary(){
     } else flash('สรุปไม่สำเร็จ: '+(ACT_ERR[j.result]||j.result),'err');
   }catch(e){ flash('สรุปไม่สำเร็จ — เช็ก Sheet URL / deploy เวอร์ชันล่าสุด','err'); }
 }
+/* ---- สรุปรายเดือน : ดูในเว็บได้ไม่จำกัด (ไม่ยิงไลน์/เมล) · มีปุ่มส่งเข้าอีเมลแยก ----
+   ทำไมไม่ส่งเข้า LINE: ข้อความยาว 40+ บรรทัด และไลน์ฟรีเหลือแค่ ~75 ครั้ง/เดือน */
+const MON_TH=['มกราคม','กุมภาพันธ์','มีนาคม','เมษายน','พฤษภาคม','มิถุนายน','กรกฎาคม','สิงหาคม','กันยายน','ตุลาคม','พฤศจิกายน','ธันวาคม'];
+function monLabel(ym){ const p=String(ym||'').split('-'); return (MON_TH[(+p[1]||1)-1]||('เดือน '+p[1]))+' '+p[0]; }
+let monText='', monYm='';
+function monOvl(){
+  let ov=document.getElementById('monOvl');
+  if(ov) return ov;
+  ov=document.createElement('div'); ov.id='monOvl';
+  ov.innerHTML='<div class="mcard">'
+    +'<div class="mhead"><h3>📅 สรุปรายเดือน</h3>'
+    +'<select id="monPick" title="เลือกเดือนที่ต้องการดู"></select>'
+    +'<button class="mx" id="monX" title="ปิด">✕</button></div>'
+    +'<div class="mbody"><pre id="monPre">กำลังโหลด…</pre></div>'
+    +'<div class="mfoot">'
+    +'<button class="mmail" id="monMail">📧 ส่งเข้าอีเมล</button>'
+    +'<button class="mprint" id="monPrint">🖨 พิมพ์</button>'
+    +'<button class="mclose" id="monClose">ปิด</button></div></div>';
+  document.body.appendChild(ov);
+  const hide=()=>{ ov.style.display='none'; };
+  ov.onclick=e=>{ if(e.target===ov) hide(); };
+  document.getElementById('monX').onclick=hide;
+  document.getElementById('monClose').onclick=hide;
+  document.getElementById('monPick').onchange=e=>loadMonth(e.target.value);
+  document.getElementById('monMail').onclick=sendMonthMail;
+  document.getElementById('monPrint').onclick=printMonth;
+  return ov;
+}
+async function showMonthSummary(){
+  const url=endpoint(); if(!url.startsWith('http')){ flash('ยังไม่ได้ตั้ง Sheet URL','err'); return; }
+  const ov=monOvl(); ov.style.display='flex';
+  document.getElementById('monPre').textContent='กำลังโหลด…';
+  await loadMonth(monYm||'');
+}
+async function loadMonth(ym){
+  const pre=document.getElementById('monPre'); if(!pre) return;
+  pre.textContent='กำลังโหลด…';
+  try{
+    const j=await callAct(ym?{act:'monthsummary',ym:ym}:{act:'monthsummary'});
+    if(!j||!j.ok){ pre.textContent='โหลดไม่สำเร็จ'+((j&&j.result)?(': '+(ACT_ERR[j.result]||j.result)):'')+'\n(ถ้าขึ้นว่ายังไม่รู้จักคำสั่ง — ต้อง deploy Apps Script เวอร์ชันใหม่ก่อน)'; return; }
+    monText=j.text||''; monYm=j.ym||ym||'';
+    pre.textContent=monText;
+    const sel=document.getElementById('monPick');
+    if(sel&&Array.isArray(j.months)){
+      sel.innerHTML=j.months.map(m=>`<option value="${escAttr(m)}"${m===monYm?' selected':''}>${escHtml(monLabel(m))}</option>`).join('');
+    }
+  }catch(e){ pre.textContent='โหลดไม่สำเร็จ — เช็ก Sheet URL / deploy เวอร์ชันล่าสุด'; }
+}
+async function sendMonthMail(){
+  const b=document.getElementById('monMail'); if(!b||b.disabled) return;
+  const old=b.textContent; b.disabled=true; b.textContent='กำลังส่ง…';
+  try{
+    const j=await callAct({act:'monthsummary',ym:monYm,send:'1'});
+    if(j&&j.ok&&j.sent){ flash('ส่งสรุป '+monLabel(monYm)+' เข้าอีเมลแล้ว ✓ (ไม่ได้ยิงไลน์)','ok'); b.textContent='✓ ส่งแล้ว'; setTimeout(()=>{b.textContent=old;b.disabled=false;},2500); return; }
+    flash(j&&j.ok?'เดือนนี้ยังไม่มีใบงาน — ไม่ได้ส่ง':'ส่งไม่สำเร็จ'+((j&&j.result)?': '+(ACT_ERR[j.result]||j.result):''),'err');
+  }catch(e){ flash('ส่งไม่สำเร็จ — เช็ก Sheet URL / deploy เวอร์ชันล่าสุด','err'); }
+  b.textContent=old; b.disabled=false;
+}
+function printMonth(){
+  if(!monText){ flash('ยังไม่มีข้อมูลให้พิมพ์','err'); return; }
+  const w=window.open('','_blank'); // เปิดทันทีตอนคลิก ก่อน await — กันป๊อปอัปบล็อกเงียบ (บทเรียน V52)
+  if(!w){ flash('เบราว์เซอร์บล็อกป๊อปอัป — อนุญาตป๊อปอัปของเว็บนี้ก่อน','err'); return; }
+  w.document.write('<!doctype html><html><head><meta charset="utf-8"><title>สรุป '+escHtml(monLabel(monYm))+'</title>'
+    +'<style>@page{size:A4;margin:12mm}body{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:12px;line-height:1.6;white-space:pre-wrap;word-break:break-word}</style>'
+    +'</head><body>'+escHtml(monText)+'</body></html>');
+  w.document.close(); w.focus(); setTimeout(()=>{ try{w.print();}catch(e){} },350);
+}
 /* ---- หน้าติดตามตู้ค้าง : ค้างเลยกำหนด / ครบวันนี้ / ครบพรุ่งนี้ ---- */
 async function showOpenContainers(){
   const url=endpoint(); if(!url.startsWith('http')){ flash('ยังไม่ได้ตั้ง Sheet URL','err'); return; }
@@ -2236,9 +2373,15 @@ $("btnVwait").addEventListener('click',()=>renderVerOnly('wait'));
 $("btnVdone").addEventListener('click',()=>renderVerOnly('done'));
 $("btnVflag").addEventListener('click',()=>renderVerOnly('flag'));
 document.querySelectorAll('.billfilter .fb').forEach(f=>f.addEventListener('click',()=>{ billFilter=f.dataset.f; document.querySelectorAll('.billfilter .fb').forEach(x=>x.classList.toggle('on',x.dataset.f===billFilter)); $("billBulk").style.display='none'; if(billFilter==='recent') loadBillRecent(); else loadBillQueue(); }));
+/* ค้นในคิววางบิล — กรองในเครื่องทันที ไม่ต้องกดปุ่ม ไม่ยิงหลังบ้าน */
+$("billQ").addEventListener('input',billSearchSync);
+$("billFrom").addEventListener('change',billSearchSync);
+$("billTo").addEventListener('change',billSearchSync);
+$("billQClear").addEventListener('click',billSearchClear);
 $("btnTrash").addEventListener('click',doTrash);
 $("btnOpenCont").addEventListener('click',showOpenContainers);
 $("btnSummary").addEventListener('click',sendSummary);
+$("btnMonth").addEventListener('click',showMonthSummary);
 $("btnAudit").addEventListener('click',runAudit);
 $("btnEditLog").addEventListener('click',doEditLog);
 $("btnInvoice").addEventListener('click',buildInvoiceFromSelection);
