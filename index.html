@@ -371,6 +371,17 @@
   .exchip2{display:inline-block;background:#ffe27a;color:#5a4300;font-size:10.5px;font-weight:700;border-radius:10px;padding:0 7px;margin:2px 4px 0 0}
   .b2edit{background:var(--field);color:var(--accent);border:1px solid var(--accent)}
   /* กล่องยืนยันรวมงาน (ใช้ #billOvl — คลาสของ #mrgOvl เอื้อมไม่ถึง) */
+  /* รายการบิลที่จดจากเครื่องนี้ (V58.1) */
+  #b2Sess{margin:10px 14px;border:1px solid var(--line);border-radius:10px;background:var(--paper);overflow:hidden}
+  .b2sess-head{display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding:9px 12px;background:var(--field);border-bottom:1px solid var(--line);font-size:13px}
+  .b2sess-head .warn{color:var(--warn);font-weight:700}
+  .b2sess-head .okk{color:var(--ok);font-weight:700}
+  .b2sess-head .sbtn{border:1px solid var(--line-strong);background:var(--panel);color:var(--ink);border-radius:7px;padding:5px 10px;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit}
+  .b2sess-head .sbtn.danger{background:var(--warn);color:#fff;border-color:var(--warn)}
+  .b2sess-head .sbtn.ghost{color:var(--ink-soft)}
+  .b2sess-row{display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;padding:7px 12px;border-bottom:1px dashed var(--line);font-size:12.5px}
+  .b2sess-row:last-child{border-bottom:none}
+  .b2sess-row .sbtn{border:none;background:var(--warn);color:#fff;border-radius:6px;padding:3px 9px;font-size:11.5px;font-weight:700;cursor:pointer;font-family:inherit;margin-left:5px}
   #billOvl .mrow{background:var(--field);border:1px solid var(--line);border-radius:8px;padding:6px 10px;margin-bottom:6px;font-size:13px}
   #billOvl .ghl2{background:var(--accent-soft);border:1px solid var(--accent);border-radius:8px;padding:8px 10px;color:var(--ink);margin:8px 0;font-size:12.8px;line-height:1.7}
   /* ===== V58: หน้าลูกหนี้ ===== */
@@ -723,7 +734,6 @@
         <button class="fb" data-f="recent" title="บิลที่เพิ่งกดวางบิลวันนี้ — กดดึงกลับเข้าคิวได้ถ้าพลาด">↩ เพิ่งวางบิล</button>
       </div>
     </div>
-    <div id="b2Pending" class="resend-bar" style="display:none;margin:10px 14px"></div>
     <div id="bill2Form" style="display:none">
       <div class="col-title" id="b2FormTitle">➕ จดบิลใหม่ — คีย์จากใบเสร็จ/ใบรับตู้ตัวจริง</div>
       <div class="three">
@@ -762,6 +772,8 @@
         <button class="btn btn-ghost" id="btnB2Close">ปิดฟอร์ม</button>
       </div>
     </div>
+    <!-- V58.1: บิลที่จดจากเครื่องนี้ + ปุ่มตรวจกับชีท (ตาข่ายกันข้อมูลหาย แบบเดียวกับหน้าจด · ห้ามถอด) -->
+    <div id="b2Sess" style="display:none"></div>
     <div class="billsearch" id="b2Search" style="display:none">
       <input id="b2Q" placeholder="🔍 ค้นในคิว — เบอร์ตู้ / ลูกค้า / ทะเบียน / เลขบิล / Job.Ref" style="max-width:330px">
       <div class="hf"><label style="font-size:11.5px;color:var(--ink-soft);font-weight:600">วันที่ จาก</label><input type="date" id="b2From" style="width:150px"></div>
@@ -2397,14 +2409,18 @@ function bill2FormOpen(rec){
     $("b2_trans").value=b2Num(rec.c_trans)||''; $("b2_recv").value=b2Num(rec.c_recv)||''; $("b2_ret").value=b2Num(rec.c_return)||'';
     $("b2_note").value=rec.note||'';
     b2Ex=b2ParseEx(rec.extras);
-  } else if(!$("b2_date").value){ $("b2_date").value=todayLocal(); }
+  } else { bill2FormClear(false); $("b2_date").value=todayLocal(); }  // กด ➕ จดบิลใหม่ = ฟอร์มว่างสะอาดเสมอ (เดิมค้างข้อมูลใบก่อนไว้ ต้องมานั่งลบเอง)
   b2RenderEx();
   $("bill2Form").scrollIntoView({behavior:'smooth',block:'start'});
   $("b2_customer").focus();
 }
-function bill2FormClear(keepCust){
-  ['b2_container','b2_jobref','b2_bl','b2_recv','b2_ret','b2_note'].forEach(id=>$(id).value='');
-  if(!keepCust){ ['b2_customer','b2_size','b2_truck','b2_driver','b2_tag','b2_yardIn','b2_loadPlace','b2_yardOut','b2_trans'].forEach(id=>$(id).value=''); $("b2RateChip").textContent=''; }
+/* keepBatch = true → เคลียร์หลังบันทึก เตรียมคีย์ใบถัดไปของ "ชุดเดียวกัน"
+   เหลือไว้เฉพาะที่ซ้ำกันจริงในชุด: วันที่ · ลูกค้า · เรทค่าขนส่ง · เส้นทาง(ลานรับ/ที่ส่ง/ลานคืน)
+   ล้างทิ้งหมด: เบอร์ตู้ · ทะเบียน · คนขับ · ขนาดตู้ · เอกสาร · ป้ายขวาบน · เงิน · ค่าเพิ่ม
+   (ทะเบียน/คนขับ/ขนาดตู้ เปลี่ยนเกือบทุกใบ — ถ้าค้างไว้เสี่ยงจดผิดคัน) */
+function bill2FormClear(keepBatch){
+  ['b2_container','b2_size','b2_truck','b2_driver','b2_jobref','b2_bl','b2_tag','b2_recv','b2_ret','b2_note'].forEach(id=>$(id).value='');
+  if(!keepBatch){ ['b2_customer','b2_yardIn','b2_loadPlace','b2_yardOut','b2_trans'].forEach(id=>$(id).value=''); $("b2RateChip").textContent=''; }
   b2Ex=[]; b2RenderEx();
 }
 function bill2Collect(){
@@ -2415,14 +2431,68 @@ function bill2Collect(){
     c_trans:b2Num($("b2_trans").value), c_recv:b2Num($("b2_recv").value), c_return:b2Num($("b2_ret").value),
     extras:b2ExStr(b2Ex), note:$("b2_note").value.trim() };
 }
-/* ตาข่ายกันหาย (ย่อจาก V51): เซฟ → เช็คกับชีทว่าติดจริงด้วย act=bone · ไม่ติด → เก็บเข้าคิวส่งซ้ำในเครื่อง */
+/* ===== V58.1: รายการบิลที่จดจากเครื่องนี้ + ตรวจกับชีท (แบบเดียวกับ "รายการที่บันทึก" ของหน้าจด) =====
+   เก็บในเครื่องเป็นตาข่ายกันข้อมูลหาย · ⚠️ ห้ามถอด (กติกาข้อ 5)
+   sent=1 ยืนยันแล้วว่าขึ้นชีทจริง · busy=1 กำลังตรวจ · ไม่มีทั้งคู่ = ยังไม่ขึ้น กดส่งซ้ำได้ */
 function b2PendList(){ try{ return JSON.parse(localStorage.getItem(B2PENDKEY)||'[]'); }catch(e){ return []; } }
-function b2PendSave(list){ try{ localStorage.setItem(B2PENDKEY,JSON.stringify(list)); }catch(e){} }
+function b2PendSave(list){ try{ localStorage.setItem(B2PENDKEY,JSON.stringify(list.slice(0,200))); }catch(e){} }
+function b2SessAdd(uid,d){ const l=b2PendList(); l.unshift({uid:uid,d:d,ts:Date.now(),busy:1,sent:0}); b2PendSave(l); renderB2Pending(); }
+function b2SessMark(uid,okSent){
+  const l=b2PendList(); const i=l.findIndex(x=>x.uid===uid);
+  if(i<0) return; l[i].busy=0; l[i].sent=okSent?1:0;
+  if(okSent) delete l[i].d;                    // ขึ้นชีทแล้วไม่ต้องเก็บข้อมูลเต็มไว้ในเครื่อง
+  b2PendSave(l); renderB2Pending();
+}
 function renderB2Pending(){
-  const list=b2PendList(); const bar=$("b2Pending");
-  if(!list.length){ bar.style.display='none'; return; }
-  bar.style.display='flex';
-  bar.innerHTML='⚠️ มี <b>'+list.length+'</b> บิลที่ยังส่งไม่ติดชีท (เก็บไว้ในเครื่องแล้ว ไม่หาย)<button class="rall" onclick="b2ResendAll()">⟳ ส่งซ้ำทั้งหมด</button>';
+  const list=b2PendList(), box=$("b2Sess");
+  if(!list.length){ box.style.display='none'; return; }
+  box.style.display='block';
+  const bad=list.filter(x=>!x.sent&&!x.busy).length, busy=list.filter(x=>x.busy).length;
+  const head='<div class="b2sess-head"><b>📋 บิลที่จดจากเครื่องนี้ '+list.length+' ใบ</b>'
+    +(bad?'<span class="warn"> · ⚠️ ยังไม่ขึ้นชีท '+bad+' ใบ</span>':(busy?'<span> · ⟳ กำลังตรวจ '+busy+' ใบ</span>':'<span class="okk"> · ✅ ขึ้นชีทครบแล้ว</span>'))
+    +'<span style="margin-left:auto;display:flex;gap:6px;flex-wrap:wrap">'
+    +'<button class="sbtn" onclick="b2VerifyAll()">🔄 ตรวจกับชีท</button>'
+    +(bad?'<button class="sbtn danger" onclick="b2ResendAll()">⟳ ส่งซ้ำทั้งหมด</button>':'')
+    +'<button class="sbtn ghost" onclick="b2SessClear()">ล้างรายการ</button></span></div>';
+  const rows=list.slice(0,15).map(x=>{
+    const d=x.d||{};
+    const st=x.busy?'<span class="tag local">⟳ กำลังตรวจ…</span>'
+      :(x.sent?'<span class="tag sent">✅ ขึ้นชีทแล้ว</span>'
+              :'<span class="tag local">⚠️ ยังไม่ขึ้น</span> <button class="sbtn danger" onclick="b2ResendOne(\''+escAttr(x.uid)+'\')">⟳ ส่งซ้ำ</button>');
+    return '<div class="b2sess-row"><span>'+escHtml(d.container||x.uid)+' · '+escHtml(d.customer||'-')
+      +(d.total!==undefined?' · '+b2Money(d.total):'')+'</span><span>'+st+'</span></div>';
+  }).join('');
+  box.innerHTML=head+rows+(list.length>15?'<div class="hint" style="margin:6px 0 0">แสดง 15 ใบล่าสุด จากทั้งหมด '+list.length+' ใบ</div>':'');
+}
+function b2SessClear(){
+  const list=b2PendList(), bad=list.filter(x=>!x.sent&&!x.busy).length;
+  if(bad&&!confirm('ยังมี '+bad+' ใบที่ยังไม่ขึ้นชีท — ล้างแล้วจะส่งซ้ำจากเครื่องนี้ไม่ได้อีก\n(ข้อมูลที่ขึ้นชีทไปแล้วไม่หาย)\n\nยืนยันล้างรายการ?')) return;
+  if(!bad&&!confirm('ล้างรายการที่แสดงในเครื่องนี้?\n(ข้อมูลในชีทยังอยู่ครบ)')) return;
+  b2PendSave([]); renderB2Pending(); flash('ล้างรายการแล้ว','ok');
+}
+/* 🔄 ตรวจกับชีท — ถามชีททีละใบว่ามีจริงไหม (ใบที่เคยขึ้นแล้วข้าม ไม่ยิงซ้ำให้เปลืองโควตา) */
+async function b2VerifyAll(){
+  const list=b2PendList(), todo=list.filter(x=>!x.sent);
+  if(!todo.length){ flash('ทุกใบยืนยันแล้วว่าขึ้นชีทครบ ✅','ok'); return; }
+  flash('กำลังตรวจ '+todo.length+' ใบกับชีท…','ok');
+  let found=0;
+  for(const it of todo){
+    let okv=false;
+    try{ const j=await callAct({act:'bone',uid:it.uid}); okv=!!(j&&j.ok&&j.rec); }catch(e){}
+    b2SessMark(it.uid,okv); if(okv) found++;
+  }
+  const left=todo.length-found;
+  flash(left?('ตรวจแล้ว — ขึ้นชีท '+found+' ใบ · ยังไม่ขึ้น '+left+' ใบ (กด ⟳ ส่งซ้ำได้)'):('✅ ตรวจแล้ว ขึ้นชีทครบทุกใบ'),left?'err':'ok');
+  try{ await bill2Fresh(); if(billMode==='new') renderBill2(); }catch(e){}
+}
+async function b2ResendOne(uid){
+  const list=b2PendList(), it=list.find(x=>x.uid===uid);
+  if(!it||!it.d){ flash('ใบนี้ไม่มีข้อมูลเก็บไว้ในเครื่องแล้ว — กด 🔄 ตรวจกับชีทแทน','err'); return; }
+  flash('กำลังส่งซ้ำ…','ok');
+  try{ await b2Post(Object.assign({_bsave:1,uid:uid},it.d)); }catch(e){}
+  const okv=await b2VerifySaved(uid); b2SessMark(uid,okv);
+  flash(okv?'✓ ส่งซ้ำติดแล้ว ขึ้นชีทเรียบร้อย':'ยังส่งไม่ติด — เช็คเน็ต/ล็อกอินแล้วลองใหม่',okv?'ok':'err');
+  if(okv){ try{ await bill2Fresh(); if(billMode==='new') renderBill2(); }catch(e){} }
 }
 async function b2VerifySaved(uid){
   for(const wait of [3500,4500]){
@@ -2436,27 +2506,28 @@ function b2Post(body){
   return fetch(url,{method:'POST',mode:'no-cors',keepalive:true,headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify(Object.assign({app:appToken,idt:(window.idToken||''),sess:(window.sessToken||'')},body))});
 }
 async function b2ResendAll(){
-  const list=b2PendList(); if(!list.length) return;
-  flash('กำลังส่งซ้ำ '+list.length+' บิล…','ok');
-  const left=[];
-  for(const it of list){
+  const todo=b2PendList().filter(x=>!x.sent&&!x.busy&&x.d);
+  if(!todo.length){ flash('ไม่มีใบที่ต้องส่งซ้ำ','ok'); return; }
+  flash('กำลังส่งซ้ำ '+todo.length+' บิล…','ok');
+  let left=0;
+  for(const it of todo){
     try{ await b2Post(Object.assign({_bsave:1,uid:it.uid},it.d)); }catch(e){}
-    if(!(await b2VerifySaved(it.uid))) left.push(it);
+    const okv=await b2VerifySaved(it.uid); b2SessMark(it.uid,okv); if(!okv) left++;
   }
-  b2PendSave(left); renderB2Pending();
-  if(left.length) flash('ยังส่งไม่ติด '+left.length+' บิล — เช็คเน็ต/ล็อกอินแล้วลองใหม่','err');
-  else { flash('✓ ส่งซ้ำติดครบทุกใบแล้ว','ok'); bill2Fresh().then(renderBill2); }
+  if(left) flash('ยังส่งไม่ติด '+left+' บิล — เช็คเน็ต/ล็อกอินแล้วลองใหม่','err');
+  else { flash('✓ ส่งซ้ำติดครบทุกใบแล้ว','ok'); try{ await bill2Fresh(); if(billMode==='new') renderBill2(); }catch(e){} }
 }
 /* ตรวจเบื้องหลังว่าบิลติดชีทจริง (แบบเดียวกับ autoVerify ของหน้าจด) — ไม่บล็อกปุ่ม ไม่ต้องรอ
    ติด → แจ้งเงียบๆ + รีเฟรชคิว · ไม่ติด → เข้าคิวส่งซ้ำในเครื่อง (ส่งซ้ำปลอดภัย เพราะหลังบ้านกัน uid ซ้ำ) */
 function b2VerifyInBackground(uid,d){
   (async()=>{
-    if(await b2VerifySaved(uid)){
+    const okv=await b2VerifySaved(uid);
+    b2SessMark(uid,okv);
+    if(okv){
       flash('✓ บิลตู้ '+(d.container||'')+' ขึ้นชีทแล้ว','ok');
       try{ await bill2Fresh(); if(billMode==='new'&&bill2Filter!=='recent') renderBill2(); }catch(e){}
     } else {
-      const list=b2PendList(); list.unshift({uid:uid,d:d,ts:Date.now()}); b2PendSave(list); renderB2Pending();
-      flash('⚠️ ตู้ '+(d.container||uid)+' — ยังไม่เห็นในชีท เก็บเข้าคิวส่งซ้ำในเครื่องแล้ว (กด “⟳ ส่งซ้ำทั้งหมด” ได้ตลอด)','err');
+      flash('⚠️ ตู้ '+(d.container||uid)+' — ยังไม่เห็นในชีท เก็บไว้ในเครื่องแล้ว (กด “⟳ ส่งซ้ำ” ในรายการด้านล่างได้ตลอด)','err');
     }
   })();
 }
@@ -2487,7 +2558,7 @@ async function bill2Save(){
     const uid='B'+Date.now().toString(36)+Math.random().toString(36).slice(2,6);
     const expired=tokenExpired();
     if(expired||!url.startsWith('http')){
-      const list=b2PendList(); list.unshift({uid:uid,d:d,ts:Date.now()}); b2PendSave(list); renderB2Pending();
+      b2SessAdd(uid,d); b2SessMark(uid,false);   // ส่งไม่ได้แน่ๆ → เข้ารายการรอส่งซ้ำทันที
       flash(expired?'⚠️ ล็อกอินหมดอายุ — เก็บบิลไว้ในเครื่องแล้ว ล็อกอินใหม่แล้วกด “⟳ ส่งซ้ำทั้งหมด”':'เก็บไว้ในเครื่องแล้ว (ยังไม่ต่อชีท)','err');
       bill2FormClear(true); return;
     }
@@ -2500,6 +2571,7 @@ async function bill2Save(){
     bill2FormClear(true); // คงลูกค้า/วันที่/เรทไว้ คีย์ใบต่อไปของลูกค้าเดิมได้เลย
     $("b2_container").focus();
     hold=true; setTimeout(()=>{ btn.disabled=false; },700); // กันกดรัวได้ใบซ้ำ — จังหวะเดียวกับหน้าจด
+    b2SessAdd(uid,d);            // ขึ้นรายการ "บิลที่จดจากเครื่องนี้" ทันที (สถานะ ⟳ กำลังตรวจ)
     b2VerifyInBackground(uid,d);
   } finally { if(!hold) btn.disabled=false; }
 }
