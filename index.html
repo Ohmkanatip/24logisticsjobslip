@@ -448,6 +448,48 @@
   /* ป้ายช่วงวันที่บนแถบเลือกเดือน — อยู่บนฉากพื้นหลัง ใช้ .hint ไม่ได้ (จางจนอ่านไม่ออก บทเรียน V55) */
   #dRange{color:#fff;background:rgba(255,255,255,.16);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);border-radius:20px;padding:5px 12px;margin:0;font-size:12px}
   @media(max-width:820px){#dRange{backdrop-filter:none!important;-webkit-backdrop-filter:none!important;background:rgba(20,26,44,.6)}}
+  /* ===== V60: ถังขยะบิล + ประวัติแก้ไขรวม ===== */
+  .trow{display:flex;align-items:center;gap:11px;padding:11px 14px;border-bottom:1px dashed var(--line)}
+  .trow:last-child{border-bottom:none}
+  .trow>input[type=checkbox]{width:19px;height:19px;flex:none;accent-color:var(--accent)}
+  .trow .ti{flex:1;min-width:0}
+  .trow .ti b{font-size:14px}
+  .trow .ti small{display:block;color:var(--ink-soft);font-size:11.5px;margin-top:2px}
+  .trow .tamt{font-family:'IBM Plex Mono',monospace;font-weight:600;font-size:14px;white-space:nowrap}
+  .trow .tact{display:flex;gap:6px;flex:none}
+  .minib{padding:6px 11px;border-radius:8px;border:1px solid var(--line-strong);background:transparent;color:var(--ink);font-family:inherit;font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap}
+  .minib.ok{border-color:var(--ok);color:var(--ok)}
+  .minib.dang{border-color:var(--warn);color:var(--warn)}
+  .minib:disabled{opacity:.35;cursor:default}
+  .tinv{display:inline-block;background:var(--field);border:1px solid var(--line);border-radius:8px;padding:0 7px;font-size:11px;font-family:'IBM Plex Mono',monospace;margin-left:5px;white-space:nowrap}
+  .tfoot{padding:12px 14px;border-top:1px solid var(--line);font-size:12.5px;color:var(--ink-soft);line-height:1.8}
+  /* หัวการ์ดนี้มีปุ่มดันไปขวาสุด (margin-left:auto) → ตัวเลขเลยไปติดหัวข้อ ต้องเว้นเอง */
+  #trCount,#hsCount{margin-left:9px}
+  /* จอแคบ: ปุ่มลงบรรทัดใหม่ กดง่ายด้วยนิ้ว ไม่บีบชื่อลูกค้า (ต้องลบความกว้างของช่องติ๊กออก ไม่งั้นล้นขวา) */
+  @media(max-width:520px){
+    .trow{flex-wrap:wrap;row-gap:9px}
+    .trow .ti{flex:1 1 auto}
+    .trow .tamt{order:2}
+    .trow .tact{order:3;flex:1 0 calc(100% - 30px);margin-left:30px}
+    .trow .tact button{flex:1}
+  }
+  .hfilter{display:flex;gap:7px;flex-wrap:wrap}
+  .hf2{padding:7px 13px;border-radius:20px;border:1px solid var(--line-strong);background:var(--panel);color:var(--ink-soft);font-family:inherit;font-size:12.5px;font-weight:700;cursor:pointer}
+  .hf2.on{background:var(--primary);color:var(--primary-fg);border-color:var(--primary-line)}
+  .htable{width:100%;border-collapse:collapse;font-size:12.5px}
+  .htable th{background:var(--field);text-align:left;padding:9px 10px;font-weight:700;font-size:11.5px;color:var(--ink-soft);border-bottom:1px solid var(--line);white-space:nowrap}
+  .htable td{padding:9px 10px;border-bottom:1px dashed var(--line);vertical-align:top}
+  .htable tr:last-child td{border-bottom:none}
+  .htable .holdv{color:var(--warn)}
+  .htable .hnewv{color:var(--ok);font-weight:600}
+  .kindchip{display:inline-block;border-radius:8px;padding:1px 8px;font-size:11px;font-weight:700;white-space:nowrap}
+  .kindchip.edit{background:var(--accent-soft);color:var(--accent);border:1px solid var(--accent)}
+  .kindchip.del{background:rgba(201,130,31,.16);color:#a8650f;border:1px solid #c9821f}
+  html[data-theme="dark"] .kindchip.del{color:#f0b45e}
+  .kindchip.job{background:var(--field);color:var(--ink-soft);border:1px solid var(--line-strong)}
+  .hscroll{overflow-x:auto}
+  .ghl3{background:rgba(201,130,31,.14);border:1px solid #c9821f;border-radius:9px;padding:10px 12px;font-size:12.5px;line-height:1.7;color:var(--ink);margin-top:9px}
+
   /* รายการบิลที่จดจากเครื่องนี้ (V58.1) */
   #b2Sess{margin:10px 14px;border:1px solid var(--line);border-radius:10px;background:var(--paper);overflow:hidden}
   .b2sess-head{display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding:9px 12px;background:var(--field);border-bottom:1px solid var(--line);font-size:13px}
@@ -851,7 +893,49 @@
   <div class="bmode">
     <button class="mb on" id="bmNew">🧾 คิวบิล (ใหม่)</button>
     <button class="mb" id="bmDebt" title="บิลที่วางไปแล้ว เก็บเงินได้หรือยัง">💰 ลูกหนี้</button>
+    <button class="mb" id="bmTrash" title="บิลที่ลบไปแล้ว — กู้คืนได้">🗑 ถังขยะ <span class="b" id="trMark" style="display:none">0</span></button>
+    <button class="mb" id="bmHist" title="ใครแก้อะไรไปบ้าง ค่าเดิม → ค่าใหม่">🕘 ประวัติแก้ไข</button>
     <button class="mb" id="bmOld" title="ใบที่ค้างจากระบบเดิม — พิมพ์/ยืนยันแบบเดิมได้จนเคลียร์หมด">🕰 คิวแบบเก่า (จากใบงาน)</button>
+  </div>
+
+  <!-- V60: ถังขยะบิล — เดิมดูได้แต่ในชีท ตอนนี้กู้คืนได้ในเว็บเลย -->
+  <div class="session" id="billTrashCard" style="margin-top:0;display:none">
+    <div class="session-head"><h3>🗑 ถังขยะบิล</h3><span class="count" id="trCount">—</span>
+      <button class="minib" id="trReload" style="margin-left:auto">🔄 รีเฟรช</button></div>
+    <div style="padding:11px 14px;border-bottom:1px solid var(--line)">
+      <input id="trSearch" placeholder="ค้นเบอร์ตู้ / ลูกค้า / คนลบ" autocomplete="off">
+    </div>
+    <label class="ballrow" id="trSelAllRow" style="display:none;padding-left:14px">
+      <input type="checkbox" id="trSelAll"><span>เลือกทั้งหมด</span></label>
+    <div id="trBody"><div class="empty">กำลังโหลด…</div></div>
+    <div id="trBulk" class="bill-bulk" style="display:none"></div>
+    <div class="tfoot">
+      📌 บิลในถังขยะ <b>ไม่หายเอง เก็บไว้ตลอด</b> · กด <b>↩️ กู้คืน</b> แล้วบิลจะกลับไปอยู่ในคิววางบิลเหมือนเดิม ข้อมูลครบทุกช่อง<br>
+      <span id="trAdminNote" style="display:none">🔥 <b>ลบถาวร</b> = หายจริง กู้ไม่ได้ · ปุ่มนี้เห็นเฉพาะแอดมิน</span>
+    </div>
+  </div>
+
+  <!-- V60: ประวัติแก้ไขรวม — เดิมต้องกดดูทีละใบ -->
+  <div class="session" id="billHistCard" style="margin-top:0;display:none">
+    <div class="session-head"><h3>🕘 ประวัติการแก้ไข</h3><span class="count" id="hsCount">—</span>
+      <button class="minib" id="hsReload" style="margin-left:auto">🔄 รีเฟรช</button></div>
+    <div style="padding:11px 14px;border-bottom:1px solid var(--line)">
+      <input id="hsSearch" placeholder="ค้นเบอร์ตู้ / ลูกค้า / คนแก้ / ช่องที่แก้" autocomplete="off">
+    </div>
+    <div class="actions" style="background:var(--paper);border-top:none;align-items:center">
+      <div class="hfilter" id="hsFilter">
+        <button class="hf2 on" data-h="all">ทั้งหมด <span class="b" id="hsc-all">0</span></button>
+        <button class="hf2" data-h="edit">✏️ แก้ไข <span class="b" id="hsc-edit">0</span></button>
+        <button class="hf2" data-h="del">🗑 ลบ/กู้คืน <span class="b" id="hsc-del">0</span></button>
+      </div>
+    </div>
+    <div id="hsJobRow" style="display:none;padding:0 14px 11px">
+      <label class="ballrow" style="padding:0">
+        <input type="checkbox" id="hsJob"><span>รวม<b>ประวัติใบงาน (จดตู้)</b> ด้วย <span style="color:var(--ink-soft);font-size:12px">· เฉพาะแอดมิน</span></span>
+      </label>
+    </div>
+    <div id="hsBody"><div class="empty">กำลังโหลด…</div></div>
+    <div class="tfoot">📌 ปุ่ม <b>🕘 ประวัติ</b> บนการ์ดแต่ละใบยังใช้ได้เหมือนเดิม (ดูเฉพาะใบนั้น)</div>
   </div>
 
   <!-- V58: ลูกหนี้ — บิลที่ยืนยันวางบิลแล้วแต่ยังไม่ได้เงิน (จับกลุ่มตามเลขบิล 1 ใบวางบิล = 1 หนี้) -->
@@ -2034,16 +2118,23 @@ function b2NextInv(cust){
 
 /* ---- สลับโหมด คิวใหม่ ↔ คิวแบบเก่า ---- */
 function billModeSync(){
-  if(['new','debt','old'].indexOf(billMode)<0) billMode='new';
+  if(['new','debt','trash','hist','old'].indexOf(billMode)<0) billMode='new';
   const isNew=(billMode==='new'), isDebt=(billMode==='debt'), isOld=(billMode==='old');
-  const b2=$("bill2Card"), b3=$("bill3Card"), b1=$("billCard");
+  const isTrash=(billMode==='trash'), isHist=(billMode==='hist');
+  const b2=$("bill2Card"), b3=$("bill3Card"), b1=$("billCard"), bt=$("billTrashCard"), bh=$("billHistCard");
   if(b2) b2.style.display=isNew?'block':'none';
   if(b3) b3.style.display=isDebt?'block':'none';
   if(b1) b1.style.display=isOld?'block':'none';
+  if(bt) bt.style.display=isTrash?'block':'none';
+  if(bh) bh.style.display=isHist?'block':'none';
   $("bmNew").classList.toggle('on',isNew);
   $("bmDebt").classList.toggle('on',isDebt);
+  $("bmTrash").classList.toggle('on',isTrash);
+  $("bmHist").classList.toggle('on',isHist);
   $("bmOld").classList.toggle('on',isOld);
   try{ localStorage.setItem('jobform_billmode',billMode); }catch(e){}
+  if(isTrash){ if(trLoaded) renderBTrash(); loadBTrash(); return; }
+  if(isHist){ if(adminToken) $("hsJobRow").style.display=''; if(hsLoaded) renderHist(); loadHist(); return; }
   if(isNew){
     if(!bill2Rows.length) b2CacheLoad();                       // มีแคช = เห็นคิวทันที ไม่ต้องรอเน็ต
     if(bill2Rows.length) renderBill2(); else $("b2Body").innerHTML='<div class="empty">กำลังโหลดคิว…</div>';
@@ -2419,7 +2510,9 @@ function renderBill2(){
     bb.style.display='flex';
     bb.innerHTML='เลือก '+selKeys.length+' บิล'+(nSlips!==selKeys.length?(' ('+nSlips+' ใบ)'):'')+' '
       +(canMerge?'<button class="btn bc" style="background:#1a56db" onclick="bill2Merge()">🔗 รวมเป็นบิลเดียว</button>':'')
-      +'<button class="btn bp" onclick="bill2BulkPrint()">🖨 พิมพ์วางบิลที่เลือก</button><button class="btn bc" onclick="bill2BulkConfirm()">✓ ยืนยันที่เลือก</button><button class="btn bu" onclick="bill2BulkUnprint()">↩ ย้อนสถานะ</button><button class="btn bx" onclick="bill2ClearSel()">ล้าง</button>';
+      +'<button class="btn bp" onclick="bill2BulkPrint()">🖨 พิมพ์วางบิลที่เลือก</button><button class="btn bc" onclick="bill2BulkConfirm()">✓ ยืนยันที่เลือก</button><button class="btn bu" onclick="bill2BulkUnprint()">↩ ย้อนสถานะ</button>'
+      +'<button class="btn bx" style="background:var(--warn);color:#fff;border:none" onclick="bill2BulkDelete()">🗑 ลบที่เลือก</button>'
+      +'<button class="btn bx" onclick="bill2ClearSel()">ล้าง</button>';
   }
   else bb.style.display='none';
   if(!shown.length){
@@ -2622,6 +2715,174 @@ async function bill2ShowHistory(uid){
       +'<span style="flex:1"><span class="ho">'+escHtml(h.old||'(ว่าง)')+'</span> → <span class="hn">'+escHtml(h.neu||'(ว่าง)')+'</span></span>'
       +'<span class="hwhen">'+escHtml(String(h.time).replace('T',' '))+' · '+escHtml(h.editor||'-')+'</span></div>').join('');
   }catch(e){ const box=document.getElementById('b2HistBody'); if(box) box.innerHTML='<div class="hint" style="margin:0">เชื่อมต่อไม่สำเร็จ</div>'; }
+}
+
+/* ============================================================
+   V60 — ถังขยะบิล (ดู/กู้คืน/ลบถาวร) + ประวัติแก้ไขรวม + ลบทีเดียวหลายใบ
+   ทั้งหมดอ่านอย่างเดียวจากชีท ไม่ยิง LINE/อีเมล
+   ============================================================ */
+let trRows=[], trSel={}, trLoaded=false, trAdmin=false;
+let hsRows=[], hsFilter='all', hsLoaded=false;
+
+/* ส่ง uid เป็นก้อนละ 25 — URL ยาวเกินแล้วคำสั่งจะหายเงียบ (บทเรียน V52) */
+async function b2Chunked(act, uids, extra){
+  let done=0, skip=0, bad='';
+  for(let i=0;i<uids.length;i+=25){
+    const part=uids.slice(i,i+25);
+    const j=await callAct(Object.assign({act:act,uids:part.join(',')},extra||{}));
+    if(j&&j.ok){ const m=/-ok\s+(\d+)\|(\d+)/.exec(String(j.result||'')); if(m){ done+=+m[1]; skip+=+m[2]; } else done+=part.length; }
+    else if(j&&j.result==='not-found'){ skip+=part.length; }
+    else bad=(j&&j.result)||'error';
+  }
+  return {done:done,skip:skip,bad:bad};
+}
+
+/* ---- ถังขยะบิล ---- */
+async function loadBTrash(){
+  try{
+    const j=await callAct({act:'btrash'});
+    if(j&&j.ok&&Array.isArray(j.rows)){ trRows=j.rows; trAdmin=!!j.admin||!!adminToken; trLoaded=true; renderBTrash(); updateTrashMark(); }
+    else if(j&&j.result==='unknown-act') $("trBody").innerHTML='<div class="empty">⚙️ หลังบ้านยังไม่ได้อัปเดตเป็น V60 — วางไฟล์ .gs แล้ว Deploy → New version ก่อน<div style="color:var(--ink-soft);font-size:12px;margin-top:6px">ระหว่างนี้ดูถังขยะได้ที่แท็บ “ถังขยะบิล” ในชีท</div></div>';
+    else $("trBody").innerHTML='<div class="empty">โหลดถังขยะไม่สำเร็จ'+((j&&j.result)?' — '+escHtml(j.result):'')+'</div>';
+  }catch(e){ $("trBody").innerHTML='<div class="empty">เชื่อมต่อไม่สำเร็จ</div>'; }
+}
+function updateTrashMark(){
+  const m=$("trMark"); if(!m) return;
+  if(trLoaded&&trRows.length){ m.textContent=trRows.length; m.style.display=''; } else m.style.display='none';
+}
+function trCanRestore(r){ if(adminToken) return true; const me=b2MyEmail(); return !!(me&&String(r.enteredEmail||'').trim().toLowerCase()===me); }
+function trShown(){
+  const q=billNorm($("trSearch").value||'');
+  if(!q) return trRows;
+  return trRows.filter(r=>billNorm([r.customer,r.container,r.truck,r.driver,r.delBy,r.invno].join(' ')).indexOf(q)>=0);
+}
+function renderBTrash(){
+  const rows=trShown();
+  $("trCount").textContent=trRows.length?(trRows.length+' ใบ'+(rows.length!==trRows.length?(' · ตรงกับที่ค้น '+rows.length):'')):'ว่าง';
+  $("trAdminNote").style.display=(trAdmin||adminToken)?'':'none';
+  $("trSelAllRow").style.display=rows.length?'flex':'none';
+  $("trSelAll").checked=rows.length>0&&rows.every(r=>trSel[r.uid]);
+  if(!rows.length){
+    $("trBody").innerHTML='<div class="empty"'+(trRows.length?'':' style="color:var(--ok)"')+'>'
+      +(trRows.length?'ไม่พบบิลที่ตรงกับที่ค้น':'ถังขยะว่าง 🎉 ยังไม่มีบิลที่ถูกลบ')+'</div>';
+    $("trBulk").style.display='none'; return;
+  }
+  const showPurge=(trAdmin||adminToken);
+  $("trBody").innerHTML=rows.map(r=>{
+    const can=trCanRestore(r);
+    return '<div class="trow"><input type="checkbox" class="trc" data-u="'+escAttr(r.uid)+'"'+(trSel[r.uid]?' checked':'')+'>'
+      +'<span class="ti"><b>'+escHtml(r.customer||'-')+'</b>'+(r.invno?'<span class="tinv">'+escHtml(r.invno)+'</span>':'')
+      +'<small>ตู้ '+escHtml(r.container||'-')+' · ลบเมื่อ '+escHtml(String(r.delAt||'-').replace('T',' '))+' โดย '+escHtml(r.delBy||'-')+'</small></span>'
+      +'<span class="tamt">'+b2Money(b2RowTotal(r))+'</span>'
+      +'<span class="tact"><button class="minib ok" data-tr="'+escAttr(r.uid)+'"'+(can?'':' disabled title="กู้คืนได้เฉพาะบิลที่ตัวเองจด — ให้แอดมินกู้ให้"')+'>↩️ กู้คืน</button>'
+      +(showPurge?'<button class="minib dang" data-tp="'+escAttr(r.uid)+'">🔥 ลบถาวร</button>':'')+'</span></div>';
+  }).join('');
+  $("trBody").querySelectorAll('.trc').forEach(c=>c.onchange=()=>{ if(c.checked)trSel[c.dataset.u]=1; else delete trSel[c.dataset.u]; renderBTrash(); });
+  $("trBody").querySelectorAll('[data-tr]').forEach(b=>b.onclick=()=>trRestore([b.dataset.tr]));
+  $("trBody").querySelectorAll('[data-tp]').forEach(b=>b.onclick=()=>trPurge([b.dataset.tp]));
+  const keys=Object.keys(trSel).filter(k=>trSel[k]&&trRows.some(r=>r.uid===k));
+  const bb=$("trBulk");
+  if(!keys.length){ bb.style.display='none'; return; }
+  bb.style.display='flex';
+  bb.innerHTML='เลือก '+keys.length+' ใบ '
+    +'<button class="btn bc" onclick="trRestoreSel()">↩️ กู้คืนที่เลือก</button>'
+    +(showPurge?'<button class="btn bx" style="background:var(--warn);color:#fff;border:none" onclick="trPurgeSel()">🔥 ลบถาวรที่เลือก</button>':'')
+    +'<button class="btn bx" onclick="trClearSel()">ล้าง</button>';
+}
+function trSelKeys(){ return Object.keys(trSel).filter(k=>trSel[k]&&trRows.some(r=>r.uid===k)); }
+function trClearSel(){ trSel={}; renderBTrash(); }
+function trRestoreSel(){ trRestore(trSelKeys()); }
+function trPurgeSel(){ trPurge(trSelKeys()); }
+
+async function trRestore(uids){
+  if(!uids.length) return;
+  const rows=trRows.filter(r=>uids.indexOf(r.uid)>=0);
+  const can=rows.filter(trCanRestore), no=rows.length-can.length;
+  if(!can.length){ flash('กู้คืนได้เฉพาะบิลที่ตัวเองจด — ให้แอดมินกู้ให้','err'); return; }
+  const go=await new Promise(res=>billDialog('↩️','กู้คืน '+can.length+' บิล?',
+    '<div class="mrow">'+can.slice(0,8).map(r=>escHtml(r.customer||'-')+' · ตู้ '+escHtml(r.container||'-')).join('<br>')+(can.length>8?'<br>… และอีก '+(can.length-8)+' ใบ':'')+'</div>'
+    +'<div class="ghl2">บิลจะกลับไปอยู่ใน <b>คิววางบิล</b> เหมือนเดิม ข้อมูลครบทุกช่อง</div>'
+    +(no?'<div class="ghl3">⚠️ ข้าม '+no+' ใบ — กู้คืนได้เฉพาะบิลที่ตัวเองจด</div>':''),
+    '↩️ กู้คืน','ยกเลิก',()=>res(true),()=>res(false)));
+  if(!go) return;
+  const r=await b2Chunked('brestore',can.map(x=>x.uid));
+  if(r.bad){ flash('กู้คืนไม่สำเร็จ — '+escHtml(ACT_ERR[r.bad]||r.bad),'err'); return; }
+  trSel={}; await loadBTrash();
+  try{ await bill2Fresh(); }catch(e){}
+  flash('↩️ กู้คืนแล้ว '+r.done+' บิล'+(r.skip?(' · ข้าม '+r.skip+' ใบ (มีอยู่ในคิวแล้ว)'):'')+' — อยู่ในคิววางบิลแล้ว','ok');
+}
+async function trPurge(uids){
+  if(!uids.length) return;
+  if(!(trAdmin||adminToken)){ flash('ลบถาวรได้เฉพาะแอดมิน','err'); return; }
+  const rows=trRows.filter(r=>uids.indexOf(r.uid)>=0);
+  const go=await new Promise(res=>billDialog('🔥','ลบถาวร '+rows.length+' บิล?',
+    '<div class="mrow">'+rows.slice(0,8).map(r=>escHtml(r.customer||'-')+' · ตู้ '+escHtml(r.container||'-')+' · '+b2Money(b2RowTotal(r))+' บาท').join('<br>')+(rows.length>8?'<br>… และอีก '+(rows.length-8)+' ใบ':'')+'</div>'
+    +'<div class="ghl3">⚠️ <b>ลบแล้วหายจริง กู้คืนไม่ได้อีกเลย</b><br>ข้อมูลจะหายจากชีทถาวร ไม่มีสำเนาที่ไหน<br>ถ้าไม่แน่ใจ ปล่อยไว้ในถังขยะได้ ไม่กินที่และไม่หายเอง</div>',
+    '🔥 ลบถาวร','ยกเลิก',()=>res(true),()=>res(false)));
+  if(!go) return;
+  const r=await b2Chunked('bpurge',rows.map(x=>x.uid));
+  if(r.bad){ flash('ลบถาวรไม่สำเร็จ — '+escHtml(ACT_ERR[r.bad]||r.bad),'err'); return; }
+  trSel={}; await loadBTrash();
+  flash('🔥 ลบถาวรแล้ว '+r.done+' บิล','ok');
+}
+
+/* ---- ประวัติแก้ไขรวม ---- */
+async function loadHist(){
+  try{
+    const wantJob=(adminToken&&$("hsJob").checked)?'1':'';
+    const j=await callAct(wantJob?{act:'bhistall',job:'1'}:{act:'bhistall'});
+    if(j&&j.ok&&Array.isArray(j.rows)){ hsRows=j.rows; hsLoaded=true; if(j.admin||adminToken) $("hsJobRow").style.display=''; renderHist(); }
+    else if(j&&j.result==='unknown-act') $("hsBody").innerHTML='<div class="empty">⚙️ หลังบ้านยังไม่ได้อัปเดตเป็น V60 — วางไฟล์ .gs แล้ว Deploy → New version ก่อน<div style="color:var(--ink-soft);font-size:12px;margin-top:6px">ระหว่างนี้กดปุ่ม 🕘 บนการ์ดแต่ละใบดูทีละใบได้</div></div>';
+    else $("hsBody").innerHTML='<div class="empty">โหลดประวัติไม่สำเร็จ'+((j&&j.result)?' — '+escHtml(j.result):'')+'</div>';
+  }catch(e){ $("hsBody").innerHTML='<div class="empty">เชื่อมต่อไม่สำเร็จ</div>'; }
+}
+function hsMatch(r,q){ return !q||billNorm([r.cust,r.cont,r.editor,r.field,r.old,r.neu].join(' ')).indexOf(q)>=0; }
+function renderHist(){
+  const q=billNorm($("hsSearch").value||'');
+  const base=hsRows.filter(r=>hsMatch(r,q));
+  $("hsc-all").textContent=base.length;
+  $("hsc-edit").textContent=base.filter(r=>r.kind==='edit').length;
+  $("hsc-del").textContent=base.filter(r=>r.kind==='del').length;
+  const rows=base.filter(r=>hsFilter==='all'||r.kind===hsFilter);
+  $("hsCount").textContent=rows.length+' รายการ'+(base.length!==hsRows.length?(' · จากที่ค้น '+base.length):'');
+  document.querySelectorAll('#hsFilter .hf2').forEach(b=>b.classList.toggle('on',b.dataset.h===hsFilter));
+  if(!rows.length){ $("hsBody").innerHTML='<div class="empty">'+(hsRows.length?'ไม่พบรายการที่ตรงกับที่ค้น':'ยังไม่มีประวัติการแก้ไข')+'</div>'; return; }
+  $("hsBody").innerHTML='<div class="hscroll"><table class="htable">'
+    +'<thead><tr><th>เวลาแก้</th><th>ผู้แก้ไข</th><th>บิล</th><th>ช่องที่แก้</th><th>ค่าเดิม → ค่าใหม่</th></tr></thead><tbody>'
+    +rows.map(r=>{
+      const k=r.kind==='del'?'del':(r.kind==='job'?'job':'edit');
+      const label=r.kind==='job'?'🚛 ใบงาน':(r.kind==='del'?('🗑 '+escHtml(r.field)):('✏️ '+escHtml(r.field)));
+      return '<tr><td style="white-space:nowrap">'+escHtml(String(r.time||'').replace('T',' '))+'</td>'
+        +'<td style="white-space:nowrap">'+escHtml(r.editor||'-')+'</td>'
+        +'<td><b>'+escHtml(r.cust||'-')+'</b>'+(r.cont?'<br><span style="color:var(--ink-soft);font-size:11.5px">ตู้ '+escHtml(r.cont)+'</span>':'')+'</td>'
+        +'<td><span class="kindchip '+k+'">'+label+'</span></td>'
+        +'<td><span class="holdv">'+escHtml(r.old||'(ว่าง)')+'</span> → <span class="hnewv">'+escHtml(r.neu||'(ว่าง)')+'</span></td></tr>';
+    }).join('')+'</tbody></table></div>';
+}
+
+/* ---- ลบทีเดียวหลายใบ (จากคิวบิล) ---- */
+async function bill2BulkDelete(){
+  const keys=Object.keys(bill2Sel).filter(k=>bill2Sel[k]&&bill2Map[k]);
+  if(!keys.length) return;
+  const rows=[]; keys.forEach(k=>bill2Map[k].rows.forEach(r=>rows.push(r)));
+  const can=rows.filter(b2CanEdit), skip=rows.filter(r=>!b2CanEdit(r));
+  const sum=can.reduce((a,r)=>a+b2RowTotal(r),0);
+  let body='';
+  if(can.length) body+='<div class="mrow">'+can.slice(0,8).map(r=>escHtml(r.customer||'-')+' · ตู้ '+escHtml(r.container||'-')+' · '+b2Money(b2RowTotal(r))+' บาท').join('<br>')
+    +(can.length>8?'<br>… และอีก '+(can.length-8)+' ใบ':'')+'<br><b>รวม '+b2Money(sum)+' บาท</b></div>'
+    +'<div class="ghl2">ไม่ได้ลบทิ้งถาวร — ย้ายไปเก็บที่ <b>🗑 ถังขยะ</b> พร้อมวันเวลาและชื่อคนลบ<br>กด <b>↩️ กู้คืน</b> ในถังขยะได้ทุกเมื่อ</div>';
+  if(skip.length) body+='<div class="ghl3">⚠️ <b>ข้าม '+skip.length+' ใบ</b> ลบไม่ได้เพราะพิมพ์/วางบิลไปแล้ว หรือคนอื่นเป็นคนจด<br>'
+    +skip.slice(0,6).map(r=>'• ตู้ '+escHtml(r.container||'-')+' — '+(String(r.bill||'').trim()?'พิมพ์/วางบิลแล้ว':'คนอื่นจด')).join('<br>')
+    +(skip.length>6?'<br>… และอีก '+(skip.length-6)+' ใบ':'')
+    +'<br><span style="color:var(--ink-soft)">อยากลบด้วย ให้กด ↩ ย้อนสถานะก่อน หรือให้แอดมินลบ</span></div>';
+  if(!can.length){ billDialog('🗑','ลบไม่ได้สักใบ',body,'เข้าใจแล้ว','ปิด',()=>{},()=>{}); return; }
+  const go=await new Promise(res=>billDialog('🗑','ลบ '+can.length+' บิล?',body,'🗑 ลบ '+can.length+' บิล','ยกเลิก',()=>res(true),()=>res(false)));
+  if(!go) return;
+  const r=await b2Chunked('bdel',can.map(x=>x.uid));
+  if(r.bad){ flash('ลบไม่สำเร็จ — '+escHtml(ACT_ERR[r.bad]||r.bad),'err'); return; }
+  bill2Sel={}; await bill2Fresh(); renderBill2();
+  trLoaded=false; loadBTrash();
+  flash('🗑 ลบแล้ว '+r.done+' บิล'+((r.skip+skip.length)?(' · ข้าม '+(r.skip+skip.length)+' ใบ'):'')+' — อยู่ใน 🗑 ถังขยะ กู้คืนได้','ok');
 }
 
 /* รวมงาน: หลายบิล → บิลเดียว (เก็บถาวรในชีท) — งานที่ใช้หลายรถ/หลายคนขับ หรือหลายตู้ที่ต้องออกใบเดียว */
@@ -3617,7 +3878,17 @@ $("billQClear").addEventListener('click',billSearchClear);
 /* ---- V57: คิวบิลใหม่ ---- */
 $("bmNew").addEventListener('click',()=>{ billMode='new'; billModeSync(); });
 $("bmDebt").addEventListener('click',()=>{ billMode='debt'; billModeSync(); });
+$("bmTrash").addEventListener('click',()=>{ billMode='trash'; billModeSync(); });
+$("bmHist").addEventListener('click',()=>{ billMode='hist'; billModeSync(); });
 $("bmOld").addEventListener('click',()=>{ billMode='old'; billModeSync(); });
+/* V60: ถังขยะ + ประวัติแก้ไขรวม */
+$("trSearch").addEventListener('input',renderBTrash);
+$("trReload").addEventListener('click',()=>{ trSel={}; loadBTrash(); });
+$("trSelAll").addEventListener('change',()=>{ const rows=trShown(); if($("trSelAll").checked) rows.forEach(r=>trSel[r.uid]=1); else rows.forEach(r=>delete trSel[r.uid]); renderBTrash(); });
+$("hsSearch").addEventListener('input',renderHist);
+$("hsReload").addEventListener('click',loadHist);
+$("hsJob").addEventListener('change',loadHist);
+document.querySelectorAll('#hsFilter .hf2').forEach(b=>b.addEventListener('click',()=>{ hsFilter=b.dataset.h; renderHist(); }));
 document.querySelectorAll('#b3Filter .fb').forEach(f=>f.addEventListener('click',()=>{ debtFilter=f.dataset.f; renderDebt(); }));
 $("b3Q").addEventListener('input',e=>{ debtQ=e.target.value.trim(); renderDebt(); });
 $("btnB2New").addEventListener('click',()=>{ b2EditUid=''; bill2FormOpen(null); });
