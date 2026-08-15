@@ -2169,6 +2169,19 @@ async function b2ResendAll(){
   if(left.length) flash('ยังส่งไม่ติด '+left.length+' บิล — เช็คเน็ต/ล็อกอินแล้วลองใหม่','err');
   else { flash('✓ ส่งซ้ำติดครบทุกใบแล้ว','ok'); bill2Fresh().then(renderBill2); }
 }
+/* ตรวจเบื้องหลังว่าบิลติดชีทจริง (แบบเดียวกับ autoVerify ของหน้าจด) — ไม่บล็อกปุ่ม ไม่ต้องรอ
+   ติด → แจ้งเงียบๆ + รีเฟรชคิว · ไม่ติด → เข้าคิวส่งซ้ำในเครื่อง (ส่งซ้ำปลอดภัย เพราะหลังบ้านกัน uid ซ้ำ) */
+function b2VerifyInBackground(uid,d){
+  (async()=>{
+    if(await b2VerifySaved(uid)){
+      flash('✓ บิลตู้ '+(d.container||'')+' ขึ้นชีทแล้ว','ok');
+      try{ await bill2Fresh(); if(billMode==='new'&&bill2Filter!=='recent') renderBill2(); }catch(e){}
+    } else {
+      const list=b2PendList(); list.unshift({uid:uid,d:d,ts:Date.now()}); b2PendSave(list); renderB2Pending();
+      flash('⚠️ ตู้ '+(d.container||uid)+' — ยังไม่เห็นในชีท เก็บเข้าคิวส่งซ้ำในเครื่องแล้ว (กด “⟳ ส่งซ้ำทั้งหมด” ได้ตลอด)','err');
+    }
+  })();
+}
 async function bill2Save(){
   const d=bill2Collect();
   if(!d.date){ flash('กรุณาระบุวันที่วิ่งงาน','err'); return; }
@@ -2176,6 +2189,7 @@ async function bill2Save(){
   if(!d.container){ flash('กรุณาระบุเบอร์ตู้','err'); return; }
   const btn=$("btnB2Save"); if(btn.disabled) return; btn.disabled=true;
   const url=endpoint();
+  let hold=false; // จดบิลใหม่ = ไม่รอผล ปลดปุ่มเองใน 0.7 วิ (กันกดรัวใบซ้ำ) — finally จะไม่ไปปลดก่อนเวลา
   try{
     if(b2EditUid){ // ---- แก้บิล (④ก: เจ้าของบิลก่อนพิมพ์ / แอดมินตลอด — หลังบ้านบังคับอีกชั้น) ----
       const uid=b2EditUid;
@@ -2200,15 +2214,16 @@ async function bill2Save(){
       bill2FormClear(true); return;
     }
     // เตือนเบา: ตู้นี้มีอยู่ในคิวแล้ว (เช็คจากข้อมูลในเครื่อง — ตัวจริงหลังบ้านเช็คย้อน 45 วันอีกชั้น)
+    // ---- ยิงแล้วไม่รอ (แบบเดียวกับหน้าจด V51): เคลียร์ฟอร์มทันที จดใบต่อไปได้เลย ----
+    // no-cors อ่านคำตอบไม่ได้อยู่แล้ว การรอจึงไม่ได้อะไรเพิ่ม — ให้ตัวตรวจเบื้องหลังเป็นคนบอกผลจริงทีหลัง
     const dupQ=bill2Rows.some(r=>b2Norm(r.container)===b2Norm(d.container));
     try{ b2Post(Object.assign({_bsave:1,uid:uid},d)); }catch(e){}
-    flash('บันทึกบิลแล้ว ✓ กำลังตรวจกับชีท…'+(dupQ?' · ⚠️ ตู้นี้มีบิลอยู่ในคิวแล้ว เช็คว่าไม่จดซ้ำ':''),'ok');
+    flash('บันทึกบิลแล้ว ✓ จดใบต่อไปได้เลย — ระบบส่งขึ้นชีทให้เอง'+(dupQ?' · ⚠️ ตู้นี้มีบิลอยู่ในคิวแล้ว เช็คว่าไม่จดซ้ำ':''),'ok');
     bill2FormClear(true); // คงลูกค้า/วันที่/เรทไว้ คีย์ใบต่อไปของลูกค้าเดิมได้เลย
     $("b2_container").focus();
-    if(await b2VerifySaved(uid)){ flash('✓ บิลขึ้นชีทแล้ว','ok'); await bill2Fresh(); renderBill2(); }
-    else{ const list=b2PendList(); list.unshift({uid:uid,d:d,ts:Date.now()}); b2PendSave(list); renderB2Pending();
-      flash('⚠️ ยังไม่เห็นบิลในชีท — เก็บเข้าคิวส่งซ้ำในเครื่องแล้ว (กด “⟳ ส่งซ้ำทั้งหมด” ได้ตลอด)','err'); }
-  } finally { btn.disabled=false; }
+    hold=true; setTimeout(()=>{ btn.disabled=false; },700); // กันกดรัวได้ใบซ้ำ — จังหวะเดียวกับหน้าจด
+    b2VerifyInBackground(uid,d);
+  } finally { if(!hold) btn.disabled=false; }
 }
 
 /* ---- เพิ่ม/ลบรายชื่อจากหน้าบิล — ใช้ master list ชุดเดียวกับหน้าจด (opMaster → ลงชีท ทุกเครื่องเห็นตรงกัน) ---- */
