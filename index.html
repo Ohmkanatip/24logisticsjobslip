@@ -1987,21 +1987,49 @@ async function bill2StampFromPrint(pairs){
 }
 window.bill2StampInv=bill2StampInv; window.bill2StampFromPrint=bill2StampFromPrint;
 
+/* ---- กล่องเช็คเลขบิลก่อนเปิดหน้าพิมพ์ (เจ้าของเคาะ 15 ส.ค.) ----
+   โชว์เลขที่จะใช้ (รันต่อจากชุดของลูกค้า) ให้แก้/กรอกก่อน · ลูกค้าใหม่ไม่มีประวัติ = บังคับเห็นช่องว่าง
+   หน้าต่างพิมพ์เปิดตอนกดปุ่มในกล่องนี้ = คลิกใหม่ของผู้ใช้ ป๊อปอัปไม่โดนบล็อกแม้ผ่าน await มาแล้ว */
+function bill2InvDialog(r,isReprint,onGo){
+  let ov=document.getElementById('billOvl'); if(ov) ov.remove();
+  ov=document.createElement('div'); ov.id='billOvl'; let done=false;
+  const sug=r.invno||b2NextInv(r.customer);
+  const hint= r.invno?'เลขเดิมของใบนี้ — แก้แล้วระบบจดเลขใหม่ทับให้ในชีท'
+    : (sug?'💡 รันต่อจากใบล่าสุดของลูกค้ารายนี้ให้แล้ว — แก้ได้'
+         :'ลูกค้ารายนี้ยังไม่มีประวัติเลขบิล — พิมพ์เลขตั้งต้นเอง ครั้งต่อไประบบรันต่อให้อัตโนมัติ');
+  ov.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:9000;display:flex;align-items:center;justify-content:center;padding:20px';
+  ov.innerHTML='<div style="background:var(--panel);color:var(--ink);border-radius:14px;max-width:440px;width:100%;padding:20px;box-shadow:var(--shadow)">'
+    +'<div style="font-size:32px;text-align:center">'+(isReprint?'⚠️':'🧾')+'</div>'
+    +'<h3 style="text-align:center;margin:6px 0 10px;font-size:17px">'+(isReprint?'ใบนี้พิมพ์ไปแล้ว — พิมพ์ซ้ำ':'เลขบิลใบนี้')+'</h3>'
+    +'<div style="font-size:13.5px;line-height:1.65">'
+    +(isReprint?('พิมพ์ไปแล้ว '+billDays(r.billAtMs)+' วันก่อน โดย <b>'+escHtml(r.billBy||'-')+'</b> — ถ้าไม่ได้ตั้งใจพิมพ์ซ้ำ ให้กดยกเลิก<br>'):'')
+    +escHtml(r.customer||'-')+' · ตู้ '+escHtml(r.container||'-')+'<br>'
+    +'<label style="display:block;font-size:12.5px;color:var(--ink-soft);font-weight:600;margin:10px 0 4px">เลขบิล (INV.NO)</label>'
+    +'<input id="b2InvIn" class="mono" value="'+escAttr(sug)+'" placeholder="เช่น BV2601-08/23" autocomplete="off">'
+    +'<div class="hint" style="margin:6px 0 0">'+hint+'</div></div>'
+    +'<div style="display:flex;gap:8px;margin-top:14px">'
+    +'<button id="b2InvCancel" style="flex:1;padding:11px;border-radius:9px;border:1px solid var(--line-strong);background:transparent;color:var(--ink);font-weight:700;cursor:pointer;font-family:inherit">ยกเลิก</button>'
+    +'<button id="b2InvOk" style="flex:1;padding:11px;border-radius:9px;border:none;background:var(--primary);color:var(--primary-fg);font-weight:700;cursor:pointer;font-family:inherit">'+(isReprint?'🖨 พิมพ์ซ้ำ':'🖨 เปิดหน้าพิมพ์')+'</button></div></div>';
+  document.body.appendChild(ov);
+  const fin=(val)=>{ if(done)return; done=true; ov.remove(); if(val!==null&&onGo) onGo(val); };
+  ov.onclick=e=>{ if(e.target===ov) fin(null); };
+  document.getElementById('b2InvCancel').onclick=()=>fin(null);
+  document.getElementById('b2InvOk').onclick=()=>{ const v=document.getElementById('b2InvIn').value.trim(); fin(v); };
+  const inp=document.getElementById('b2InvIn');
+  inp.addEventListener('keydown',e=>{ if(e.key==='Enter'){ e.preventDefault(); document.getElementById('b2InvOk').click(); } });
+  inp.focus(); inp.select();
+}
+
 /* ---- ปุ่มบนการ์ด ---- */
 async function bill2Act(act,uid){
   if(bill2Busy[uid]) return;
   let r=bill2Rows.find(x=>x.uid===uid); if(!r) return;
   if(act==='edit'){ bill2FormOpen(r); return; }
   if(act==='preview'){ openInvoice2([r],null,r.invno||b2NextInv(r.customer)); return; }
-  let w=null;
-  if(act==='print'){ // เปิดหน้าต่างทันทีตอนคลิก — เปิดหลัง await โดนบล็อกป๊อปอัปเงียบ (ห้ามย้อนแพทเทิร์นนี้)
-    w=openLoadingWindow();
-    if(!w){ flash('เบราว์เซอร์บล็อกป๊อปอัป — กดไอคอนป๊อปอัปมุมขวาของช่องที่อยู่ แล้วเลือก “อนุญาต” ของเว็บนี้','err'); return; }
-  }
   bill2Busy[uid]=1; renderBill2();
   try{
     await bill2Fresh(); r=bill2Rows.find(x=>x.uid===uid);
-    if(!r){ try{ if(w) w.close(); }catch(e){} flash('บิลนี้ถูกจัดการไปแล้ว (รีเฟรชคิวให้แล้ว)','err'); return; }
+    if(!r){ flash('บิลนี้ถูกจัดการไปแล้ว (รีเฟรชคิวให้แล้ว)','err'); return; }
     if(act==='confirm'){
       const go=await new Promise(res=>billDialog('✓','ยืนยันวางบิล?','ตู้ '+escHtml(r.container||'-')+(r.invno?' · เลขบิล '+escHtml(r.invno):'')+' — ยืนยันแล้วจะหายจากคิว (ถ้าพลาด กดดึงกลับได้ในแท็บ “เพิ่งวางบิล”)','ยืนยันวางบิล','ยกเลิก',()=>res(true),()=>res(false)));
       if(go) await bill2Set([uid],'billed','✓ วางบิลแล้ว — หายจากคิว');
@@ -2013,14 +2041,17 @@ async function bill2Act(act,uid){
       return;
     }
     if(act==='print'){
-      if(bill2State(r)==='printed'){
-        const go=await new Promise(res=>billDialog('⚠️','ใบนี้พิมพ์วางบิลไปแล้ว','ตู้ '+escHtml(r.container||'-')+' พิมพ์ไปแล้ว '+billDays(r.billAtMs)+' วันก่อน โดย <b>'+escHtml(r.billBy||'-')+'</b><br>ถ้าเป็นการพิมพ์ซ้ำโดยไม่ได้ตั้งใจ ให้กด “ไม่พิมพ์ซ้ำ”','พิมพ์ซ้ำอีกครั้ง','ไม่พิมพ์ซ้ำ',()=>res(true),()=>res(false)));
-        if(go){ openInvoice2([r],w,r.invno||b2NextInv(r.customer)); } else { try{ if(w) w.close(); }catch(e){} }
-        return;
-      }
-      const inv=r.invno||b2NextInv(r.customer);
-      openInvoice2([r],w,inv);
-      await bill2Set([uid],'printed','🖨 พิมพ์แล้ว — ขึ้น “รอยืนยัน” · เช็คก่อนกดยืนยันปิดจ็อบ',inv);
+      const isRe=(bill2State(r)==='printed');
+      const rr=r; // กันตัวแปรเปลี่ยนก่อน callback ทำงาน
+      bill2InvDialog(rr,isRe,async(inv)=>{
+        // เปิดหน้าต่างตรงนี้ = อยู่ในคลิกปุ่มของกล่อง (gesture ใหม่) — ป๊อปอัปไม่โดนบล็อก ห้ามย้ายไปหลัง await อื่น
+        const w=openLoadingWindow();
+        if(!w){ flash('เบราว์เซอร์บล็อกป๊อปอัป — กดไอคอนป๊อปอัปมุมขวาของช่องที่อยู่ แล้วเลือก “อนุญาต” ของเว็บนี้','err'); return; }
+        openInvoice2([rr],w,inv);
+        if(!isRe) await bill2Set([uid],'printed','🖨 พิมพ์แล้ว — ขึ้น “รอยืนยัน” · เช็คก่อนกดยืนยันปิดจ็อบ',inv);
+        else if(inv && inv!==rr.invno) await bill2Set([uid],'inv',null,inv); // พิมพ์ซ้ำแต่แก้เลข → จดเลขใหม่ลงชีท
+        renderBill2();
+      });
     }
   } finally { delete bill2Busy[uid]; renderBill2(); }
 }
