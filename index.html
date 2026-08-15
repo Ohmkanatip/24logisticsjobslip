@@ -335,6 +335,41 @@
   .tag.local{background:var(--tag-local-bg);color:var(--tag-local-fg)}
   .hint{font-size:12px;color:var(--ink-soft);margin:10px 2px 0}
   .kbd{font-family:'IBM Plex Mono',monospace;background:var(--field);border:1px solid var(--line);border-radius:5px;padding:1px 6px;font-size:12px}
+
+  /* ===== V57: ระบบจดบิลใหม่ (แท็บ 'บิล' — แยกขาดจากใบงาน) =====
+     ปุ่มกรองใช้คลาสใหม่ .billfilter2 เท่านั้น — ห้ามใช้ .billfilter เพราะ handler เดิมผูกแบบเหมารวมจะมา hijack */
+  .bmode{display:flex;gap:8px;flex-wrap:wrap;margin:0 0 12px}
+  .bmode .mb{padding:8px 16px;border:1px solid rgba(255,255,255,.4);background:rgba(255,255,255,.14);border-radius:20px;font-size:13px;cursor:pointer;font-family:inherit;color:#fff;font-weight:700}
+  .bmode .mb.on{background:#fbf7ee;color:#2b2721;border-color:#fbf7ee}
+  @media(max-width:820px){.bmode .mb{background:rgba(20,26,44,.6)}.bmode .mb.on{background:#fbf7ee;color:#2b2721}}
+  .billfilter2{display:flex;gap:6px;flex-wrap:wrap}
+  .billfilter2 .fb{padding:6px 12px;border:1px solid var(--line);background:var(--field);border-radius:20px;font-size:12.5px;cursor:pointer;font-family:inherit;color:var(--ink-soft);font-weight:600}
+  .billfilter2 .fb.on{background:var(--primary);color:var(--primary-fg);border-color:var(--primary-line)}
+  .billfilter2 .fb .b{display:inline-block;background:rgba(0,0,0,.12);border-radius:10px;padding:0 6px;margin-left:4px;font-size:11px}
+  .billfilter2 .fb.on .b{background:rgba(255,255,255,.25)}
+  #b2QInfo:empty{display:none}
+  #b2QInfo{align-self:center;font-size:12.5px;font-weight:700;color:var(--accent);background:var(--accent-soft);border:1px solid var(--accent);border-radius:20px;padding:5px 11px}
+  #bill2Form{padding:16px 20px;border-top:1px dashed var(--line-strong);background:var(--paper)}
+  #bill2Form .col-title{font-size:12px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:var(--accent);margin:14px 0 10px}
+  #bill2Form .col-title:first-child{margin-top:0}
+  .b2ratechip{display:inline-block;background:var(--accent-soft);border:1px solid var(--accent);color:var(--accent);font-size:11.5px;font-weight:700;border-radius:20px;padding:2px 9px;margin-top:4px}
+  .b2ratechip:empty{display:none}
+  .b2exhead{display:flex;align-items:center;justify-content:space-between;gap:8px;margin:14px 0 6px;flex-wrap:wrap}
+  .b2exhead .t{font-size:13px;font-weight:700}
+  .b2exhead .t .yl{background:#ffe27a;color:#5a4300;border-radius:6px;padding:0 6px}
+  .b2exadd{background:var(--accent);color:#fff;border:none;border-radius:8px;padding:7px 13px;font-size:12.5px;font-weight:700;cursor:pointer;font-family:inherit}
+  .b2exrow{display:grid;grid-template-columns:1fr 130px 34px;gap:8px;margin-bottom:6px}
+  .b2exrow input{padding:7px 9px;font-size:13.5px}
+  .b2exrow .amt{text-align:right}
+  .b2exrow .del{border:none;background:var(--field);color:var(--warn);font-weight:800;border-radius:8px;cursor:pointer;font-size:15px;font-family:inherit}
+  .b2total{display:flex;align-items:center;justify-content:space-between;margin-top:14px;padding:12px 14px;background:var(--total-bg);color:var(--total-fg);border-radius:10px}
+  .b2total .lbl{font-size:13px;letter-spacing:.05em;text-transform:uppercase;opacity:.85}
+  .b2total .val{font-family:'IBM Plex Mono',monospace;font-size:22px;font-weight:600}
+  .b2acts{display:flex;flex-wrap:wrap;gap:10px;margin-top:14px;align-items:center}
+  .docchip2{display:inline-block;background:var(--field);border:1px solid var(--line);color:var(--ink-soft);font-size:10.5px;font-weight:700;border-radius:10px;padding:0 7px;margin:2px 4px 0 0}
+  .invchip2{display:inline-block;background:var(--accent-soft);border:1px solid var(--accent);color:var(--accent);font-size:10.5px;font-weight:700;border-radius:10px;padding:0 7px;margin:2px 4px 0 0}
+  .exchip2{display:inline-block;background:#ffe27a;color:#5a4300;font-size:10.5px;font-weight:700;border-radius:10px;padding:0 7px;margin:2px 4px 0 0}
+  .b2edit{background:var(--field);color:var(--accent);border:1px solid var(--accent)}
 </style>
 <script>
   /* ตั้งธีมก่อน render กันหน้าจอกระพริบ */
@@ -625,6 +660,76 @@
   </div>
   <div class="bp-inner">
   <p class="hint" style="margin:4px 0 10px">สถานะเก็บในชีท เห็นตรงกันทุกเครื่อง · ระบบดึงข้อมูลล่าสุดก่อนทำรายการทุกครั้ง · เข้าตรงได้ด้วยลิงก์ท้าย #bill</p>
+
+  <!-- V57: สลับ คิวบิลใหม่ (แท็บ 'บิล') ↔ คิวแบบเก่า (จากใบงาน — คงไว้จนเคลียร์ใบค้างหมด แล้วค่อยถอด) -->
+  <div class="bmode">
+    <button class="mb on" id="bmNew">🧾 คิวบิล (ใหม่)</button>
+    <button class="mb" id="bmOld" title="ใบที่ค้างจากระบบเดิม — พิมพ์/ยืนยันแบบเดิมได้จนเคลียร์หมด">🕰 คิวแบบเก่า (จากใบงาน)</button>
+  </div>
+
+  <!-- V57: คิวบิลใหม่ — คนวางบิลคีย์เองทุกช่องจากใบเสร็จจริง ไม่ดึงอะไรจากใบงานเลย -->
+  <div class="session" id="bill2Card" style="margin-top:0">
+    <div class="session-head"><h3>🧾 คิววางบิล</h3><span class="count" id="b2Count">—</span></div>
+    <div class="actions" style="background:var(--paper);border-top:none;align-items:center">
+      <button class="btn btn-primary" id="btnB2New">➕ จดบิลใหม่</button>
+      <div class="billfilter2" id="b2Filter">
+        <button class="fb on" data-f="all">ทั้งหมด <span class="b" id="b2c-all">0</span></button>
+        <button class="fb" data-f="unprinted">ยังไม่พิมพ์ <span class="b" id="b2c-un">0</span></button>
+        <button class="fb" data-f="printed">พิมพ์แล้ว รอยืนยัน <span class="b" id="b2c-pr">0</span></button>
+        <button class="fb" data-f="recent" title="บิลที่เพิ่งกดวางบิลวันนี้ — กดดึงกลับเข้าคิวได้ถ้าพลาด">↩ เพิ่งวางบิล</button>
+      </div>
+    </div>
+    <div id="b2Pending" class="resend-bar" style="display:none;margin:10px 14px"></div>
+    <div id="bill2Form" style="display:none">
+      <div class="col-title" id="b2FormTitle">➕ จดบิลใหม่ — คีย์จากใบเสร็จ/ใบรับตู้ตัวจริง</div>
+      <div class="three">
+        <div class="field"><label>วันที่วิ่งงาน <span class="req">*</span></label><input type="date" id="b2_date"></div>
+        <div class="field"><label>ลูกค้า (บริษัทคู่ค้าที่เรียกเก็บ) <span class="req">*</span></label><input id="b2_customer" list="dl_customer" placeholder="พิมพ์เพื่อค้นหา / เลือก" autocomplete="off"><span class="b2ratechip" id="b2RateChip"></span><div class="combo-tools" id="b2ct_customer"></div></div>
+        <div class="field"><label>เบอร์ตู้ <span class="req">*</span></label><input id="b2_container" class="mono" placeholder="เช่น SEKU9166866" autocomplete="off"></div>
+      </div>
+      <div class="three">
+        <div class="field"><label>ขนาดตู้</label><input id="b2_size" list="dl_size" placeholder="เช่น 40RF" autocomplete="off"></div>
+        <div class="field"><label>ทะเบียนรถ</label><input id="b2_truck" class="mono" list="dl_truck" placeholder="พิมพ์เพื่อค้นหา / เลือก" autocomplete="off"></div>
+        <div class="field"><label>คนขับ (ถ้าอยากให้ขึ้นในบิล)</label><input id="b2_driver" list="dl_driver" placeholder="พิมพ์เพื่อค้นหา / เลือก" autocomplete="off"></div>
+      </div>
+      <div class="col-title">เอกสารอ้างอิง</div>
+      <div class="three">
+        <div class="field"><label>Job.Ref / เลขอ้างอิง</label><input id="b2_jobref" class="mono" placeholder="เช่น 2607-102" autocomplete="off"></div>
+        <div class="field"><label>B/L</label><input id="b2_bl" class="mono" placeholder="เช่น 120GA06011" autocomplete="off"></div>
+        <div class="field"><label>ป้ายมุมขวาบนของบิล <span style="color:var(--ink-soft);font-weight:400">(ไม่ใส่ก็ได้)</span></label><input id="b2_tag" placeholder="เช่น XIANGJIA" autocomplete="off"></div>
+      </div>
+      <div class="three">
+        <div class="field"><label>ลานรับตู้ (CY)</label><input id="b2_yardIn" list="dl_yardIn" placeholder="เช่น LCB" autocomplete="off"><div class="combo-tools" id="b2ct_yardIn"></div></div>
+        <div class="field"><label>สถานที่ส่ง/บรรจุ (LOAD)</label><input id="b2_loadPlace" list="dl_loadPlace" placeholder="เช่น จินวลี่ฟู้ด (สมุทรสาคร)" autocomplete="off"><div class="combo-tools" id="b2ct_loadPlace"></div></div>
+        <div class="field"><label>ลานคืนตู้ (Return)</label><input id="b2_yardOut" list="dl_yardOut" placeholder="เช่น WGD" autocomplete="off"><div class="combo-tools" id="b2ct_yardOut"></div></div>
+      </div>
+      <div class="col-title">เงินที่เรียกเก็บลูกค้า (คีย์จากใบเสร็จตัวจริง — ไม่เกี่ยวกับเงินเบิกคนขับ)</div>
+      <div class="cost-row"><span class="no">1</span><span class="nm">ค่าขนส่ง <span style="display:block;color:var(--ink-soft);font-size:11.5px">เรทตามลูกค้า/เส้นทาง — ระบบจำให้จากบิลก่อนๆ</span></span><input id="b2_trans" inputmode="decimal" placeholder="0" autocomplete="off"></div>
+      <div class="cost-row"><span class="no">2</span><span class="nm">ค่ารับตู้ <span style="display:block;color:var(--ink-soft);font-size:11.5px">รวมใบเสร็จฝั่งรับ เช่น ค่าผ่านท่า/ค่ายกตู้ตอนรับ (ขึ้นช่อง CY บนบิล)</span></span><input id="b2_recv" inputmode="decimal" placeholder="0" autocomplete="off"></div>
+      <div class="cost-row" style="border-bottom:none"><span class="no">3</span><span class="nm">ค่าคืนตู้ <span style="display:block;color:var(--ink-soft);font-size:11.5px">รวมใบเสร็จฝั่งคืน เช่น ค่ายกตู้ที่ลานคืน (ขึ้นช่อง Rtn. บนบิล)</span></span><input id="b2_ret" inputmode="decimal" placeholder="0" autocomplete="off"></div>
+      <div class="b2exhead"><span class="t">รายการค่าใช้จ่ายเพิ่ม — ขึ้นเป็น<span class="yl">แถวไฮไลท์เหลือง</span>บนบิล ยอดลงช่องค่าขนส่ง (โดนหัก 1% ด้วย)</span><button type="button" class="b2exadd" id="btnB2ExAdd">➕ เพิ่มรายการ</button></div>
+      <div id="b2ExList"></div>
+      <p class="hint" id="b2ExEmpty" style="margin:2px 0 0">ยังไม่มีรายการเพิ่ม — เช่น ค่าค้างหางตู้หนัก, ค่าปั่นไฟ, ค่าฝากตู้ · 🚫 ไม่มีช่องค่าทางด่วน (ต้นทุนภายใน ไม่เรียกเก็บลูกค้า)</p>
+      <div class="field" style="margin-top:12px"><label>หมายเหตุ (เก็บในชีท ไม่ขึ้นบนบิล)</label><input id="b2_note" placeholder="โน้ตภายใน เช่น รอใบเสร็จตัวจริง" autocomplete="off"></div>
+      <div class="b2total"><span class="lbl">รวมเงินบิล (ก่อนหักภาษี)</span><span class="val" id="b2Total">0</span></div>
+      <div class="b2acts">
+        <button class="btn btn-primary" id="btnB2Save">บันทึกบิล</button>
+        <button class="btn btn-ghost" id="btnB2Clear">ล้างฟอร์ม</button>
+        <button class="btn btn-ghost" id="btnB2Close">ปิดฟอร์ม</button>
+      </div>
+    </div>
+    <div class="billsearch" id="b2Search" style="display:none">
+      <input id="b2Q" placeholder="🔍 ค้นในคิว — เบอร์ตู้ / ลูกค้า / ทะเบียน / เลขบิล / Job.Ref" style="max-width:330px">
+      <div class="hf"><label style="font-size:11.5px;color:var(--ink-soft);font-weight:600">วันที่ จาก</label><input type="date" id="b2From" style="width:150px"></div>
+      <div class="hf"><label style="font-size:11.5px;color:var(--ink-soft);font-weight:600">ถึง</label><input type="date" id="b2To" style="width:150px"></div>
+      <button class="btn btn-ghost" id="b2QClear" style="display:none;padding:8px 12px;font-size:12.5px">✕ ล้างคำค้น</button>
+      <span id="b2QInfo"></span>
+    </div>
+    <label class="ballrow" id="b2SelAllRow" style="display:none;padding-left:14px"><input type="checkbox" id="b2SelAll"><span>เลือกทั้งหมด <span class="hint" style="margin:0">(ตามตัวกรอง + คำค้นที่เปิดอยู่)</span></span></label>
+    <div id="b2Bulk" class="bill-bulk" style="display:none"></div>
+    <div id="b2Body" style="padding-top:10px"><div class="empty">กำลังโหลดคิว…</div></div>
+  </div>
+
   <div class="session" id="billCard">
     <div class="session-head"><h3>🧾 รอวางบิล</h3><span class="count" id="billCount">—</span></div>
     <div class="actions" style="background:var(--paper);border-top:none;align-items:center">
@@ -1694,6 +1799,426 @@ function billInitRun(){
   });
 }
 
+/* ============================================================
+   V57 — คิวบิลใหม่ (แท็บ 'บิล' แยกขาดจากใบงาน)
+   คนวางบิลคีย์เองทุกช่อง · เงินบิล = ขนส่ง+รับ+คืน+ค่าเพิ่ม (ไม่มีค่าทางด่วน)
+   ห้ามใช้คลาส .billfilter กับปุ่มกรองชุดนี้ — handler เดิมผูกเหมารวมจะมา hijack
+   ============================================================ */
+let bill2Rows=[], bill2RecentRows=[], bill2Sel={}, bill2Busy={}, bill2Filter='all';
+let bill2Meta={lastInv:'',lastInvByCust:{},rates:{}}, bill2MetaLoaded=false;
+let b2Ex=[], b2EditUid='', billMode=localStorage.getItem('jobform_billmode')||'new';
+const B2PENDKEY='jobform_b2pending';
+function b2MyEmail(){ return String((window.__me&&window.__me.email)||'').trim().toLowerCase(); }
+function b2Num(v){ return parseFloat(String(v==null?'':v).replace(/,/g,''))||0; }
+function b2Money(n){ n=Number(n)||0; return n?n.toLocaleString('th-TH'):'0'; }
+/* วันที่บนบิลพิมพ์แบบไทยย่อ เช่น 2026-07-27 → 27/7/69 (ตามบิลกระดาษจริง) */
+function thd(s){ const m=/^(\d{4})-(\d{2})-(\d{2})$/.exec(String(s||'')); if(!m) return String(s||''); return (+m[3])+'/'+(+m[2])+'/'+String(+m[1]+543).slice(-2); }
+/* แตก "ชื่อ=ยอด; ชื่อ=ยอด" ↔ array (ฟอร์แมตเดียวกับหลังบ้าน) */
+function b2ParseEx(s){ const out=[]; String(s||'').split(';').forEach(p=>{ p=p.trim(); if(!p)return; const i=p.lastIndexOf('='); if(i<1)return; const n=p.slice(0,i).trim(), v=b2Num(p.slice(i+1)); if(n&&v) out.push({n,v}); }); return out; }
+function b2ExStr(arr){ return arr.filter(e=>String(e.n).trim()&&b2Num(e.v)).map(e=>String(e.n).replace(/[;=]/g,',').trim()+'='+b2Num(e.v)).join('; '); }
+function b2RowTotal(r){ return b2Num(r.c_trans)+b2Num(r.c_recv)+b2Num(r.c_return)+b2ParseEx(r.extras).reduce((a,e)=>a+e.v,0); }
+/* เลขบิลรันต่อจากชุดของลูกค้ารายนั้น (BV2601-08/22 → BV2601-08/23 · คงเลขศูนย์นำหน้า) */
+function b2NextInv(cust){
+  const last=bill2Meta.lastInvByCust[String(cust||'').trim()]||'';
+  const m=/^(.*?)(\d+)\s*$/.exec(last); if(!m) return '';
+  const next=String(Number(m[2])+1).padStart(m[2].length,'0');
+  return m[1]+next;
+}
+
+/* ---- สลับโหมด คิวใหม่ ↔ คิวแบบเก่า ---- */
+function billModeSync(){
+  const isNew=(billMode==='new');
+  const b2=$("bill2Card"), b1=$("billCard");
+  if(b2) b2.style.display=isNew?'block':'none';
+  if(b1) b1.style.display=isNew?'none':'block';
+  $("bmNew").classList.toggle('on',isNew);
+  $("bmOld").classList.toggle('on',!isNew);
+  try{ localStorage.setItem('jobform_billmode',billMode); }catch(e){}
+  if(isNew){ if(!bill2Rows.length) loadBill2Queue(); else renderBill2(); renderB2Pending(); }
+  else { if(!billRows.length) loadBillQueue(); else renderBill(); }
+}
+
+/* ---- โหลดคิว + ตัวช่วยจำ ---- */
+async function loadBill2Queue(){
+  try{
+    const j=await callAct({act:'bqueue'});
+    if(j&&j.ok&&Array.isArray(j.rows)){ bill2Rows=j.rows; renderBill2(); }
+    else if(j&&j.result==='unknown-act'){ $("b2Body").innerHTML='<div class="empty">⚙️ หลังบ้านยังไม่ได้อัปเดตเป็น V57 — วางไฟล์ .gs แล้ว Deploy → New version ก่อน คิวบิลใหม่ถึงจะใช้ได้<div class="hint" style="margin:6px 0 0">ระหว่างนี้ใช้ปุ่ม “🕰 คิวแบบเก่า” ได้ตามปกติ</div></div>'; }
+    else flash('โหลดคิวบิลไม่สำเร็จ'+((j&&j.result)?': '+j.result:''),'err');
+  }catch(e){ $("b2Body").innerHTML='<div class="empty">เชื่อมต่อไม่สำเร็จ — เช็คเน็ตแล้วกด ⟳ รีเฟรช</div>'; }
+  loadBill2Meta();
+}
+async function loadBill2Meta(){
+  try{ const j=await callAct({act:'bmeta'}); if(j&&j.ok){ bill2Meta={lastInv:j.lastInv||'',lastInvByCust:j.lastInvByCust||{},rates:j.rates||{}}; bill2MetaLoaded=true; } }catch(e){}
+}
+async function bill2Fresh(){
+  try{ const j=await callAct({act:'bqueue'}); if(j&&j.ok&&Array.isArray(j.rows)){ bill2Rows=j.rows; return true; } }catch(e){}
+  return false;
+}
+
+/* ---- ค้นในคิว (กรองในเครื่อง ไม่ยิงหลังบ้าน — แพทเทิร์น V55) ---- */
+function b2Norm(s){ return String(s||'').toLowerCase().replace(/[\s\-]/g,''); }
+function bill2SearchOn(){ return !!($("b2Q").value.trim()||$("b2From").value||$("b2To").value); }
+function bill2Match(r){
+  const q=$("b2Q").value.trim(), f=$("b2From").value, t=$("b2To").value;
+  if(f&&(!r.date||r.date<f)) return false;
+  if(t&&(!r.date||r.date>t)) return false;
+  if(!q) return true;
+  const hay=b2Norm([r.container,r.customer,r.truck,r.driver,r.date,thd(r.date),r.invno,r.jobref,r.bl,r.tag].join('|'));
+  return hay.indexOf(b2Norm(q))>-1;
+}
+function bill2SearchSync(){ $("b2QClear").style.display=bill2SearchOn()?'':'none'; renderBill2(); }
+function bill2SearchClear(){ $("b2Q").value=''; $("b2From").value=''; $("b2To").value=''; bill2SearchSync(); }
+
+/* ---- การ์ดบิล ---- */
+function bill2State(r){ return r.bill===BILL_PRINT_TXT?'printed':(r.bill===BILL_DONE_TXT?'done':'unprinted'); }
+function b2CanEdit(r){
+  if(adminToken) return true; // แอดมินแก้ได้ตลอด (กติกา ④ก)
+  const me=b2MyEmail();
+  return !r.bill && me && String(r.enteredEmail||'').trim().toLowerCase()===me; // เจ้าของบิลแก้ได้ก่อนพิมพ์
+}
+function bill2Card(r){
+  const s=bill2State(r), busy=bill2Busy[r.uid], old=(s==='printed'&&billDays(r.billAtMs)>BILL_OLD_DAYS);
+  const pill= busy?'<span class="spill sp-white">⟳ กำลังบันทึก…</span>'
+    : s==='printed'?('<span class="spill '+(old?'sp-red':'sp-yellow')+'">'+(old?'🔴 ค้างนาน '+billDays(r.billAtMs)+' วัน':'🟡 พิมพ์แล้ว รอยืนยัน')+'</span>')
+    : '<span class="spill sp-white">⚪ ยังไม่พิมพ์</span>';
+  const ex=b2ParseEx(r.extras);
+  const money=[]; if(b2Num(r.c_trans))money.push('ขนส่ง '+b2Money(r.c_trans)); if(b2Num(r.c_recv))money.push('รับ '+b2Money(r.c_recv)); if(b2Num(r.c_return))money.push('คืน '+b2Money(r.c_return));
+  const exSum=ex.reduce((a,e)=>a+e.v,0); if(exSum)money.push('ค่าเพิ่ม '+b2Money(exSum));
+  const twin=r.container?bill2Rows.filter(x=>x.uid!==r.uid&&b2Norm(x.container)===b2Norm(r.container)).length:0; // ตู้เดียวกันมีอีกใบ (งานสองขา/สองคนขับ) — เลือกคู่กันแล้วพิมพ์รวม ระบบจับบิลเดียวให้เอง
+  const chips='<span class="docchip2">Job.Ref '+escHtml(r.jobref||'—')+'</span><span class="docchip2">B/L '+escHtml(r.bl||'—')+'</span>'
+    +(r.tag?'<span class="docchip2">🔖 '+escHtml(r.tag)+'</span>':'')
+    +(r.invno?'<span class="invchip2">🧾 '+escHtml(r.invno)+'</span>':'')
+    +(twin?'<span class="invchip2" title="เลือกทุกใบของตู้นี้แล้วกด 🖨 พิมพ์วางบิลที่เลือก — ระบบจับรวมบิลเดียวให้อัตโนมัติ">🔗 ตู้นี้มี '+(twin+1)+' ใบในคิว — พิมพ์รวมได้</span>':'')
+    +ex.map(e=>'<span class="exchip2">'+escHtml(e.n)+' '+b2Money(e.v)+'</span>').join('');
+  const stamp= s==='printed'?('<div class="bstamp'+(old?' old':'')+'">🖨 พิมพ์เมื่อ '+billDays(r.billAtMs)+' วันก่อน โดย '+escHtml(r.billBy||'-')+' — รอยืนยันปิดจ็อบ'+(old?' ⚠️ ค้างนานผิดปกติ':'')+'</div>'):'';
+  const edit=b2CanEdit(r)?'<button class="btn b2edit" data-act="edit" data-k="'+escAttr(r.uid)+'">✏️ แก้</button>':'';
+  const acts= busy?'' : (s==='printed'
+    ? '<button class="btn bview" data-act="preview" data-k="'+escAttr(r.uid)+'">👁 ดูตัวอย่าง</button><button class="btn bprint" data-act="print" data-k="'+escAttr(r.uid)+'">🖨 พิมพ์ซ้ำ</button><button class="btn bconfirm" data-act="confirm" data-k="'+escAttr(r.uid)+'">✓ ยืนยันวางบิล</button><button class="btn bundo" data-act="unprint" data-k="'+escAttr(r.uid)+'" title="กดพิมพ์ผิด — คืนสถานะเป็น ⚪ ยังไม่พิมพ์">↩</button>'+edit
+    : '<button class="btn bview" data-act="preview" data-k="'+escAttr(r.uid)+'">👁 ดูตัวอย่าง</button><button class="btn bprint" data-act="print" data-k="'+escAttr(r.uid)+'">🖨 พิมพ์วางบิล</button>'+edit);
+  return '<div class="bcard '+(s==='printed'?(old?'st-old':'st-printed'):'')+'">'
+    +'<div class="bhead"><input type="checkbox" class="bchk b2chk" data-k="'+escAttr(r.uid)+'" '+(bill2Sel[r.uid]?'checked':'')+'>'
+    +'<div style="flex:1"><span class="cust">'+escHtml(r.customer||'-')+'</span><div class="meta">ตู้ '+escHtml(r.container||'-')+' · '+escHtml(thd(r.date)||'-')+' · เงินบิลรวม <b>'+b2Money(b2RowTotal(r))+'</b> บาท</div><div style="margin-top:3px">'+chips+'</div></div>'
+    +pill+'</div>'
+    +'<div class="brows"><div class="brow"><span>'+escHtml(r.driver||'-')+' ('+escHtml(r.truck||'-')+')'+(r.size?' · '+escHtml(r.size):'')+'</span><span class="d">'+money.join(' · ')+'</span></div></div>'
+    +stamp+'<div class="bacts">'+acts+'</div></div>';
+}
+function renderBill2(){
+  if(bill2Filter==='recent'){ renderBill2Recent(); return; }
+  const bs=$("b2Search"); if(bs) bs.style.display=bill2Rows.length?'flex':'none';
+  const base=bill2Rows;
+  const matched=base.filter(bill2Match);
+  const nUn=matched.filter(r=>bill2State(r)==='unprinted').length, nPr=matched.filter(r=>bill2State(r)==='printed').length;
+  $("b2Count").textContent='รอวางบิล '+base.length+' บิล';
+  $("b2c-all").textContent=nUn+nPr; $("b2c-un").textContent=nUn; $("b2c-pr").textContent=nPr;
+  $("b2QInfo").textContent=bill2SearchOn()?('🔍 ตรงกับที่ค้น '+matched.length+' จาก '+base.length+' บิล'):'';
+  const shown=matched.filter(r=>{ const s=bill2State(r); if(bill2Filter==='unprinted')return s==='unprinted'; if(bill2Filter==='printed')return s==='printed'; return true; });
+  const sar=$("b2SelAllRow"), sac=$("b2SelAll");
+  sar.style.display=shown.length?'flex':'none';
+  sac.checked=shown.length>0&&shown.every(r=>bill2Sel[r.uid]);
+  sac.onchange=()=>{ if(sac.checked) shown.forEach(r=>bill2Sel[r.uid]=1); else shown.forEach(r=>delete bill2Sel[r.uid]); renderBill2(); };
+  const selKeys=Object.keys(bill2Sel).filter(k=>bill2Sel[k]&&bill2Rows.some(r=>r.uid===k));
+  const bb=$("b2Bulk");
+  if(selKeys.length){ bb.style.display='flex'; bb.innerHTML='เลือก '+selKeys.length+' ใบ <button class="btn bp" onclick="bill2BulkPrint()">🖨 พิมพ์วางบิลที่เลือก</button><button class="btn bc" onclick="bill2BulkConfirm()">✓ ยืนยันที่เลือก</button><button class="btn bu" onclick="bill2BulkUnprint()">↩ ย้อนสถานะ</button><button class="btn bx" onclick="bill2ClearSel()">ล้าง</button>'; }
+  else bb.style.display='none';
+  if(!shown.length){
+    if(bill2SearchOn() && matched.length)
+      $("b2Body").innerHTML='<div class="empty">คำค้นนี้เจอ '+matched.length+' ใบ แต่ไม่ได้อยู่ในสถานะ “'+(bill2Filter==='unprinted'?'ยังไม่พิมพ์':'พิมพ์แล้ว รอยืนยัน')+'”<div class="hint" style="margin:6px 0 0">กดปุ่ม “ทั้งหมด” เพื่อดูทั้งหมดที่ค้นเจอ</div></div>';
+    else if(bill2SearchOn())
+      $("b2Body").innerHTML='<div class="empty">ไม่พบบิลที่ตรงกับที่ค้น<div class="hint" style="margin:6px 0 0">คิวยังมี '+base.length+' ใบ — กด “✕ ล้างคำค้น” เพื่อดูทั้งหมด</div></div>';
+    else
+      $("b2Body").innerHTML='<div class="empty" style="color:var(--ok)">'+(bill2Filter==='printed'?'ไม่มีใบที่รอยืนยัน':(bill2Filter==='unprinted'?'ไม่มีใบที่ยังไม่พิมพ์ 🎉':'คิววางบิลว่างแล้ว 🎉 กด “➕ จดบิลใหม่” เพื่อคีย์ใบต่อไป'))+'</div>';
+  } else {
+    $("b2Body").innerHTML=shown.map(bill2Card).join('');
+    $("b2Body").querySelectorAll('.b2chk').forEach(c=>c.onchange=()=>{ if(c.checked)bill2Sel[c.dataset.k]=1; else delete bill2Sel[c.dataset.k]; renderBill2(); });
+    $("b2Body").querySelectorAll('[data-act]').forEach(b=>b.onclick=()=>bill2Act(b.dataset.act,b.dataset.k));
+  }
+  document.querySelectorAll('.billfilter2 .fb').forEach(f=>f.classList.toggle('on',f.dataset.f===bill2Filter));
+}
+
+/* ---- แท็บ "เพิ่งวางบิล" (วันนี้) ---- */
+async function loadBill2Recent(){
+  try{ const j=await callAct({act:'brecent'}); if(j&&j.ok&&Array.isArray(j.rows)){ bill2RecentRows=j.rows; renderBill2Recent(); } else flash('โหลดไม่สำเร็จ','err'); }
+  catch(e){ flash('เชื่อมต่อไม่สำเร็จ','err'); }
+}
+function renderBill2Recent(){
+  $("b2SelAllRow").style.display='none'; $("b2Bulk").style.display='none';
+  const bs=$("b2Search"); if(bs) bs.style.display='none';
+  document.querySelectorAll('.billfilter2 .fb').forEach(f=>f.classList.toggle('on',f.dataset.f==='recent'));
+  if(!bill2RecentRows.length){ $("b2Body").innerHTML='<div class="empty">วันนี้ยังไม่มีบิลที่เพิ่งวางบิล</div>'; return; }
+  $("b2Body").innerHTML=bill2RecentRows.map(r=>'<div class="bcard st-printed"><div class="bhead"><div style="flex:1"><span class="cust">'+escHtml(r.customer||'-')+'</span><div class="meta">ตู้ '+escHtml(r.container||'-')+(r.invno?' · 🧾 '+escHtml(r.invno):'')+' · โดย '+escHtml(r.billBy||'-')+'</div></div><span class="spill sp-yellow">🟢 วางบิลแล้ววันนี้</span></div><div class="bacts"><button class="btn bview" onclick="bill2Undo(\''+escAttr(r.uid)+'\')">↩ ดึงกลับเข้าคิว</button></div></div>').join('');
+}
+async function bill2Undo(uid){
+  try{ const j=await callAct({act:'bset',uids:uid,state:'reset'});
+    if(j&&j.ok){ flash('↩ ดึงกลับเข้าคิวแล้ว','ok'); loadBill2Recent(); bill2Fresh(); } else flash('ไม่สำเร็จ'+((j&&j.result)?': '+j.result:''),'err');
+  }catch(e){ flash('เชื่อมต่อไม่สำเร็จ','err'); }
+}
+
+/* ---- ตั้งสถานะ (แบ่งก้อนละ 25 กัน URL ยาวเกิน) — ชื่อคนทำหลังบ้านประทับจากบัญชีล็อกอินเอง ---- */
+async function bill2Set(uids,state,okMsg,invno){
+  const CH=25;
+  try{
+    if(uids.length>CH) flash('กำลังบันทึก '+uids.length+' ใบ อาจใช้เวลาสักครู่…','ok');
+    let done=0, dupinv=false;
+    for(let i=0;i<uids.length;i+=CH){
+      const part=uids.slice(i,i+CH);
+      const p={act:'bset',uids:part.join(','),state:state};
+      if(invno&&i===0) p.invno=invno; // เลขบิลลงเฉพาะก้อนแรก (single-print ใช้ uid เดียวอยู่แล้ว)
+      const j=await callAct(p);
+      if(!(j&&j.ok)){
+        flash('บันทึกสถานะไม่สำเร็จ'+((j&&j.result)?': '+j.result:'')+(done?' (สำเร็จไปก่อนหน้า '+done+' ใบ — กด ⟳ ดูสถานะจริง)':''),'err');
+        await bill2Fresh(); return false;
+      }
+      if(String(j.result||'').indexOf('dupinv')>-1) dupinv=true;
+      done+=part.length;
+    }
+    if(okMsg) flash(okMsg,'ok');
+    if(dupinv) setTimeout(()=>flash('⚠️ เลขบิลนี้ซ้ำกับใบอื่นในชีท — เช็คเลขก่อนส่งลูกค้า','err'),1200);
+    await bill2Fresh(); return true;
+  }catch(e){ flash('เชื่อมต่อไม่สำเร็จ ลองใหม่ (กด ⟳ ดูสถานะจริงก่อน)','err'); try{ await bill2Fresh(); }catch(_){} return false; }
+}
+/* ให้หน้าต่างพิมพ์เรียกกลับมาประทับเลขบิลที่แก้มือแล้ว */
+async function bill2StampInv(uids,invno){
+  invno=String(invno||'').trim(); if(!invno||!uids||!uids.length) return;
+  try{ await callAct({act:'bset',uids:uids.join(','),state:'inv',invno:invno}); bill2Fresh().then(()=>{ if(billMode==='new') renderBill2(); }); loadBill2Meta(); }catch(e){}
+}
+async function bill2StampFromPrint(pairs){
+  try{ for(const p of (pairs||[])){ if(p&&p.invno&&p.uids&&p.uids.length) await callAct({act:'bset',uids:p.uids.join(','),state:'inv',invno:String(p.invno).trim()}); } bill2Fresh().then(()=>{ if(billMode==='new') renderBill2(); }); loadBill2Meta(); }catch(e){}
+}
+window.bill2StampInv=bill2StampInv; window.bill2StampFromPrint=bill2StampFromPrint;
+
+/* ---- ปุ่มบนการ์ด ---- */
+async function bill2Act(act,uid){
+  if(bill2Busy[uid]) return;
+  let r=bill2Rows.find(x=>x.uid===uid); if(!r) return;
+  if(act==='edit'){ bill2FormOpen(r); return; }
+  if(act==='preview'){ openInvoice2([r],null,r.invno||b2NextInv(r.customer)); return; }
+  let w=null;
+  if(act==='print'){ // เปิดหน้าต่างทันทีตอนคลิก — เปิดหลัง await โดนบล็อกป๊อปอัปเงียบ (ห้ามย้อนแพทเทิร์นนี้)
+    w=openLoadingWindow();
+    if(!w){ flash('เบราว์เซอร์บล็อกป๊อปอัป — กดไอคอนป๊อปอัปมุมขวาของช่องที่อยู่ แล้วเลือก “อนุญาต” ของเว็บนี้','err'); return; }
+  }
+  bill2Busy[uid]=1; renderBill2();
+  try{
+    await bill2Fresh(); r=bill2Rows.find(x=>x.uid===uid);
+    if(!r){ try{ if(w) w.close(); }catch(e){} flash('บิลนี้ถูกจัดการไปแล้ว (รีเฟรชคิวให้แล้ว)','err'); return; }
+    if(act==='confirm'){
+      const go=await new Promise(res=>billDialog('✓','ยืนยันวางบิล?','ตู้ '+escHtml(r.container||'-')+(r.invno?' · เลขบิล '+escHtml(r.invno):'')+' — ยืนยันแล้วจะหายจากคิว (ถ้าพลาด กดดึงกลับได้ในแท็บ “เพิ่งวางบิล”)','ยืนยันวางบิล','ยกเลิก',()=>res(true),()=>res(false)));
+      if(go) await bill2Set([uid],'billed','✓ วางบิลแล้ว — หายจากคิว');
+      return;
+    }
+    if(act==='unprint'){
+      const go=await new Promise(res=>billDialog('↩','คืนเป็น “ยังไม่พิมพ์”?','ใช้ตอนกดพิมพ์ผิด — ใบนี้จะกลับเป็น ⚪ เข้าคิวใหม่ (ข้อมูล+เลขบิลไม่หาย)','↩ คืนสถานะ','ยกเลิก',()=>res(true),()=>res(false)));
+      if(go) await bill2Set([uid],'reset','↩ คืนเป็น “ยังไม่พิมพ์” แล้ว — กลับเข้าคิว');
+      return;
+    }
+    if(act==='print'){
+      if(bill2State(r)==='printed'){
+        const go=await new Promise(res=>billDialog('⚠️','ใบนี้พิมพ์วางบิลไปแล้ว','ตู้ '+escHtml(r.container||'-')+' พิมพ์ไปแล้ว '+billDays(r.billAtMs)+' วันก่อน โดย <b>'+escHtml(r.billBy||'-')+'</b><br>ถ้าเป็นการพิมพ์ซ้ำโดยไม่ได้ตั้งใจ ให้กด “ไม่พิมพ์ซ้ำ”','พิมพ์ซ้ำอีกครั้ง','ไม่พิมพ์ซ้ำ',()=>res(true),()=>res(false)));
+        if(go){ openInvoice2([r],w,r.invno||b2NextInv(r.customer)); } else { try{ if(w) w.close(); }catch(e){} }
+        return;
+      }
+      const inv=r.invno||b2NextInv(r.customer);
+      openInvoice2([r],w,inv);
+      await bill2Set([uid],'printed','🖨 พิมพ์แล้ว — ขึ้น “รอยืนยัน” · เช็คก่อนกดยืนยันปิดจ็อบ',inv);
+    }
+  } finally { delete bill2Busy[uid]; renderBill2(); }
+}
+function bill2ClearSel(){ bill2Sel={}; renderBill2(); }
+async function bill2BulkPrint(){
+  let keys=Object.keys(bill2Sel).filter(k=>bill2Sel[k]&&bill2Rows.some(r=>r.uid===k)); if(!keys.length) return;
+  const total=keys.length;
+  if(total>100){ const sel=new Set(keys); keys=bill2Rows.map(r=>r.uid).filter(u=>sel.has(u)).slice(0,100); }
+  const w=openLoadingWindow(); if(!w){ flash('เบราว์เซอร์บล็อกป๊อปอัป — กดไอคอนป๊อปอัปมุมขวาของช่องที่อยู่ แล้วเลือก “อนุญาต” ของเว็บนี้','err'); return; }
+  await bill2Fresh();
+  const recs=keys.map(u=>bill2Rows.find(r=>r.uid===u)).filter(Boolean);
+  if(!recs.length){ try{w.close();}catch(e){} flash('ดึงข้อมูลไม่สำเร็จ ลองใหม่','err'); return; }
+  openBulkInvoice2(recs,w);
+  const pu=recs.filter(r=>bill2State(r)!=='printed').map(r=>r.uid);
+  keys.forEach(k=>{ delete bill2Sel[k]; });
+  if(pu.length) await bill2Set(pu,'printed','🖨 พิมพ์วางบิล '+recs.length+' ใบ → ขึ้น “รอยืนยัน”'+(total>100?' · เหลืออีก '+(total-100)+' ใบ กดพิมพ์รอบถัดไปได้เลย':''));
+  else flash('เปิดพิมพ์แล้ว (ทุกใบเคยพิมพ์ไปก่อนหน้า)','ok');
+  renderBill2();
+}
+function bill2BulkConfirm(){
+  const keys=Object.keys(bill2Sel).filter(k=>bill2Sel[k]&&bill2Rows.some(r=>r.uid===k)); if(!keys.length) return;
+  billDialog('✓','ยืนยันวางบิล '+keys.length+' ใบ?','ใบที่เลือกจะถูกทำเป็น “วางบิลแล้ว” และหายจากคิวพร้อมกัน<br>ถ้าพลาด กดดึงกลับได้ในแท็บ “เพิ่งวางบิล”','ยืนยันทั้งหมด','ยกเลิก',async()=>{
+    const ks=Object.keys(bill2Sel).filter(k=>bill2Sel[k]); bill2Sel={};
+    await bill2Set(ks,'billed','✓ ยืนยันวางบิล '+ks.length+' ใบพร้อมกัน — หายจากคิว'); renderBill2();
+  });
+}
+function bill2BulkUnprint(){
+  const keys=Object.keys(bill2Sel).filter(k=>bill2Sel[k]&&bill2Rows.some(r=>r.uid===k)); if(!keys.length) return;
+  billDialog('↩','ย้อนสถานะ '+keys.length+' ใบ?','ใบที่เลือกจะกลับเป็น “⚪ ยังไม่พิมพ์” ทั้งหมด<br>ข้อมูล+เลขบิลไม่หาย — แค่สถานะการพิมพ์ถูกล้าง','ย้อนทั้งหมด','ยกเลิก',async()=>{
+    const ks=Object.keys(bill2Sel).filter(k=>bill2Sel[k]); bill2Sel={};
+    await bill2Set(ks,'reset','↩ ย้อนสถานะ '+ks.length+' ใบแล้ว — กลับเป็น “ยังไม่พิมพ์”'); renderBill2();
+  });
+}
+
+/* ---- ฟอร์มจดบิล ---- */
+function b2RenderEx(){
+  $("b2ExEmpty").style.display=b2Ex.length?'none':'block';
+  $("b2ExList").innerHTML=b2Ex.map((e,i)=>'<div class="b2exrow"><input value="'+escAttr(e.n||'')+'" placeholder="ชื่อรายการ เช่น ค่าปั่นไฟ" data-i="'+i+'" data-f="n" autocomplete="off"><input class="amt" inputmode="decimal" value="'+escAttr(e.v||'')+'" placeholder="0" data-i="'+i+'" data-f="v" autocomplete="off"><button type="button" class="del" data-i="'+i+'" title="ลบรายการ">✕</button></div>').join('');
+  $("b2ExList").querySelectorAll('input').forEach(inp=>inp.addEventListener('input',()=>{ b2Ex[+inp.dataset.i][inp.dataset.f]=inp.value; b2Recalc(); }));
+  $("b2ExList").querySelectorAll('.del').forEach(b=>b.onclick=()=>{ b2Ex.splice(+b.dataset.i,1); b2RenderEx(); });
+  b2Recalc();
+}
+function b2Recalc(){
+  let s=b2Num($("b2_trans").value)+b2Num($("b2_recv").value)+b2Num($("b2_ret").value);
+  b2Ex.forEach(e=>{ s+=b2Num(e.v); });
+  $("b2Total").textContent=b2Money(s);
+}
+function b2RateApply(){
+  if(b2Num($("b2_trans").value)) return; // ไม่ทับเลขที่กรอกแล้ว
+  const cust=$("b2_customer").value.trim(); if(!cust) return;
+  const load=$("b2_loadPlace").value.trim();
+  const hit=bill2Meta.rates[cust+'|'+load]||bill2Meta.rates[cust+'|'];
+  if(hit&&hit.trans){ $("b2_trans").value=hit.trans; $("b2RateChip").textContent='💡 เติมเรทล่าสุด'+(hit.when?' ('+thd(hit.when)+')':'')+'ให้แล้ว — แก้ได้'; b2Recalc(); }
+}
+function bill2FormOpen(rec){
+  b2EditUid=rec?String(rec.uid):'';
+  $("b2FormTitle").textContent=b2EditUid?('✏️ แก้บิล — ตู้ '+(rec.container||'')+' (บันทึกก่อน–หลังเก็บในประวัติแก้ไข)'):'➕ จดบิลใหม่ — คีย์จากใบเสร็จ/ใบรับตู้ตัวจริง';
+  $("bill2Form").style.display='block';
+  $("b2RateChip").textContent='';
+  if(rec){
+    $("b2_date").value=rec.date||''; $("b2_customer").value=rec.customer||''; $("b2_container").value=rec.container||'';
+    $("b2_size").value=rec.size||''; $("b2_truck").value=rec.truck||''; $("b2_driver").value=rec.driver||'';
+    $("b2_jobref").value=rec.jobref||''; $("b2_bl").value=rec.bl||''; $("b2_tag").value=rec.tag||'';
+    $("b2_yardIn").value=rec.yardIn||''; $("b2_loadPlace").value=rec.loadPlace||''; $("b2_yardOut").value=rec.yardOut||'';
+    $("b2_trans").value=b2Num(rec.c_trans)||''; $("b2_recv").value=b2Num(rec.c_recv)||''; $("b2_ret").value=b2Num(rec.c_return)||'';
+    $("b2_note").value=rec.note||'';
+    b2Ex=b2ParseEx(rec.extras);
+  } else if(!$("b2_date").value){ $("b2_date").value=todayLocal(); }
+  b2RenderEx();
+  $("bill2Form").scrollIntoView({behavior:'smooth',block:'start'});
+  $("b2_customer").focus();
+}
+function bill2FormClear(keepCust){
+  ['b2_container','b2_jobref','b2_bl','b2_recv','b2_ret','b2_note'].forEach(id=>$(id).value='');
+  if(!keepCust){ ['b2_customer','b2_size','b2_truck','b2_driver','b2_tag','b2_yardIn','b2_loadPlace','b2_yardOut','b2_trans'].forEach(id=>$(id).value=''); $("b2RateChip").textContent=''; }
+  b2Ex=[]; b2RenderEx();
+}
+function bill2Collect(){
+  return { date:$("b2_date").value, customer:$("b2_customer").value.trim(), container:$("b2_container").value.trim(),
+    size:$("b2_size").value.trim(), truck:$("b2_truck").value.trim(), driver:$("b2_driver").value.trim(),
+    jobref:$("b2_jobref").value.trim(), bl:$("b2_bl").value.trim(), tag:$("b2_tag").value.trim(),
+    yardIn:$("b2_yardIn").value.trim(), loadPlace:$("b2_loadPlace").value.trim(), yardOut:$("b2_yardOut").value.trim(),
+    c_trans:b2Num($("b2_trans").value), c_recv:b2Num($("b2_recv").value), c_return:b2Num($("b2_ret").value),
+    extras:b2ExStr(b2Ex), note:$("b2_note").value.trim() };
+}
+/* ตาข่ายกันหาย (ย่อจาก V51): เซฟ → เช็คกับชีทว่าติดจริงด้วย act=bone · ไม่ติด → เก็บเข้าคิวส่งซ้ำในเครื่อง */
+function b2PendList(){ try{ return JSON.parse(localStorage.getItem(B2PENDKEY)||'[]'); }catch(e){ return []; } }
+function b2PendSave(list){ try{ localStorage.setItem(B2PENDKEY,JSON.stringify(list)); }catch(e){} }
+function renderB2Pending(){
+  const list=b2PendList(); const bar=$("b2Pending");
+  if(!list.length){ bar.style.display='none'; return; }
+  bar.style.display='flex';
+  bar.innerHTML='⚠️ มี <b>'+list.length+'</b> บิลที่ยังส่งไม่ติดชีท (เก็บไว้ในเครื่องแล้ว ไม่หาย)<button class="rall" onclick="b2ResendAll()">⟳ ส่งซ้ำทั้งหมด</button>';
+}
+async function b2VerifySaved(uid){
+  for(const wait of [3500,4500]){
+    await new Promise(r=>setTimeout(r,wait));
+    try{ const j=await callAct({act:'bone',uid:uid}); if(j&&j.ok&&j.rec) return true; }catch(e){}
+  }
+  return false;
+}
+function b2Post(body){
+  const url=endpoint();
+  return fetch(url,{method:'POST',mode:'no-cors',keepalive:true,headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify(Object.assign({app:appToken,idt:(window.idToken||''),sess:(window.sessToken||'')},body))});
+}
+async function b2ResendAll(){
+  const list=b2PendList(); if(!list.length) return;
+  flash('กำลังส่งซ้ำ '+list.length+' บิล…','ok');
+  const left=[];
+  for(const it of list){
+    try{ await b2Post(Object.assign({_bsave:1,uid:it.uid},it.d)); }catch(e){}
+    if(!(await b2VerifySaved(it.uid))) left.push(it);
+  }
+  b2PendSave(left); renderB2Pending();
+  if(left.length) flash('ยังส่งไม่ติด '+left.length+' บิล — เช็คเน็ต/ล็อกอินแล้วลองใหม่','err');
+  else { flash('✓ ส่งซ้ำติดครบทุกใบแล้ว','ok'); bill2Fresh().then(renderBill2); }
+}
+async function bill2Save(){
+  const d=bill2Collect();
+  if(!d.date){ flash('กรุณาระบุวันที่วิ่งงาน','err'); return; }
+  if(!d.customer){ flash('กรุณาระบุลูกค้า','err'); return; }
+  if(!d.container){ flash('กรุณาระบุเบอร์ตู้','err'); return; }
+  const btn=$("btnB2Save"); if(btn.disabled) return; btn.disabled=true;
+  const url=endpoint();
+  try{
+    if(b2EditUid){ // ---- แก้บิล (④ก: เจ้าของบิลก่อนพิมพ์ / แอดมินตลอด — หลังบ้านบังคับอีกชั้น) ----
+      const uid=b2EditUid;
+      if(tokenExpired()||!url.startsWith('http')){ flash('⚠️ ล็อกอินหมดอายุ/ยังไม่ต่อชีท — ล็อกอินใหม่ก่อนแล้วค่อยแก้','err'); return; }
+      flash('กำลังบันทึกการแก้…','ok');
+      try{ await b2Post({_bedit:1,uid:uid,rec:d}); }catch(e){}
+      await new Promise(r=>setTimeout(r,3500));
+      let okEdit=false;
+      try{ const j=await callAct({act:'bone',uid:uid});
+        if(j&&j.ok&&j.rec){ const rr=j.rec; okEdit=(String(rr.container||'')===d.container && b2Num(rr.c_trans)===d.c_trans && b2Num(rr.c_recv)===d.c_recv && b2Num(rr.c_return)===d.c_return && String(rr.jobref||'')===d.jobref); }
+      }catch(e){}
+      if(okEdit){ flash('✓ แก้บิลแล้ว — บันทึกก่อน–หลังเก็บในประวัติแก้ไข','ok'); b2EditUid=''; bill2FormClear(false); $("bill2Form").style.display='none'; await bill2Fresh(); renderBill2(); }
+      else flash('⚠️ แก้ไม่สำเร็จ — ใบนี้อาจถูกพิมพ์ไปแล้ว หรือไม่ใช่บิลที่คุณจด (แอดมินแก้ได้ตลอด) · กด ⟳ ดูสถานะจริง','err');
+      return;
+    }
+    // ---- จดบิลใหม่ ----
+    const uid='B'+Date.now().toString(36)+Math.random().toString(36).slice(2,6);
+    const expired=tokenExpired();
+    if(expired||!url.startsWith('http')){
+      const list=b2PendList(); list.unshift({uid:uid,d:d,ts:Date.now()}); b2PendSave(list); renderB2Pending();
+      flash(expired?'⚠️ ล็อกอินหมดอายุ — เก็บบิลไว้ในเครื่องแล้ว ล็อกอินใหม่แล้วกด “⟳ ส่งซ้ำทั้งหมด”':'เก็บไว้ในเครื่องแล้ว (ยังไม่ต่อชีท)','err');
+      bill2FormClear(true); return;
+    }
+    // เตือนเบา: ตู้นี้มีอยู่ในคิวแล้ว (เช็คจากข้อมูลในเครื่อง — ตัวจริงหลังบ้านเช็คย้อน 45 วันอีกชั้น)
+    const dupQ=bill2Rows.some(r=>b2Norm(r.container)===b2Norm(d.container));
+    try{ b2Post(Object.assign({_bsave:1,uid:uid},d)); }catch(e){}
+    flash('บันทึกบิลแล้ว ✓ กำลังตรวจกับชีท…'+(dupQ?' · ⚠️ ตู้นี้มีบิลอยู่ในคิวแล้ว เช็คว่าไม่จดซ้ำ':''),'ok');
+    bill2FormClear(true); // คงลูกค้า/วันที่/เรทไว้ คีย์ใบต่อไปของลูกค้าเดิมได้เลย
+    $("b2_container").focus();
+    if(await b2VerifySaved(uid)){ flash('✓ บิลขึ้นชีทแล้ว','ok'); await bill2Fresh(); renderBill2(); }
+    else{ const list=b2PendList(); list.unshift({uid:uid,d:d,ts:Date.now()}); b2PendSave(list); renderB2Pending();
+      flash('⚠️ ยังไม่เห็นบิลในชีท — เก็บเข้าคิวส่งซ้ำในเครื่องแล้ว (กด “⟳ ส่งซ้ำทั้งหมด” ได้ตลอด)','err'); }
+  } finally { btn.disabled=false; }
+}
+
+/* ---- เพิ่ม/ลบรายชื่อจากหน้าบิล — ใช้ master list ชุดเดียวกับหน้าจด (opMaster → ลงชีท ทุกเครื่องเห็นตรงกัน) ---- */
+function setupCombo2(key,inputId){
+  const host=$("b2ct_"+key); if(!host) return;
+  const label=(typeof LIST_LABEL!=='undefined'&&LIST_LABEL[key])?LIST_LABEL[key]:key;
+  host.innerHTML='<button type="button" class="add-link">＋ เพิ่ม'+label+'</button><button type="button" class="add-link manage-link">จัดการรายการ</button>'
+    +'<div class="add-row"><input placeholder="พิมพ์'+label+'ใหม่"><button type="button" class="ok">เพิ่ม</button><button type="button" class="cancel">ยกเลิก</button></div>'
+    +'<div class="manage-panel"></div>';
+  const link=host.querySelector('.add-link'), manageLink=host.querySelector('.manage-link'),
+        row=host.querySelector('.add-row'), panel=host.querySelector('.manage-panel'),
+        inp=row.querySelector('input'), okB=row.querySelector('.ok'), cancelB=row.querySelector('.cancel');
+  link.onclick=()=>{ row.classList.add('show'); inp.focus(); };
+  cancelB.onclick=()=>{ row.classList.remove('show'); inp.value=''; };
+  const add=()=>{
+    const v=inp.value.trim(); if(!v) return;
+    if(!store.lists[key].includes(v)) store.lists[key].push(v);
+    saveStore(); opMaster('add',key,v); renderList(key); $(inputId).value=v;
+    inp.value=''; row.classList.remove('show');
+    if(panel.classList.contains('show')) renderManage();
+    flash('เพิ่ม'+label+' “'+v+'” แล้ว — ลงชีทให้ทุกเครื่องเห็นตรงกัน','ok');
+    if(key==='customer') b2RateApply();
+  };
+  okB.onclick=add;
+  inp.addEventListener('keydown',e=>{ if(e.key==='Enter'){ e.preventDefault(); add(); } });
+  function renderManage(){
+    const items=store.lists[key];
+    if(!items.length){ panel.innerHTML='<span class="manage-empty">ยังไม่มีรายการ</span>'; return; }
+    panel.innerHTML=items.map((v,i)=>'<span class="chip">'+escHtml(v)+'<button type="button" class="del" data-i="'+i+'" title="ลบ">×</button></span>').join('');
+    panel.querySelectorAll('.del').forEach(b=>b.onclick=()=>{
+      const v=items[+b.dataset.i];
+      if(!confirm('ลบ '+label+' “'+v+'” ออกจากรายการ? (หายจากหน้าจดด้วย เพราะเป็นสมุดรายชื่อชุดเดียวกัน)')) return;
+      items.splice(+b.dataset.i,1); saveStore(); opMaster('del',key,v);
+      if($(inputId).value===v) $(inputId).value='';
+      renderList(key); renderManage();
+      flash('ลบ'+label+' “'+v+'” แล้ว','ok');
+    });
+  }
+  manageLink.onclick=()=>{ panel.classList.toggle('show'); if(panel.classList.contains('show')) renderManage(); };
+}
+
 function downloadCsv(){
   if(!session.length){ flash("ยังไม่มีรายการให้ดาวน์โหลด",'err'); return; }
   const cols=["date","time","type","customer","container","driver","truck","trailer","c_pier","c_lift","c_swap","c_recv","c_return","c_toll","c_mflow","c_maint","maint","c_other","total","advance","net","driver2","truck2","trailer2","dateIn","dropoff","dropoffAt","dateOut","status","returned","size","yardIn","yardOut","loadPlace","mark","otherNote","savedAt","enteredBy","uid"];
@@ -2360,12 +2885,15 @@ function billPageSync(){
   const p=$("billPage"); if(p) p.style.display=on?'block':'none';
   document.body.classList.toggle('bill-on',on); // ซ่อนหน้าจดไว้ข้างหลัง (หน้าวางบิลโปร่ง เห็นวิวแทน)
   document.body.style.overflow=on?'hidden':'';
-  if(on){ if(!billRows.length) loadBillQueue(); else renderBill(); }
+  if(on){ billModeSync(); } // V57: เข้าหน้าวางบิล = ไปตามโหมดที่เลือกไว้ (คิวใหม่/คิวแบบเก่า)
 }
 window.addEventListener('hashchange',billPageSync);
 $("goBill").addEventListener('click',()=>{ location.hash='bill'; });
 $("bpBack").addEventListener('click',()=>{ location.hash=''; });
-$("bpReload").addEventListener('click',()=>{ billSel={}; if(billFilter==='recent') loadBillRecent(); else loadBillQueue(); flash('ดึงคิวล่าสุดจากชีทแล้ว','ok'); });
+$("bpReload").addEventListener('click',()=>{ // V57: รีเฟรชตามโหมดที่เปิดอยู่
+  if(billMode==='new'){ bill2Sel={}; if(bill2Filter==='recent') loadBill2Recent(); else loadBill2Queue(); }
+  else { billSel={}; if(billFilter==='recent') loadBillRecent(); else loadBillQueue(); }
+  flash('ดึงคิวล่าสุดจากชีทแล้ว','ok'); });
 billPageSync();
 $("btnVerifyAll").addEventListener('click',verifyAllSheet);
 $("btnDups").addEventListener('click',renderDupOnly);
@@ -2378,6 +2906,24 @@ $("billQ").addEventListener('input',billSearchSync);
 $("billFrom").addEventListener('change',billSearchSync);
 $("billTo").addEventListener('change',billSearchSync);
 $("billQClear").addEventListener('click',billSearchClear);
+/* ---- V57: คิวบิลใหม่ ---- */
+$("bmNew").addEventListener('click',()=>{ billMode='new'; billModeSync(); });
+$("bmOld").addEventListener('click',()=>{ billMode='old'; billModeSync(); });
+$("btnB2New").addEventListener('click',()=>{ b2EditUid=''; bill2FormOpen(null); });
+$("btnB2Close").addEventListener('click',()=>{ b2EditUid=''; $("bill2Form").style.display='none'; });
+$("btnB2Clear").addEventListener('click',()=>{ b2EditUid=''; bill2FormClear(false); $("b2FormTitle").textContent='➕ จดบิลใหม่ — คีย์จากใบเสร็จ/ใบรับตู้ตัวจริง'; flash('ล้างฟอร์มบิลแล้ว','ok'); });
+$("btnB2Save").addEventListener('click',bill2Save);
+$("btnB2ExAdd").addEventListener('click',()=>{ b2Ex.push({n:'',v:''}); b2RenderEx(); const last=$("b2ExList").querySelector('.b2exrow:last-child input'); if(last) last.focus(); });
+['b2_trans','b2_recv','b2_ret'].forEach(id=>$(id).addEventListener('input',b2Recalc));
+$("b2_customer").addEventListener('change',b2RateApply);
+$("b2_loadPlace").addEventListener('change',b2RateApply);
+document.querySelectorAll('.billfilter2 .fb').forEach(f=>f.addEventListener('click',()=>{ bill2Filter=f.dataset.f; document.querySelectorAll('.billfilter2 .fb').forEach(x=>x.classList.toggle('on',x.dataset.f===bill2Filter)); $("b2Bulk").style.display='none'; if(bill2Filter==='recent') loadBill2Recent(); else loadBill2Queue(); }));
+$("b2Q").addEventListener('input',bill2SearchSync);
+$("b2From").addEventListener('change',bill2SearchSync);
+$("b2To").addEventListener('change',bill2SearchSync);
+$("b2QClear").addEventListener('click',bill2SearchClear);
+setupCombo2('customer','b2_customer'); setupCombo2('yardIn','b2_yardIn'); setupCombo2('loadPlace','b2_loadPlace'); setupCombo2('yardOut','b2_yardOut');
+renderB2Pending();
 $("btnTrash").addEventListener('click',doTrash);
 $("btnOpenCont").addEventListener('click',showOpenContainers);
 $("btnSummary").addEventListener('click',sendSummary);
@@ -2636,6 +3182,140 @@ function openInvoice(recs,win){
 }
 
 /* ============================================================
+   V57 — หน้าบิลจากแท็บ 'บิล' (ใบเดียว อาจหลายตู้ของลูกค้าเดียวกัน)
+   ทุกช่องดึงจากที่จดไว้: Job.Ref / B/L / ค่าขนส่ง / รับ / คืน / ป้ายขวาบน
+   ค่าเพิ่ม = แถวไฮไลท์เหลือง ยอดลงคอลัมน์ค่าขนส่ง (คลาส tr → โดนหัก 1% ตามบิลจริง)
+   ปุ่มพิมพ์ในหน้าต่างส่งเลขบิลที่แก้มือกลับมาประทับลงชีทผ่าน opener (แพทเทิร์น saveCustBook)
+   ============================================================ */
+function openInvoice2(recs,win,invnoSuggest){
+  const esc=escAttr;
+  const LOGO=APP_LOGO;
+  const money0=v=>{const n=Number(v)||0; return n?n.toLocaleString('th-TH',{minimumFractionDigits:2,maximumFractionDigits:2}):'';};
+  const exAll=[]; recs.forEach(r=>{ b2ParseEx(r.extras).forEach(e=>exAll.push(e)); });
+  const MINROWS=6, nrows=Math.max(recs.length+exAll.length,MINROWS);
+  const YL='background:#ffe27a;-webkit-print-color-adjust:exact;print-color-adjust:exact';
+  let rowsHtml='';
+  recs.forEach((r,i)=>{
+    const qty=r.size?('1*'+r.size):'';
+    rowsHtml+='<tr class="dr"><td class="c">'+(i+1)+'</td>'
+      +'<td><div class="cell jr" contenteditable="true">'+esc(r.jobref||'')+'</div></td>'
+      +'<td><div class="cell" contenteditable="true">'+esc(thd(r.date))+'</div></td>'
+      +'<td><div class="cell" contenteditable="true">'+esc(r.truck||'')+'</div></td>'
+      +(i===0?('<td rowspan="'+nrows+'" class="blx"><div class="cell bl" contenteditable="true" style="text-align:center">'+esc(recs.map(x=>x.bl).filter(Boolean)[0]||'')+'</div></td>'):'')
+      +'<td><div class="cell" contenteditable="true">'+esc(qty)+'</div></td>'
+      +'<td><div class="cell" contenteditable="true">'+esc(r.container||'')+'</div></td>'
+      +'<td><div class="cell" contenteditable="true">'+esc(r.yardIn||'')+'</div></td>'
+      +'<td><div class="cell" contenteditable="true">'+esc(r.loadPlace||'')+'</div></td>'
+      +'<td><div class="cell" contenteditable="true">'+esc(r.yardOut||'')+'</div></td>'
+      +'<td><div class="cell amt cy" contenteditable="true" inputmode="numeric">'+money0(r.c_recv)+'</div></td>'
+      +'<td><div class="cell amt rtn" contenteditable="true" inputmode="numeric">'+money0(r.c_return)+'</div></td>'
+      +'<td><div class="cell amt tr" contenteditable="true" inputmode="numeric">'+money0(r.c_trans)+'</div></td></tr>';
+  });
+  exAll.forEach(e=>{ // แถวค่าเพิ่ม (เหลือง) — ชื่อกลางตาราง ยอดลงช่องค่าขนส่ง ช่องรับ/คืนเป็น "-"
+    rowsHtml+='<tr class="dr"><td class="c"></td><td><div class="cell" contenteditable="true"></div></td><td><div class="cell" contenteditable="true"></div></td><td><div class="cell" contenteditable="true"></div></td>'
+      +'<td><div class="cell" contenteditable="true"></div></td><td><div class="cell" contenteditable="true"></div></td>'
+      +'<td style="'+YL+'"><div class="cell" contenteditable="true"></div></td>'
+      +'<td style="'+YL+'"><div class="cell" contenteditable="true" style="font-weight:700">'+esc(e.n)+'</div></td>'
+      +'<td style="'+YL+'"><div class="cell" contenteditable="true"></div></td>'
+      +'<td><div class="cell amt cy" contenteditable="true" inputmode="numeric">-</div></td>'
+      +'<td><div class="cell amt rtn" contenteditable="true" inputmode="numeric">-</div></td>'
+      +'<td><div class="cell amt tr" contenteditable="true" inputmode="numeric">'+money0(e.v)+'</div></td></tr>';
+  });
+  for(let i=recs.length+exAll.length;i<nrows;i++){
+    rowsHtml+='<tr class="dr"><td class="c"></td><td><div class="cell" contenteditable="true"></div></td><td><div class="cell" contenteditable="true"></div></td><td><div class="cell" contenteditable="true"></div></td><td><div class="cell" contenteditable="true"></div></td><td><div class="cell" contenteditable="true"></div></td><td><div class="cell" contenteditable="true"></div></td><td><div class="cell" contenteditable="true"></div></td><td><div class="cell" contenteditable="true"></div></td><td><div class="cell amt cy" contenteditable="true" inputmode="numeric"></div></td><td><div class="cell amt rtn" contenteditable="true" inputmode="numeric"></div></td><td><div class="cell amt tr" contenteditable="true" inputmode="numeric"></div></td></tr>';
+  }
+  const cust=recs[0].customer||'';
+  const info=(store.custBook&&store.custBook[cust])||{addr:'',tax:''};
+  const tag=recs.map(x=>x.tag).filter(Boolean)[0]||'';
+  const uids=recs.map(r=>String(r.uid||'')).filter(Boolean);
+  var _M=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'],_d=new Date();const today=_d.getDate()+' '+_M[_d.getMonth()]+' '+String(_d.getFullYear()+543).slice(-2);
+  const bahtFn="function bahtText(num){num=Math.round((Number(num)||0)*100)/100;var baht=Math.floor(num),satang=Math.round((num-baht)*100);var digits=['ศูนย์','หนึ่ง','สอง','สาม','สี่','ห้า','หก','เจ็ด','แปด','เก้า'];var places=['','สิบ','ร้อย','พัน','หมื่น','แสน'];function rc(chunk){var r='',len=chunk.length;for(var i=0;i<len;i++){var d=+chunk[i],pos=len-1-i;if(d===0)continue;if(pos===0&&d===1&&len>1)r+='เอ็ด';else if(pos===1&&d===2)r+='ยี่'+places[pos];else if(pos===1&&d===1)r+=places[pos];else r+=digits[d]+places[pos];}return r;}function nt(s){s=String(s);if(s==='0')return '';var g=[];while(s.length>6){g.unshift(s.slice(-6));s=s.slice(0,-6);}g.unshift(s);return g.map(rc).join('ล้าน');}if(baht===0&&satang===0)return 'ศูนย์บาทถ้วน';var w='';if(baht>0)w+=nt(baht)+'บาท';if(satang>0)w+=nt(satang)+'สตางค์';else if(baht>0)w+='ถ้วน';return w;}";
+  const script=bahtFn
+    +"var UIDS="+JSON.stringify(uids)+";"
+    +"function fmt(n){return Number(n).toLocaleString('th-TH',{minimumFractionDigits:2,maximumFractionDigits:2});}"
+    +"function gv(el){var v=(el.value!==undefined&&el.value!==null)?el.value:(el.textContent||'');return parseFloat(String(v).replace(/,/g,''))||0;}"
+    +"function recompute(){var cy=0,rtn=0,tr=0;"
+    +"document.querySelectorAll('.cy').forEach(function(e){cy+=gv(e);});"
+    +"document.querySelectorAll('.rtn').forEach(function(e){rtn+=gv(e);});"
+    +"document.querySelectorAll('.tr').forEach(function(e){tr+=gv(e);});"
+    +"var wht=document.getElementById('whtChk').checked?Math.round(tr*1)/100:0;"
+    +"var total=cy+rtn+tr-wht;"
+    +"document.getElementById('sumCy').textContent=cy?fmt(cy):'';"
+    +"document.getElementById('sumRtn').textContent=rtn?fmt(rtn):'';"
+    +"document.getElementById('sumTr').textContent=tr?fmt(tr):'';"
+    +"document.getElementById('whtVal').textContent=wht?fmt(wht):'';"
+    +"document.getElementById('sumCyRtn').textContent=(cy+rtn)?fmt(cy+rtn):'';"
+    +"document.getElementById('sumTrNet').textContent=(tr-wht)?fmt(tr-wht):'';"
+    +"document.getElementById('grand').textContent=fmt(total);"
+    +"document.getElementById('words').textContent=bahtText(total);}"
+    +"document.addEventListener('input',recompute);window.onload=recompute;"
+    +"function stampAndPrint(){try{var v=document.getElementById('invNo').value;if(window.opener&&window.opener.bill2StampInv)window.opener.bill2StampInv(UIDS,v);}catch(e){}window.print();}"
+    +"function saveCust(){var n=document.getElementById('cName').value,a=document.getElementById('cAddr').value,t=document.getElementById('cTax').value;"
+    +"if(window.opener&&window.opener.saveCustBook){window.opener.saveCustBook(n,a,t);alert('บันทึกที่อยู่ลูกค้าเรียบร้อย ครั้งหน้าจะเติมให้เอง');}else{alert('ต้องเปิดจากหน้าเว็บหลัก');}}";
+  const css='*{box-sizing:border-box}'
+    +'body{font-family:Sarabun,sans-serif;color:#000;margin:0;padding:12mm 5mm;font-size:12px}'
+    +'.tool{background:#0f6e78;color:#fff;padding:8px 12px;border-radius:8px;margin-bottom:12px;display:flex;gap:8px;flex-wrap:wrap}'
+    +'.tool button{font-family:inherit;font-size:13px;font-weight:600;border:none;border-radius:6px;padding:8px 14px;cursor:pointer;background:#fff;color:#0f6e78}'
+    +'.tool span{align-self:center;font-size:11px}'
+    +'.top{display:flex;align-items:flex-start;gap:10px;border-bottom:2px solid #000;padding-bottom:6px}'
+    +'.top .logo{text-align:center}.top .logo .cap{font-size:9px;margin-top:2px}.top .logo img{height:54px}.top .co{flex:1;text-align:left;padding-left:12px}.top .co b{font-size:14px}.top .co div{font-size:11px}'
+    +'.top .inv{display:flex;justify-content:flex-end;min-width:120px}.top .inv .box{border:1.5px solid #000;padding:8px 20px;font-weight:700;font-size:15px;height:fit-content}'
+    +'.mid{display:flex;justify-content:space-between;gap:16px;margin:8px 0 4px}'
+    +'.mid .cust{flex:1;font-size:11px}.mid .cust .rowc{display:flex;gap:5px;align-items:center}.mid .cust label{font-weight:600;white-space:nowrap}'
+    +'.mid .cust input{border:none;border-bottom:1px dotted #999;font-family:inherit;font-size:11px;flex:1;padding:1px 2px}'
+    +'.mid .cust textarea{width:calc(100% - 50px);border:none;border-bottom:1px dotted #999;font-family:inherit;font-size:11px;height:48px;resize:vertical;margin:2px 0 2px 50px}'
+    +'.mid .meta{font-size:12px;min-width:200px}.mid .meta .rowm{display:flex;gap:5px;margin-bottom:4px;align-items:center}.mid .meta b{white-space:nowrap}'
+    +'.mid .meta input{border:none;border-bottom:1px dotted #999;font-family:inherit;font-size:12px;flex:1;padding:1px 2px}'
+    +'.mid .meta input.optfield{text-align:center;color:#c0392b;font-weight:700;letter-spacing:.04em}'
+    +'.cap{font-size:11px;margin:3px 0 2px;font-weight:600}'
+    +'table{width:100%;border-collapse:collapse;table-layout:fixed}'
+    +'th,td{border:1px solid #000;padding:1px 2px;font-size:9.5px;text-align:center;overflow:hidden}'
+    +'th{font-weight:700;line-height:1.15}'
+    +'td input{width:100%;border:none;font-family:inherit;font-size:9.5px;text-align:center;padding:1px;background:transparent;min-width:0}'
+     +'td .cell{min-height:12px;font-family:inherit;font-size:9.5px;line-height:1.3;text-align:center;padding:1px 2px;white-space:pre-wrap;word-break:break-word;overflow-wrap:anywhere;outline:none;box-sizing:border-box}td .cell.amt{text-align:right}td{vertical-align:middle}'
+    +'.amt input,td.amt{text-align:right}'
+    +'tbody tr{height:19px}tr.sub td{font-weight:700;height:20px}'
+    +'tfoot td{border:none;font-size:11px;padding:2px 4px}tfoot td.amt{border:1px solid #000;text-align:right;font-weight:700;overflow:visible;white-space:nowrap;padding:2px 3px}'
+    +'tfoot td.r{text-align:right}tfoot td.l{text-align:left}tfoot td.gt{border:none!important;border-bottom:3px double #000!important}'
+    +'#words{font-weight:700}'
+    +'.bank{margin-top:10px;font-size:11px;line-height:1.6;text-align:left}.bank .ind{margin-left:0}'
+    +'.pay{display:flex;justify-content:space-between;align-items:flex-end;margin-top:64px;font-size:11px;gap:20px}'
+    +'.pay .pd{white-space:nowrap}.pay .sg{text-align:center;width:230px}.pay .sg .ln{border-top:1px dotted #000;height:40px;margin-bottom:3px}'
+    +'@page{size:A4;margin:0}@media print{input.optfield{border:none!important}input.optfield::placeholder{color:transparent!important}#mk,#cName,#cAddr,#invNo,.pay .pd input{border:none!important}#cAddr::placeholder{color:transparent!important}.tool{display:none}body{padding:10mm 5mm}input[type=checkbox]{display:none!important}}';
+  const html='<!doctype html><html lang="th"><head><meta charset="utf-8"><title>INVOICE '+esc(cust)+'</title>'
+    +'<link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@400;600;700&display=swap" rel="stylesheet"><style>'+css+'</style></head><body>'
+    +'<div class="tool"><button onclick="stampAndPrint()">🖨 พิมพ์ / บันทึก PDF</button><button onclick="saveCust()">💾 จำที่อยู่ลูกค้านี้</button><span>ทุกช่องดึงจากที่จดไว้ · เลขบิลรันต่อจากชุดของลูกค้า แก้ได้ตรงช่อง INV.NO (กดพิมพ์แล้วระบบจดเลขลงชีทให้)</span></div>'
+    +'<div class="top"><div class="logo"><img src="'+LOGO+'" onerror="this.style.display=\'none\'"><div class="cap">24 Logistics Co., Ltd.</div></div>'
+    +'<div class="co"><b>'+esc(COMPANY.name)+'</b><div>'+esc(COMPANY.addr)+'</div><div>'+esc(COMPANY.tax)+'</div><div>'+esc(COMPANY.tel)+'</div></div>'
+    +'<div class="inv"><div class="box">INVOICE</div></div></div>'
+    +'<div class="mid"><div class="cust"><div class="rowc"><label>ลูกค้า :</label><input id="cName" value="'+esc(cust)+'"></div>'
+    +'<textarea id="cAddr" placeholder="ที่อยู่ลูกค้า">'+esc(info.addr||'')+'</textarea>'
+    +'<div class="rowc"><label>TAX ID :</label><input id="cTax" value="'+esc(info.tax||'')+'"></div></div>'
+    +'<div class="meta"><div class="rowm"><b>INV.NO :</b><input id="invNo" value="'+esc(invnoSuggest||'')+'" placeholder="(กรอกเอง)"></div>'
+    +'<div class="rowm"><b>Date :</b><input id="invDate" value="'+esc(today)+'"></div>'
+    +'<div class="rowm"><input class="optfield" value="'+esc(tag)+'" placeholder="ช่องเพิ่มเติม (ไม่กรอก = ไม่พิมพ์)"></div></div></div>'
+    +'<div class="cap">Particular / รายการ</div>'
+    +'<table><colgroup><col style="width:4%"><col style="width:5%"><col style="width:8%"><col style="width:7%"><col style="width:6%"><col style="width:6%"><col style="width:11%"><col style="width:10%"><col style="width:10%"><col style="width:10%"><col style="width:8%"><col style="width:8%"><col style="width:7%"></colgroup>'
+    +'<thead><tr><th>Item</th><th>Job.Ref</th><th>date</th><th>Truck.no</th><th rowspan="2">B/L</th><th>Qty</th><th>Cont. no</th><th>CY</th><th>LOAD</th><th>Return</th><th>CY</th><th>Rtn.</th><th>Transport</th></tr>'
+    +'<tr><th>ลำดับ</th><th>เลขอ้างอิง</th><th>วันวิ่งงาน</th><th>ทะเบียน</th><th>จำนวน</th><th>เบอร์ตู้</th><th>รับตู้</th><th>ที่บรรจุ/ส่ง</th><th>คืนตู้</th><th>ค่ารับตู้</th><th>ค่าคืนตู้</th><th>ค่าขนส่ง</th></tr></thead>'
+    +'<tbody>'+rowsHtml+'<tr class="sub"><td colspan="10"></td><td class="amt" id="sumCy"></td><td class="amt" id="sumRtn"></td><td class="amt" id="sumTr"></td></tr></tbody>'
+    +'<tfoot><tr><td class="r" colspan="10">Withholding Tax ภาษีหัก ณ ที่จ่าย 1 % <input type="checkbox" id="whtChk" checked style="vertical-align:middle"></td><td class="amt"></td><td class="amt"></td><td class="amt" id="whtVal"></td></tr>'
+    +'<tr><td class="l" colspan="7">Mark : <input id="mk" style="border:none;border-bottom:1px dotted #999;font-family:inherit;width:130px"></td><td class="r" colspan="3">รวม</td><td class="amt" colspan="2" id="sumCyRtn"></td><td class="amt" id="sumTrNet"></td></tr>'
+    +'<tr><td class="l" colspan="12" style="font-weight:700">Total</td><td class="amt gt" id="grand">0.00</td></tr>'
+    +'<tr><td class="l" colspan="13" style="padding-top:3px">รวมเงิน&nbsp;&nbsp;&nbsp;<span id="words"></span></td></tr></tfoot></table>'
+    +'<div class="bank"><div><b>Account / บัญชี :</b> '+esc(COMPANY.bank)+'</div>'
+    +'<div><b>Cheque issue :</b> โปรดสั่งจ่ายเช็คขีดคร่อมในนาม '+esc(COMPANY.name)+'</div>'
+    +'<div class="ind"><b style="visibility:hidden">Cheque issue : </b>Please issued Acrossed '+esc(COMPANY.name)+' and crossed &quot;A/C PAYEE ONLY&quot;</div></div>'
+    +'<div class="pay"><div class="pd"><b>Payment due :</b><br>วันครบกำหนดชำระ <input style="border:none;border-bottom:1px dotted #999;font-family:inherit;width:110px"></div>'
+    +'<div class="sg"><div class="ln"></div>Receiver / ผู้รับวางบิล</div>'
+    +'<div class="sg"><div class="ln"></div>Name and Date of issue / ผู้วางบิล</div></div>'
+    +'<script>'+script+'<\/script><scr'+'ipt>('+blFitMain.toString()+')();<\/scr'+'ipt></body></html>';
+  const w=win||window.open('','_blank','width=1050,height=950');
+  if(!w){ flash('เบราว์เซอร์บล็อกป๊อปอัป — อนุญาตก่อนออกบิล','err'); return; }
+  w.document.open(); w.document.write(html); w.document.close();
+}
+
+/* ============================================================
    พิมพ์ใบวางบิลหลายใบพร้อมกัน — จัดกลุ่มเอง + INV.NO รันอัตโนมัติ
    ============================================================ */
 function bulkWindowMain(){
@@ -2812,6 +3492,226 @@ function openBulkInvoice(recs,win){
   const doc='<!doctype html><html lang="th"><head><meta charset="utf-8"><title>ใบวางบิลหลายใบ</title>'
     +'<link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@400;600;700&display=swap" rel="stylesheet"><style>'+css+'</style></head><body>'
     +bodyHtml+'<scr'+'ipt>const DATA='+JSON.stringify(data)+';('+bulkWindowMain.toString()+')();('+blFitMain.toString()+')();<\/scr'+'ipt></body></html>';
+  const w=win||window.open('','_blank','width=1120,height=960');
+  if(!w){ flash('เบราว์เซอร์บล็อกป๊อปอัป — อนุญาตก่อนออกบิล','err'); return; }
+  w.document.open(); w.document.write(doc); w.document.close();
+}
+
+/* ============================================================
+   V57 — พิมพ์หลายใบจากแท็บ 'บิล' (จัดกลุ่มเอง · ค่าเริ่มต้นใบละบิล
+   ใส่เลขบิล # เดียวกัน = รวมบิลเดียว) · เลขบิลรันต่อจากชุดของลูกค้าแต่ละราย
+   กดพิมพ์แล้วส่งเลขทุกใบกลับมาประทับลงชีทผ่าน opener.bill2StampFromPrint
+   ============================================================ */
+function bulkWindow2Main(){
+  var C=DATA2.company, BOOK=DATA2.custBook||{}, LOGO=DATA2.logo, RECS=DATA2.recs, LASTINV=DATA2.lastInvByCust||{};
+  var $=function(id){return document.getElementById(id);};
+  function esc(s){return String(s==null?'':s).replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;');}
+  function escT(s){return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;');}
+  function fmt(n){return Number(n).toLocaleString('th-TH',{minimumFractionDigits:2,maximumFractionDigits:2});}
+  function m0(v){var n=Number(v)||0;return n?fmt(n):'';}
+  function gv(el){var v=(el.value!==undefined&&el.value!==null)?el.value:(el.textContent||'');return parseFloat(String(v).replace(/,/g,''))||0;}
+  function bahtText(num){num=Math.round((Number(num)||0)*100)/100;var baht=Math.floor(num),satang=Math.round((num-baht)*100);var digits=['ศูนย์','หนึ่ง','สอง','สาม','สี่','ห้า','หก','เจ็ด','แปด','เก้า'];var places=['','สิบ','ร้อย','พัน','หมื่น','แสน'];function rc(chunk){var r='',len=chunk.length;for(var i=0;i<len;i++){var d=+chunk[i],pos=len-1-i;if(d===0)continue;if(pos===0&&d===1&&len>1)r+='เอ็ด';else if(pos===1&&d===2)r+='ยี่'+places[pos];else if(pos===1&&d===1)r+=places[pos];else r+=digits[d]+places[pos];}return r;}function nt(s){s=String(s);if(s==='0')return '';var g=[];while(s.length>6){g.unshift(s.slice(-6));s=s.slice(0,-6);}g.unshift(s);return g.map(rc).join('ล้าน');}if(baht===0&&satang===0)return 'ศูนย์บาทถ้วน';var w='';if(baht>0)w+=nt(baht)+'บาท';if(satang>0)w+=nt(satang)+'สตางค์';else if(baht>0)w+='ถ้วน';return w;}
+  function rowTotal(r){var s=(Number(r.c_trans)||0)+(Number(r.c_recv)||0)+(Number(r.c_return)||0);(r.extras||[]).forEach(function(e){s+=Number(e.v)||0;});return s;}
+
+  // เลขบิลรันต่อจากชุดของลูกค้ารายนั้น — เลขเดิมในชีท (ถ้ามี) ชนะเสมอ
+  var custNext={};
+  function nextInvFor(cust){
+    cust=String(cust||'').trim();
+    var base=custNext[cust]!==undefined?custNext[cust]:(LASTINV[cust]||'');
+    var m=/^(.*?)(\d+)\s*$/.exec(base); if(!m){ custNext[cust]=base; return ''; }
+    var next=m[1]+String(Number(m[2])+1).padStart(m[2].length,'0');
+    custNext[cust]=next; return next;
+  }
+
+  var grpOrder=[];
+  // ค่าเริ่มต้น: ใบละบิล · แต่ตู้เบอร์เดียวกัน = จับรวมบิลเดียวให้อัตโนมัติ (งานสองขา/สองคนขับในตู้เดียว — แต่ละขามีทะเบียน/คนขับของตัวเอง)
+  var assign=RECS.map(function(r,idx){
+    var key=String(r.container||'').toUpperCase().replace(/[^A-Z0-9]/g,'');
+    var g=key?('C'+key):('U'+idx);
+    var i=grpOrder.indexOf(g); if(i<0){grpOrder.push(g);i=grpOrder.length-1;}
+    return i+1;
+  });
+  function compactAssign(){var seen={},next=1;assign=assign.map(function(v){if(!(v in seen)){seen[v]=next++;}return seen[v];});}
+
+  var COLGROUP='<colgroup><col style="width:4%"><col style="width:5%"><col style="width:8%"><col style="width:7%"><col style="width:6%"><col style="width:6%"><col style="width:11%"><col style="width:10%"><col style="width:10%"><col style="width:10%"><col style="width:8%"><col style="width:8%"><col style="width:7%"></colgroup>';
+  var THEAD='<thead><tr><th>Item</th><th>Job.Ref</th><th>date</th><th>Truck.no</th><th rowspan="2">B/L</th><th>Qty</th><th>Cont. no</th><th>CY</th><th>LOAD</th><th>Return</th><th>CY</th><th>Rtn.</th><th>Transport</th></tr><tr><th>ลำดับ</th><th>เลขอ้างอิง</th><th>วันวิ่งงาน</th><th>ทะเบียน</th><th>จำนวน</th><th>เบอร์ตู้</th><th>รับตู้</th><th>ที่บรรจุ/ส่ง</th><th>คืนตู้</th><th>ค่ารับตู้</th><th>ค่าคืนตู้</th><th>ค่าขนส่ง</th></tr></thead>';
+
+  function renderGroup(){
+    var rows=RECS.map(function(r,i){
+      return '<tr><td>'+(i+1)+'</td><td class="mono">'+escT(r.container||'-')+'</td><td>'+escT(r.customer||'-')+'</td><td>'+escT(r.dateTh||'')+'</td><td>'+escT(fmt(rowTotal(r)))+'</td><td><input type="number" min="1" class="gno" data-i="'+i+'" value="'+assign[i]+'"></td></tr>';
+    }).join('');
+    $('groupBody').innerHTML=rows;
+    Array.prototype.forEach.call(document.querySelectorAll('.gno'),function(inp){
+      inp.onchange=function(){assign[+inp.dataset.i]=Math.max(1,parseInt(inp.value)||1);compactAssign();renderGroup();};
+    });
+  }
+
+  var YL='background:#ffe27a;-webkit-print-color-adjust:exact;print-color-adjust:exact';
+  function renderBillW(recs,cust,info,invno,today){
+    var exAll=[]; recs.forEach(function(r){(r.extras||[]).forEach(function(e){exAll.push(e);});});
+    var MINROWS=6, n=Math.max(recs.length+exAll.length,MINROWS), rowsHtml='';
+    var bl=recs.map(function(x){return x.bl;}).filter(Boolean)[0]||'';
+    var tag=recs.map(function(x){return x.tag;}).filter(Boolean)[0]||'';
+    recs.forEach(function(r,i){
+      var qty=r.size?('1*'+r.size):'';
+      rowsHtml+='<tr class="dr"><td class="c">'+(i+1)+'</td><td><div class="cell" contenteditable="true">'+esc(r.jobref||'')+'</div></td><td><div class="cell" contenteditable="true">'+esc(r.dateTh||'')+'</div></td><td><div class="cell" contenteditable="true">'+esc(r.truck||'')+'</div></td>'+(i===0?('<td rowspan="'+n+'" class="blx"><div class="cell bl" contenteditable="true" style="text-align:center">'+esc(bl)+'</div></td>'):'')+'<td><div class="cell" contenteditable="true">'+esc(qty)+'</div></td><td><div class="cell" contenteditable="true">'+esc(r.container||'')+'</div></td><td><div class="cell" contenteditable="true">'+esc(r.yardIn||'')+'</div></td><td><div class="cell" contenteditable="true">'+esc(r.loadPlace||'')+'</div></td><td><div class="cell" contenteditable="true">'+esc(r.yardOut||'')+'</div></td><td><div class="cell amt cy" contenteditable="true" inputmode="numeric">'+m0(r.c_recv)+'</div></td><td><div class="cell amt rtn" contenteditable="true" inputmode="numeric">'+m0(r.c_return)+'</div></td><td><div class="cell amt tr" contenteditable="true" inputmode="numeric">'+m0(r.c_trans)+'</div></td></tr>';
+    });
+    exAll.forEach(function(e){
+      rowsHtml+='<tr class="dr"><td class="c"></td><td><div class="cell" contenteditable="true"></div></td><td><div class="cell" contenteditable="true"></div></td><td><div class="cell" contenteditable="true"></div></td><td><div class="cell" contenteditable="true"></div></td><td><div class="cell" contenteditable="true"></div></td><td style="'+YL+'"><div class="cell" contenteditable="true"></div></td><td style="'+YL+'"><div class="cell" contenteditable="true" style="font-weight:700">'+esc(e.n)+'</div></td><td style="'+YL+'"><div class="cell" contenteditable="true"></div></td><td><div class="cell amt cy" contenteditable="true" inputmode="numeric">-</div></td><td><div class="cell amt rtn" contenteditable="true" inputmode="numeric">-</div></td><td><div class="cell amt tr" contenteditable="true" inputmode="numeric">'+m0(e.v)+'</div></td></tr>';
+    });
+    for(var b2=recs.length+exAll.length;b2<n;b2++){
+      rowsHtml+='<tr class="dr"><td class="c"></td><td><div class="cell" contenteditable="true"></div></td><td><div class="cell" contenteditable="true"></div></td><td><div class="cell" contenteditable="true"></div></td><td><div class="cell" contenteditable="true"></div></td><td><div class="cell" contenteditable="true"></div></td><td><div class="cell" contenteditable="true"></div></td><td><div class="cell" contenteditable="true"></div></td><td><div class="cell" contenteditable="true"></div></td><td><div class="cell amt cy" contenteditable="true" inputmode="numeric"></div></td><td><div class="cell amt rtn" contenteditable="true" inputmode="numeric"></div></td><td><div class="cell amt tr" contenteditable="true" inputmode="numeric"></div></td></tr>';
+    }
+    var uids=recs.map(function(r){return String(r.uid||'');}).filter(Boolean).join(',');
+    return '<div class="bill" data-uids="'+esc(uids)+'">'
+      +'<div class="top"><div class="logo"><img src="'+LOGO+'" onerror="this.style.display=\'none\'"><div class="cap">24 Logistics Co., Ltd.</div></div>'
+      +'<div class="co"><b>'+escT(C.name)+'</b><div>'+escT(C.addr)+'</div><div>'+escT(C.tax)+'</div><div>'+escT(C.tel)+'</div></div>'
+      +'<div class="inv"><div class="box">INVOICE</div></div></div>'
+      +'<div class="mid"><div class="cust"><div class="rowc"><label>ลูกค้า :</label><input class="cName" value="'+esc(cust)+'"></div>'
+      +'<textarea class="cAddr" placeholder="ที่อยู่ลูกค้า">'+escT(info.addr||'')+'</textarea>'
+      +'<div class="rowc"><label>TAX ID :</label><input class="cTax" value="'+esc(info.tax||'')+'"></div>'
+      +'<button type="button" class="saveCust no-print">💾 จำที่อยู่ลูกค้านี้</button></div>'
+      +'<div class="meta"><div class="rowm"><b>INV.NO :</b><input class="invNo" value="'+esc(invno)+'" placeholder="(กรอกเอง)"></div>'
+      +'<div class="rowm"><b>Date :</b><input class="invDate" value="'+esc(today)+'"></div>'
+      +'<div class="rowm"><input class="optfield" value="'+esc(tag)+'" placeholder="ช่องเพิ่มเติม (ไม่กรอก = ไม่พิมพ์)"></div></div></div>'
+      +'<div class="cap">Particular / รายการ</div>'
+      +'<table>'+COLGROUP+THEAD+'<tbody>'+rowsHtml
+      +'<tr class="sub"><td colspan="10"></td><td class="amt sumCy"></td><td class="amt sumRtn"></td><td class="amt sumTr"></td></tr></tbody>'
+      +'<tfoot><tr><td class="r" colspan="10">Withholding Tax ภาษีหัก ณ ที่จ่าย 1 % <input type="checkbox" class="whtChk" checked style="vertical-align:middle"></td><td class="amt"></td><td class="amt"></td><td class="amt whtVal"></td></tr>'
+      +'<tr><td class="l" colspan="7">Mark : <input class="mk" style="border:none;border-bottom:1px dotted #999;font-family:inherit;width:130px"></td><td class="r" colspan="3">รวม</td><td class="amt sumCyRtn" colspan="2"></td><td class="amt sumTrNet"></td></tr>'
+      +'<tr><td class="l" colspan="12" style="font-weight:700">Total</td><td class="amt gt grand">0.00</td></tr>'
+      +'<tr><td class="l" colspan="13" style="padding-top:3px">รวมเงิน&nbsp;&nbsp;&nbsp;<span class="words"></span></td></tr></tfoot></table>'
+      +'<div class="bank"><div><b>Account / บัญชี :</b> '+escT(C.bank)+'</div>'
+      +'<div><b>Cheque issue :</b> โปรดสั่งจ่ายเช็คขีดคร่อมในนาม '+escT(C.name)+'</div>'
+      +'<div class="ind"><b style="visibility:hidden">Cheque issue : </b>Please issued Acrossed '+escT(C.name)+' and crossed "A/C PAYEE ONLY"</div></div>'
+      +'<div class="pay"><div class="pd"><b>Payment due :</b><br>วันครบกำหนดชำระ <input style="border:none;border-bottom:1px dotted #999;font-family:inherit;width:110px"></div>'
+      +'<div class="sg"><div class="ln"></div>Receiver / ผู้รับวางบิล</div>'
+      +'<div class="sg"><div class="ln"></div>Name and Date of issue / ผู้วางบิล</div></div></div>';
+  }
+
+  function recomputeAll(){
+    Array.prototype.forEach.call(document.querySelectorAll('.bill'),function(bill){
+      var cy=0,rtn=0,tr=0;
+      Array.prototype.forEach.call(bill.querySelectorAll('.cy'),function(e){cy+=gv(e);});
+      Array.prototype.forEach.call(bill.querySelectorAll('.rtn'),function(e){rtn+=gv(e);});
+      Array.prototype.forEach.call(bill.querySelectorAll('.tr'),function(e){tr+=gv(e);});
+      var chk=bill.querySelector('.whtChk');
+      var wht=(chk&&chk.checked)?Math.round(tr*1)/100:0;
+      var total=cy+rtn+tr-wht;
+      var set=function(cls,val){var el=bill.querySelector('.'+cls);if(el)el.textContent=val;};
+      set('sumCy',cy?fmt(cy):'');set('sumRtn',rtn?fmt(rtn):'');set('sumTr',tr?fmt(tr):'');
+      set('whtVal',wht?fmt(wht):'');set('sumCyRtn',(cy+rtn)?fmt(cy+rtn):'');set('sumTrNet',(tr-wht)?fmt(tr-wht):'');
+      set('grand',fmt(total));set('words',bahtText(total));
+    });
+  }
+
+  function buildBills(){
+    var groups={};
+    RECS.forEach(function(r,i){var g=assign[i]||1;(groups[g]=groups[g]||[]).push(r);});
+    var keys=Object.keys(groups).map(Number).sort(function(a,b){return a-b;});
+    var _M=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'],_d=new Date();var today=_d.getDate()+' '+_M[_d.getMonth()]+' '+String(_d.getFullYear()+543).slice(-2);
+    custNext={};
+    var html=keys.map(function(k){
+      var recs=groups[k], cust=(recs[0].customer||''), info=BOOK[cust]||{addr:'',tax:''};
+      var mixed=recs.some(function(r){return String(r.customer||'')!==String(cust);});
+      var inv=recs.map(function(r){return r.invno;}).filter(Boolean)[0]||nextInvFor(cust); // เลขเดิมในชีทชนะ — พิมพ์ซ้ำเลขไม่เปลี่ยน
+      return (mixed?'<div class="no-print" style="max-width:1000px;margin:0 auto;color:#b0442f;font-weight:700;font-size:13px">⚠️ บิลนี้รวมงานคนละลูกค้า — เช็คก่อนพิมพ์</div>':'')+renderBillW(recs,cust,info,inv,today);
+    }).join('');
+    $('billsPanel').innerHTML=html;
+    $('billCount').textContent=keys.length;
+    Array.prototype.forEach.call(document.querySelectorAll('.saveCust'),function(btn){
+      btn.onclick=function(){
+        var bill=btn.closest('.bill');
+        var n=bill.querySelector('.cName').value,a=bill.querySelector('.cAddr').value,t=bill.querySelector('.cTax').value;
+        if(window.opener&&window.opener.saveCustBook){window.opener.saveCustBook(n,a,t);alert('บันทึกที่อยู่ลูกค้า "'+n+'" แล้ว');}else{alert('ต้องเปิดจากหน้าเว็บหลัก');}
+      };
+    });
+    document.addEventListener('input',recomputeAll);
+    recomputeAll();
+    $('groupPanel').style.display='none';
+    $('billsPanel').style.display='block';
+    $('makeBills').style.display='none';
+    $('toGroup').style.display='';
+    $('doPrint').style.display='';
+    $('grpHint').style.display='none';
+  }
+
+  function stampAll(){ // ส่งเลขบิลทุกใบกลับไปประทับลงชีท (เลขที่แก้มือแล้วก็ตามไปด้วย)
+    try{
+      var pairs=[];
+      Array.prototype.forEach.call(document.querySelectorAll('.bill'),function(bill){
+        var uids=String(bill.getAttribute('data-uids')||'').split(',').filter(Boolean);
+        var inv=bill.querySelector('.invNo'); var v=inv?String(inv.value||'').trim():'';
+        if(uids.length&&v) pairs.push({uids:uids,invno:v});
+      });
+      if(pairs.length&&window.opener&&window.opener.bill2StampFromPrint) window.opener.bill2StampFromPrint(pairs);
+    }catch(e){}
+  }
+
+  $('makeBills').onclick=buildBills;
+  $('doPrint').onclick=function(){ stampAll(); window.print(); };
+  $('toGroup').onclick=function(){
+    if(!confirm('กลับไปจัดกลุ่ม? ข้อความที่แก้มือในบิลจะหาย (ข้อมูลที่จดไว้ยังอยู่ครบ)')) return;
+    $('billsPanel').innerHTML='';$('billsPanel').style.display='none';
+    $('groupPanel').style.display='block';$('grpHint').style.display='';
+    $('makeBills').style.display='';$('toGroup').style.display='none';$('doPrint').style.display='none';
+  };
+  renderGroup();
+}
+
+function openBulkInvoice2(recs,win){
+  const BULK_LOGO=APP_LOGO;
+  const data={
+    company:{name:COMPANY.name,addr:COMPANY.addr,tax:COMPANY.tax,tel:COMPANY.tel,bank:COMPANY.bank},
+    custBook:store.custBook||{}, logo:BULK_LOGO, lastInvByCust:bill2Meta.lastInvByCust||{},
+    recs:recs.map(r=>({uid:String(r.uid||''),customer:r.customer||'',dateTh:thd(r.date),truck:r.truck||'',container:r.container||'',size:r.size||'',yardIn:r.yardIn||'',loadPlace:r.loadPlace||'',yardOut:r.yardOut||'',c_recv:b2Num(r.c_recv),c_return:b2Num(r.c_return),c_trans:b2Num(r.c_trans),jobref:r.jobref||'',bl:r.bl||'',tag:r.tag||'',invno:r.invno||'',extras:b2ParseEx(r.extras)}))
+  };
+  const css='*{box-sizing:border-box}body{font-family:Sarabun,sans-serif;color:#000;margin:0;padding:10mm 5mm;font-size:12px}'
+    +'.tool{background:#0f6e78;color:#fff;padding:8px 12px;border-radius:8px;margin-bottom:10px;display:flex;gap:8px;flex-wrap:wrap;align-items:center;position:sticky;top:0;z-index:5}'
+    +'.tool button{font-family:inherit;font-size:13px;font-weight:600;border:none;border-radius:6px;padding:8px 14px;cursor:pointer;background:#fff;color:#0f6e78}'
+    +'.tool span{font-size:11.5px}'
+    +'#groupPanel{max-width:760px;margin:0 auto 10px}#grpHint{font-size:12px;color:#333;margin:4px 0 8px;text-align:center}'
+    +'#groupPanel table{width:100%;border-collapse:collapse}#groupPanel th,#groupPanel td{border:1px solid #ccc;padding:5px 8px;font-size:12px;text-align:center}'
+    +'#groupPanel th{background:#f0f0f0}#groupPanel .gno{width:64px;text-align:center;font-size:13px;padding:4px}.mono{font-family:monospace}'
+    +'.bill{max-width:1000px;margin:0 auto 14px;padding-bottom:6px}'
+    +'.top{display:flex;align-items:flex-start;gap:10px;border-bottom:2px solid #000;padding-bottom:6px}'
+    +'.top .logo{text-align:center}.top .logo .cap{font-size:9px;margin-top:2px}.top .logo img{height:54px}.top .co{flex:1;text-align:left;padding-left:12px}.top .co b{font-size:14px}.top .co div{font-size:11px}'
+    +'.top .inv{display:flex;justify-content:flex-end;min-width:120px}.top .inv .box{border:1.5px solid #000;padding:8px 20px;font-weight:700;font-size:15px;height:fit-content}'
+    +'.mid{display:flex;justify-content:space-between;gap:16px;margin:8px 0 4px}'
+    +'.mid .cust{flex:1;font-size:11px}.mid .cust .rowc{display:flex;gap:5px;align-items:center}.mid .cust label{font-weight:600;white-space:nowrap}'
+    +'.mid .cust input{border:none;border-bottom:1px dotted #999;font-family:inherit;font-size:11px;flex:1;padding:1px 2px}'
+    +'.mid .cust textarea{width:calc(100% - 50px);border:none;border-bottom:1px dotted #999;font-family:inherit;font-size:11px;height:48px;resize:vertical;margin:2px 0 2px 50px}'
+    +'.mid .cust .saveCust{background:#e3f0f1;color:#0f6e78;border:1px solid #0f6e78;border-radius:5px;font-size:11px;padding:3px 8px;cursor:pointer}'
+    +'.mid .meta{font-size:12px;min-width:200px}.mid .meta .rowm{display:flex;gap:5px;margin-bottom:4px;align-items:center}.mid .meta b{white-space:nowrap}'
+    +'.mid .meta input{border:none;border-bottom:1px dotted #999;font-family:inherit;font-size:12px;flex:1;padding:1px 2px}'
+    +'.mid .meta input.optfield{text-align:center;color:#c0392b;font-weight:700;letter-spacing:.04em}'
+    +'.cap{font-size:11px;margin:3px 0 2px;font-weight:600}'
+    +'table{width:100%;border-collapse:collapse;table-layout:fixed}'
+    +'.bill th,.bill td{border:1px solid #000;padding:1px 2px;font-size:9.5px;text-align:center;overflow:hidden}'
+    +'.bill th{font-weight:700;line-height:1.15}'
+    +'.bill td input{width:100%;border:none;font-family:inherit;font-size:9.5px;text-align:center;padding:1px;background:transparent;min-width:0}'
+     +'.bill td .cell{min-height:12px;font-family:inherit;font-size:9.5px;line-height:1.3;text-align:center;padding:1px 2px;white-space:pre-wrap;word-break:break-word;overflow-wrap:anywhere;outline:none;box-sizing:border-box}td .cell.amt{text-align:right}td{vertical-align:middle}'
+    +'.amt input,td.amt{text-align:right}'
+    +'.bill tbody tr{height:19px}tr.sub td{font-weight:700;height:20px}'
+    +'.bill tfoot td{border:none;font-size:11px;padding:2px 4px}.bill tfoot td.amt{border:1px solid #000;text-align:right;font-weight:700;overflow:visible;white-space:nowrap;padding:2px 3px}'
+    +'.bill tfoot td.r{text-align:right}.bill tfoot td.l{text-align:left}.bill tfoot td.gt{border:none!important;border-bottom:3px double #000!important}'
+    +'.words{font-weight:700}'
+    +'.bank{margin-top:10px;font-size:11px;line-height:1.6;text-align:left}.bank .ind{margin-left:0}'
+    +'.pay{display:flex;justify-content:space-between;align-items:flex-end;margin-top:52px;font-size:11px;gap:20px}'
+    +'.pay .pd{white-space:nowrap}.pay .sg{text-align:center;width:230px}.pay .sg .ln{border-top:1px dotted #000;height:38px;margin-bottom:3px}'
+    +'.bill{page-break-after:always}.bill:last-child{page-break-after:auto}'
+    +'@page{size:A4;margin:0}@media print{input.optfield{border:none!important}input.optfield::placeholder{color:transparent!important}.mk,.cName,.cAddr,.invNo,.pay .pd input{border:none!important}.cAddr::placeholder{color:transparent!important}.tool,#groupPanel,#grpHint,.no-print{display:none!important}body{padding:8mm 5mm}.bill{margin:0}input[type=checkbox]{display:none!important}}';
+  const bodyHtml='<div class="tool no-print">'
+    +'<button id="makeBills">➡ สร้างบิล</button>'
+    +'<button id="toGroup" style="display:none">◀ กลับไปจัดกลุ่ม</button>'
+    +'<button id="doPrint" style="display:none">🖨 พิมพ์ทั้งหมด (<span id="billCount">0</span> ใบ)</button>'
+    +'<span style="margin-left:auto">เลขบิลรันต่อจากชุดของลูกค้าแต่ละรายให้เอง — แก้ในช่อง INV.NO ได้ · กดพิมพ์แล้วระบบจดเลขทุกใบลงชีทให้</span></div>'
+    +'<div id="grpHint">ค่าเริ่มต้น: <b>ใบละบิล</b> · <b>ตู้เบอร์เดียวกันจับรวมบิลเดียวให้อัตโนมัติ</b> (งานสองขา/สองคนขับ) · อยากรวม/แยกเพิ่ม แก้เลข <b>บิล #</b> ให้ตรงกัน แล้วกด “➡ สร้างบิล”</div>'
+    +'<div id="groupPanel"><table><thead><tr><th>#</th><th>เบอร์ตู้</th><th>ลูกค้า</th><th>วันที่</th><th>เงินบิล</th><th>บิล #</th></tr></thead><tbody id="groupBody"></tbody></table></div>'
+    +'<div id="billsPanel" style="display:none"></div>';
+  const doc='<!doctype html><html lang="th"><head><meta charset="utf-8"><title>ใบวางบิลหลายใบ (แท็บ บิล)</title>'
+    +'<link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@400;600;700&display=swap" rel="stylesheet"><style>'+css+'</style></head><body>'
+    +bodyHtml+'<scr'+'ipt>const DATA2='+JSON.stringify(data)+';('+bulkWindow2Main.toString()+')();('+blFitMain.toString()+')();<\/scr'+'ipt></body></html>';
   const w=win||window.open('','_blank','width=1120,height=960');
   if(!w){ flash('เบราว์เซอร์บล็อกป๊อปอัป — อนุญาตก่อนออกบิล','err'); return; }
   w.document.open(); w.document.write(doc); w.document.close();
