@@ -373,6 +373,27 @@
   /* กล่องยืนยันรวมงาน (ใช้ #billOvl — คลาสของ #mrgOvl เอื้อมไม่ถึง) */
   #billOvl .mrow{background:var(--field);border:1px solid var(--line);border-radius:8px;padding:6px 10px;margin-bottom:6px;font-size:13px}
   #billOvl .ghl2{background:var(--accent-soft);border:1px solid var(--accent);border-radius:8px;padding:8px 10px;color:var(--ink);margin:8px 0;font-size:12.8px;line-height:1.7}
+  /* ===== V58: หน้าลูกหนี้ ===== */
+  .b3sum{display:flex;gap:10px;flex-wrap:wrap;padding:14px 20px;background:var(--total-bg);color:var(--total-fg)}
+  .b3sum .box{flex:1 1 150px}
+  .b3sum .lbl{font-size:12px;opacity:.8}
+  .b3sum .val{font-family:'IBM Plex Mono',monospace;font-size:22px;font-weight:600;line-height:1.25}
+  .b3sum .val.red{color:#ff9b8e}
+  .b3card{border:1px solid var(--line);border-left:5px solid var(--line-strong);border-radius:12px;margin:0 14px 11px;overflow:hidden;background:var(--panel);box-shadow:var(--shadow)}
+  .b3card.over{border-left-color:var(--warn);background:rgba(178,59,46,.05)}
+  .b3card.soon{border-left-color:#e0a020;background:rgba(240,192,64,.06)}
+  .b3card.ok{border-left-color:var(--ok)}
+  .b3head{display:flex;align-items:flex-start;gap:10px;padding:11px 13px}
+  .b3head .cust{font-weight:700;color:var(--accent);font-size:15px}
+  .b3head .meta{font-size:12px;color:var(--ink-soft);margin-top:3px;line-height:1.7}
+  .b3amt{font-family:'IBM Plex Mono',monospace;font-size:19px;font-weight:600;white-space:nowrap;text-align:right}
+  .b3amt small{display:block;font-family:'Sarabun',sans-serif;font-size:11px;font-weight:400;color:var(--ink-soft)}
+  .b3acts{display:flex;gap:7px;padding:9px 13px;background:var(--paper);border-top:1px solid var(--line);flex-wrap:wrap}
+  .b3acts .btn{border:none;border-radius:8px;padding:8px 13px;font-size:12.5px;font-weight:700;cursor:pointer;font-family:inherit}
+  .b3acts .bpay{background:var(--ok);color:#fff}
+  .b3acts .bdue{background:var(--field);color:var(--ink);border:1px solid var(--line)}
+  #b3QInfo:empty{display:none}
+  #b3QInfo{align-self:center;font-size:12.5px;font-weight:700;color:var(--accent);background:var(--accent-soft);border:1px solid var(--accent);border-radius:20px;padding:5px 11px}
 </style>
 <script>
   /* ตั้งธีมก่อน render กันหน้าจอกระพริบ */
@@ -667,7 +688,27 @@
   <!-- V57: สลับ คิวบิลใหม่ (แท็บ 'บิล') ↔ คิวแบบเก่า (จากใบงาน — คงไว้จนเคลียร์ใบค้างหมด แล้วค่อยถอด) -->
   <div class="bmode">
     <button class="mb on" id="bmNew">🧾 คิวบิล (ใหม่)</button>
+    <button class="mb" id="bmDebt" title="บิลที่วางไปแล้ว เก็บเงินได้หรือยัง">💰 ลูกหนี้</button>
     <button class="mb" id="bmOld" title="ใบที่ค้างจากระบบเดิม — พิมพ์/ยืนยันแบบเดิมได้จนเคลียร์หมด">🕰 คิวแบบเก่า (จากใบงาน)</button>
+  </div>
+
+  <!-- V58: ลูกหนี้ — บิลที่ยืนยันวางบิลแล้วแต่ยังไม่ได้เงิน (จับกลุ่มตามเลขบิล 1 ใบวางบิล = 1 หนี้) -->
+  <div class="session" id="bill3Card" style="margin-top:0;display:none">
+    <div class="session-head"><h3>💰 ลูกหนี้คงค้าง</h3><span class="count" id="b3Count">—</span></div>
+    <div class="b3sum" id="b3Sum"></div>
+    <div class="actions" style="background:var(--paper);border-top:none;align-items:center">
+      <div class="billfilter2" id="b3Filter">
+        <button class="fb on" data-f="all">ทั้งหมด <span class="b" id="b3c-all">0</span></button>
+        <button class="fb" data-f="over">🔴 เกินกำหนด <span class="b" id="b3c-over">0</span></button>
+        <button class="fb" data-f="soon" title="ครบกำหนดภายใน 7 วัน · รวมบิลที่ยังไม่ได้ตั้งวันครบกำหนดด้วย">🟠 ใกล้ครบ / ยังไม่ตั้ง <span class="b" id="b3c-soon">0</span></button>
+        <button class="fb" data-f="ok">🟢 ยังไม่ถึงกำหนด <span class="b" id="b3c-ok">0</span></button>
+      </div>
+    </div>
+    <div class="billsearch" id="b3Search">
+      <input id="b3Q" placeholder="🔍 ค้น — ลูกค้า / เลขบิล / เบอร์ตู้" style="max-width:320px">
+      <span id="b3QInfo"></span>
+    </div>
+    <div id="b3Body"><div class="empty">กำลังโหลด…</div></div>
   </div>
 
   <!-- V57: คิวบิลใหม่ — คนวางบิลคีย์เองทุกช่องจากใบเสร็จจริง ไม่ดึงอะไรจากใบงานเลย -->
@@ -1830,12 +1871,15 @@ function b2NextInv(cust){
 
 /* ---- สลับโหมด คิวใหม่ ↔ คิวแบบเก่า ---- */
 function billModeSync(){
-  const isNew=(billMode==='new');
-  const b2=$("bill2Card"), b1=$("billCard");
+  if(['new','debt','old'].indexOf(billMode)<0) billMode='new';
+  const isNew=(billMode==='new'), isDebt=(billMode==='debt'), isOld=(billMode==='old');
+  const b2=$("bill2Card"), b3=$("bill3Card"), b1=$("billCard");
   if(b2) b2.style.display=isNew?'block':'none';
-  if(b1) b1.style.display=isNew?'none':'block';
+  if(b3) b3.style.display=isDebt?'block':'none';
+  if(b1) b1.style.display=isOld?'block':'none';
   $("bmNew").classList.toggle('on',isNew);
-  $("bmOld").classList.toggle('on',!isNew);
+  $("bmDebt").classList.toggle('on',isDebt);
+  $("bmOld").classList.toggle('on',isOld);
   try{ localStorage.setItem('jobform_billmode',billMode); }catch(e){}
   if(isNew){
     if(!bill2Rows.length) b2CacheLoad();                       // มีแคช = เห็นคิวทันที ไม่ต้องรอเน็ต
@@ -1843,10 +1887,120 @@ function billModeSync(){
     if(Date.now()-bill2LastFetch>15000) loadBill2Queue();      // แล้วดึงของจริงมาทับเงียบๆ
     renderB2Pending();
   }
+  else if(isDebt){ if(debtLoaded) renderDebt(); loadDebt(); }
   else { if(!billRows.length) loadBillQueue(); else renderBill(); }
 }
 
 /* ---- โหลดคิว + ตัวช่วยจำ ---- */
+/* ============================================================
+   V58 — หน้าลูกหนี้ (บิลที่วางไปแล้ว เก็บเงินได้หรือยัง)
+   1 การ์ด = 1 ใบวางบิล (จับกลุ่มด้วยเลขบิลที่หลังบ้าน) · ยอดคิดด้วยสูตรเดียวกับหน้าบิล
+   ============================================================ */
+let debtInvs=[], debtFilter='all', debtQ='', debtLoaded=false;
+function b3Money(n){ n=Number(n)||0; return n.toLocaleString('th-TH',{minimumFractionDigits:2,maximumFractionDigits:2}); }
+function b3Bucket(x){ if(x.overdue>0) return 'over'; if(x.overdue>=-7) return 'soon'; return 'ok'; }
+function b3DueTxt(x){
+  if(!x.due) return 'ยังไม่ได้ตั้งวันครบกำหนด';
+  if(x.overdue>0) return '🔴 เกินกำหนด '+x.overdue+' วัน (ครบ '+thd(x.due)+')';
+  if(x.overdue===0) return '🟠 ครบกำหนดวันนี้';
+  return '🟢 ครบกำหนด '+thd(x.due)+' (อีก '+(-x.overdue)+' วัน)';
+}
+async function loadDebt(){
+  try{
+    const j=await callAct({act:'bdebt'});
+    if(j&&j.ok&&Array.isArray(j.invs)){ debtInvs=j.invs; debtLoaded=true; renderDebt(); }
+    else if(j&&j.result==='unknown-act') $("b3Body").innerHTML='<div class="empty">⚙️ หลังบ้านยังไม่ได้อัปเดตเป็น V58 — วางไฟล์ .gs แล้ว Deploy → New version ก่อน</div>';
+    else flash('โหลดลูกหนี้ไม่สำเร็จ'+((j&&j.result)?': '+j.result:''),'err');
+  }catch(e){ $("b3Body").innerHTML='<div class="empty">เชื่อมต่อไม่สำเร็จ — กด ⟳ รีเฟรช</div>'; }
+}
+function debtMatch(x){
+  if(!debtQ) return true;
+  return b2Norm([x.cust,x.invno,(x.conts||[]).join(' ')].join('|')).indexOf(b2Norm(debtQ))>-1;
+}
+function renderDebt(){
+  const all=debtInvs.filter(debtMatch);
+  const nOver=all.filter(x=>b3Bucket(x)==='over').length, nSoon=all.filter(x=>b3Bucket(x)==='soon').length, nOk=all.filter(x=>b3Bucket(x)==='ok').length;
+  const sumAll=all.reduce((s,x)=>s+(Number(x.remain)||0),0);
+  const sumOver=all.filter(x=>b3Bucket(x)==='over').reduce((s,x)=>s+(Number(x.remain)||0),0);
+  $("b3Count").textContent=all.length+' บิลที่ยังไม่ได้เงิน';
+  $("b3Sum").innerHTML='<div class="box"><div class="lbl">รวมค้างรับทั้งหมด</div><div class="val">'+b3Money(sumAll)+'</div></div>'
+    +'<div class="box"><div class="lbl">เกินกำหนดแล้ว</div><div class="val'+(sumOver?' red':'')+'">'+b3Money(sumOver)+'</div></div>'
+    +'<div class="box"><div class="lbl">จำนวนบิล</div><div class="val">'+all.length+'</div></div>';
+  $("b3c-all").textContent=all.length; $("b3c-over").textContent=nOver; $("b3c-soon").textContent=nSoon; $("b3c-ok").textContent=nOk;
+  $("b3QInfo").textContent=debtQ?('🔍 ตรงกับที่ค้น '+all.length+' จาก '+debtInvs.length+' บิล'):'';
+  document.querySelectorAll('#b3Filter .fb').forEach(f=>f.classList.toggle('on',f.dataset.f===debtFilter));
+  const shown=all.filter(x=>debtFilter==='all'||b3Bucket(x)===debtFilter)
+    .sort((a,b)=>(b.overdue||0)-(a.overdue||0));   // ค้างนานสุดขึ้นก่อน
+  if(!shown.length){
+    $("b3Body").innerHTML='<div class="empty" style="color:var(--ok)">'+(debtQ?'ไม่พบบิลที่ตรงกับที่ค้น':(debtInvs.length?'ไม่มีบิลในกลุ่มนี้':'เก็บเงินครบทุกบิลแล้ว 🎉'))+'</div>';
+    return;
+  }
+  $("b3Body").innerHTML=shown.map(x=>{
+    const bk=b3Bucket(x);
+    const part=(Number(x.paidAmt)||0)>0?'<div style="font-size:11.5px;color:var(--ok);margin-top:2px">รับมาแล้ว '+b3Money(x.paidAmt)+' บาท'+(x.paidAt?' ('+thd(x.paidAt)+')':'')+'</div>':'';
+    return '<div class="b3card '+bk+'"><div class="b3head">'
+      +'<div style="flex:1"><span class="cust">'+escHtml(x.cust||'-')+'</span>'
+      +'<div class="meta">'+(x.invno?'🧾 <b>'+escHtml(x.invno)+'</b> · ':'<span style="color:var(--warn)">⚠️ ไม่มีเลขบิล</span> · ')
+      +'ตู้ '+escHtml((x.conts||[]).join(' + ')||'-')
+      +(x.uids.length>1?' <span class="lchip">'+x.uids.length+' ใบ</span>':'')+'<br>'
+      +b3DueTxt(x)+(x.credit?' · เครดิต '+x.credit+' วัน':'')+'</div>'+part+'</div>'
+      +'<div class="b3amt">'+b3Money(x.remain)+'<small>บาท</small></div></div>'
+      +'<div class="b3acts"><button class="btn bpay" data-pay="'+escAttr(x.key)+'">✓ รับเงินแล้ว</button>'
+      +'<button class="btn bdue" data-due="'+escAttr(x.key)+'">📅 แก้วันครบกำหนด</button></div></div>';
+  }).join('');
+  $("b3Body").querySelectorAll('[data-pay]').forEach(b=>b.onclick=()=>debtPay(b.dataset.pay));
+  $("b3Body").querySelectorAll('[data-due]').forEach(b=>b.onclick=()=>debtDue(b.dataset.due));
+}
+/* กล่องบันทึกรับเงิน — ใส่ยอดที่ได้รับจริงได้ (เผื่อลูกค้าหักอะไรเพิ่ม หรือจ่ายมาบางส่วน) */
+function debtPay(key){
+  const x=debtInvs.find(v=>v.key===key); if(!x) return;
+  let ov=document.getElementById('billOvl'); if(ov) ov.remove();
+  ov=document.createElement('div'); ov.id='billOvl'; let done=false;
+  ov.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:9000;display:flex;align-items:center;justify-content:center;padding:20px';
+  ov.innerHTML='<div style="background:var(--panel);color:var(--ink);border-radius:14px;max-width:430px;width:100%;padding:20px;box-shadow:var(--shadow)">'
+    +'<div style="font-size:32px;text-align:center">💰</div><h3 style="text-align:center;margin:6px 0 10px;font-size:17px">บันทึกรับเงิน</h3>'
+    +'<div style="font-size:13.5px;line-height:1.7">'+escHtml(x.cust||'-')+(x.invno?' · 🧾 '+escHtml(x.invno):'')+'<br>ยอดที่ต้องเก็บ <b>'+b3Money(x.remain)+'</b> บาท'
+    +'<label style="display:block;font-size:12.5px;color:var(--ink-soft);font-weight:600;margin:10px 0 4px">ยอดที่ได้รับจริง</label>'
+    +'<input id="b3Amt" class="mono" inputmode="decimal" value="'+escAttr(String(x.remain))+'">'
+    +'<label style="display:block;font-size:12.5px;color:var(--ink-soft);font-weight:600;margin:10px 0 4px">วันที่รับเงิน</label>'
+    +'<input id="b3When" type="date" value="'+escAttr(todayLocal())+'">'
+    +'<div class="hint" style="margin:8px 0 0">รับไม่ครบ = ระบบจะเก็บไว้เป็น “เก็บบางส่วน” และยังค้างยอดที่เหลือ</div></div>'
+    +'<div style="display:flex;gap:8px;margin-top:14px">'
+    +'<button id="b3Cancel" style="flex:1;padding:11px;border-radius:9px;border:1px solid var(--line-strong);background:transparent;color:var(--ink);font-weight:700;cursor:pointer;font-family:inherit">ยกเลิก</button>'
+    +'<button id="b3Ok" style="flex:1;padding:11px;border-radius:9px;border:none;background:var(--ok);color:#fff;font-weight:700;cursor:pointer;font-family:inherit">✓ บันทึกรับเงิน</button></div></div>';
+  document.body.appendChild(ov);
+  const fin=(go)=>{ if(done)return; done=true;
+    const amt=go?b2Num(document.getElementById('b3Amt').value):0;
+    const when=go?document.getElementById('b3When').value:'';
+    ov.remove();
+    if(!go) return;
+    const full=(amt+0.005)>=Number(x.remain);
+    (async()=>{
+      try{
+        const j=await callAct({act:'bpay',uids:x.uids.join(','),state:full?'paid':'part',amt:amt,date:when});
+        if(j&&j.ok){ flash(full?('✓ บันทึกรับเงิน '+b3Money(amt)+' บาท — ปิดหนี้บิลนี้แล้ว'):('✓ รับบางส่วน '+b3Money(amt)+' บาท — ยังค้าง '+b3Money(x.remain-amt)+' บาท'),'ok'); await loadDebt(); }
+        else flash('บันทึกไม่สำเร็จ'+((j&&j.result)?': '+(ACT_ERR[j.result]||j.result):''),'err');
+      }catch(e){ flash('เชื่อมต่อไม่สำเร็จ','err'); }
+    })();
+  };
+  ov.onclick=e=>{ if(e.target===ov) fin(false); };
+  document.getElementById('b3Cancel').onclick=()=>fin(false);
+  document.getElementById('b3Ok').onclick=()=>fin(true);
+}
+function debtDue(key){
+  const x=debtInvs.find(v=>v.key===key); if(!x) return;
+  const cur=x.due||todayLocal();
+  const v=prompt('วันครบกำหนดชำระของบิลนี้ (รูปแบบ ปปปป-ดด-วว)\n'+(x.cust||'')+(x.invno?' · '+x.invno:''),cur);
+  if(!v) return;
+  if(!/^\d{4}-\d{2}-\d{2}$/.test(v.trim())){ flash('รูปแบบวันที่ไม่ถูกต้อง ต้องเป็น ปปปป-ดด-วว เช่น 2026-09-15','err'); return; }
+  (async()=>{
+    try{ const j=await callAct({act:'bdue',uids:x.uids.join(','),due:v.trim()});
+      if(j&&j.ok){ flash('📅 แก้วันครบกำหนดเป็น '+thd(v.trim())+' แล้ว','ok'); await loadDebt(); }
+      else flash('แก้ไม่สำเร็จ'+((j&&j.result)?': '+(ACT_ERR[j.result]||j.result):''),'err');
+    }catch(e){ flash('เชื่อมต่อไม่สำเร็จ','err'); }
+  })();
+}
+
 /* ---- โหลดคิว (V57.3 เร่งความเร็ว) ----
    1) วาดจากแคชในเครื่องทันทีที่เปิดหน้า = เห็นคิวเลย ไม่ต้องรอเน็ต
    2) แล้วดึงของจริงมาทับเงียบๆ (ทุกปุ่มที่ลงมือทำ ยัง bill2Fresh ก่อนเสมอ — สถานะไม่มีทางเพี้ยน)
@@ -3062,8 +3216,9 @@ $("goBill").addEventListener('click',()=>{ location.hash='bill'; });
 $("bpBack").addEventListener('click',()=>{ location.hash=''; });
 $("bpReload").addEventListener('click',()=>{ // V57: รีเฟรชตามโหมดที่เปิดอยู่
   if(billMode==='new'){ bill2Sel={}; if(bill2Filter==='recent') loadBill2Recent(); else loadBill2Queue(); }
+  else if(billMode==='debt'){ loadDebt(); }
   else { billSel={}; if(billFilter==='recent') loadBillRecent(); else loadBillQueue(); }
-  flash('ดึงคิวล่าสุดจากชีทแล้ว','ok'); });
+  flash('ดึงข้อมูลล่าสุดจากชีทแล้ว','ok'); });
 billPageSync();
 $("btnVerifyAll").addEventListener('click',verifyAllSheet);
 $("btnDups").addEventListener('click',renderDupOnly);
@@ -3078,7 +3233,10 @@ $("billTo").addEventListener('change',billSearchSync);
 $("billQClear").addEventListener('click',billSearchClear);
 /* ---- V57: คิวบิลใหม่ ---- */
 $("bmNew").addEventListener('click',()=>{ billMode='new'; billModeSync(); });
+$("bmDebt").addEventListener('click',()=>{ billMode='debt'; billModeSync(); });
 $("bmOld").addEventListener('click',()=>{ billMode='old'; billModeSync(); });
+document.querySelectorAll('#b3Filter .fb').forEach(f=>f.addEventListener('click',()=>{ debtFilter=f.dataset.f; renderDebt(); }));
+$("b3Q").addEventListener('input',e=>{ debtQ=e.target.value.trim(); renderDebt(); });
 $("btnB2New").addEventListener('click',()=>{ b2EditUid=''; bill2FormOpen(null); });
 $("btnB2Close").addEventListener('click',()=>{ b2EditUid=''; $("bill2Form").style.display='none'; });
 $("btnB2Clear").addEventListener('click',()=>{ b2EditUid=''; bill2FormClear(false); $("b2FormTitle").textContent='➕ จดบิลใหม่ — คีย์จากใบเสร็จ/ใบรับตู้ตัวจริง'; flash('ล้างฟอร์มบิลแล้ว','ok'); });
