@@ -370,6 +370,13 @@
   .invchip2{display:inline-block;background:var(--accent-soft);border:1px solid var(--accent);color:var(--accent);font-size:10.5px;font-weight:700;border-radius:10px;padding:0 7px;margin:2px 4px 0 0}
   .exchip2{display:inline-block;background:#ffe27a;color:#5a4300;font-size:10.5px;font-weight:700;border-radius:10px;padding:0 7px;margin:2px 4px 0 0}
   .b2edit{background:var(--field);color:var(--accent);border:1px solid var(--accent)}
+  .b2hist{background:var(--field);color:var(--ink-soft);border:1px solid var(--line)}
+  .b2del{background:var(--field);color:var(--warn);border:1px solid var(--warn)}
+  #billOvl .hrow{display:flex;gap:8px;justify-content:space-between;padding:6px 0;border-bottom:1px dashed var(--line);font-size:12.5px;flex-wrap:wrap}
+  #billOvl .hrow:last-child{border-bottom:none}
+  #billOvl .hrow .hf{font-weight:700;min-width:90px}
+  #billOvl .hrow .ho{color:var(--warn)}#billOvl .hrow .hn{color:var(--ok)}
+  #billOvl .hwhen{font-size:11px;color:var(--ink-soft)}
   /* กล่องยืนยันรวมงาน (ใช้ #billOvl — คลาสของ #mrgOvl เอื้อมไม่ถึง) */
   /* รายการบิลที่จดจากเครื่องนี้ (V58.1) */
   #b2Sess{margin:10px 14px;border:1px solid var(--line);border-radius:10px;background:var(--paper);overflow:hidden}
@@ -2119,13 +2126,17 @@ function bill2Card(g){
   const lines=g.rows.map((r,i)=>{
     const money=[]; if(b2Num(r.c_trans))money.push('ขนส่ง '+b2Money(r.c_trans)); if(b2Num(r.c_recv))money.push('รับ '+b2Money(r.c_recv)); if(b2Num(r.c_return))money.push('คืน '+b2Money(r.c_return));
     const exS=b2ParseEx(r.extras).reduce((a,e)=>a+e.v,0); if(exS)money.push('ค่าเพิ่ม '+b2Money(exS));
-    const rowEdit=(multi&&b2CanEdit(r))?' <button class="btn b2edit" style="padding:1px 7px;font-size:11px" data-act="edit" data-k="'+escAttr(g.key)+'" data-u="'+escAttr(r.uid)+'" title="แก้ใบนี้">✏️</button>':'';
+    const rowEdit=multi?((b2CanEdit(r)?' <button class="btn b2edit" style="padding:1px 7px;font-size:11px" data-act="edit" data-k="'+escAttr(g.key)+'" data-u="'+escAttr(r.uid)+'" title="แก้ใบนี้">✏️</button>':'')
+      +' <button class="btn b2hist" style="padding:1px 7px;font-size:11px" data-act="hist" data-k="'+escAttr(g.key)+'" data-u="'+escAttr(r.uid)+'" title="ประวัติการแก้ไขใบนี้">🕘</button>'
+      +(b2CanEdit(r)?' <button class="btn b2del" style="padding:1px 7px;font-size:11px" data-act="del" data-k="'+escAttr(g.key)+'" data-u="'+escAttr(r.uid)+'" title="ลบใบนี้">🗑</button>':'')):'';
     return '<div class="brow'+(multi?' linked':'')+'"><span>'+(multi?(i+1)+'. ':'')+escHtml(r.driver||'-')+' ('+escHtml(r.truck||'-')+')'
       +(r.size?' · '+escHtml(r.size):'')+(multi?' · '+escHtml(r.container||'-')+' · '+escHtml(thd(r.date)||'-'):'')+rowEdit
       +'</span><span class="d">'+money.join(' · ')+'</span></div>';
   }).join('');
   const stamp= s==='printed'?('<div class="bstamp'+(old?' old':'')+'">🖨 พิมพ์เมื่อ '+billDays(g.billAtMs)+' วันก่อน โดย '+escHtml(g.billBy||'-')+' — รอยืนยันปิดจ็อบ'+(old?' ⚠️ ค้างนานผิดปกติ':'')+'</div>'):'';
-  const edit=(!multi&&b2CanEdit(first))?'<button class="btn b2edit" data-act="edit" data-k="'+escAttr(g.key)+'" data-u="'+escAttr(first.uid)+'">✏️ แก้</button>':'';
+  const edit=multi?'' : ((b2CanEdit(first)?'<button class="btn b2edit" data-act="edit" data-k="'+escAttr(g.key)+'" data-u="'+escAttr(first.uid)+'">✏️ แก้</button>':'')
+    +'<button class="btn b2hist" data-act="hist" data-k="'+escAttr(g.key)+'" data-u="'+escAttr(first.uid)+'" title="ดูว่าใบนี้เคยถูกแก้อะไรบ้าง">🕘 ประวัติ</button>'
+    +(b2CanEdit(first)?'<button class="btn b2del" data-act="del" data-k="'+escAttr(g.key)+'" data-u="'+escAttr(first.uid)+'" title="ลบบิลใบนี้ (ย้ายเข้าถังขยะ กู้คืนได้)">🗑 ลบ</button>':''));
   const unmerge=multi?'<button class="btn bundo" data-act="unmerge" data-k="'+escAttr(g.key)+'" title="แยกกลับเป็นบิลใครบิลมัน">🔓 แยกงาน</button>':'';
   const acts= busy?'' : (s==='printed'
     ? '<button class="btn bview" data-act="preview" data-k="'+escAttr(g.key)+'">👁 ดูตัวอย่าง</button><button class="btn bprint" data-act="print" data-k="'+escAttr(g.key)+'">🖨 พิมพ์ซ้ำ</button><button class="btn bconfirm" data-act="confirm" data-k="'+escAttr(g.key)+'">✓ ยืนยันวางบิล</button><button class="btn bundo" data-act="unprint" data-k="'+escAttr(g.key)+'" title="กดพิมพ์ผิด — คืนสถานะเป็น ⚪ ยังไม่พิมพ์">↩</button>'+edit+unmerge
@@ -2280,6 +2291,8 @@ async function bill2Act(act,key,uidOne){
   if(bill2Busy[key]) return;
   let g=bill2Map[key]; if(!g) return;
   if(act==='edit'){ const r=bill2Rows.find(x=>x.uid===(uidOne||g.rows[0].uid)); if(r) bill2FormOpen(r); return; }
+  if(act==='hist'){ bill2ShowHistory(uidOne||g.rows[0].uid); return; }
+  if(act==='del'){ bill2Delete(uidOne||g.rows[0].uid); return; }
   if(act==='preview'){ openInvoice2(g.rows,null,g.invno||b2NextInv(g.cust)); return; }
   bill2Busy[key]=1; renderBill2();
   try{
@@ -2321,6 +2334,47 @@ async function bill2Act(act,key,uidOne){
     }
   } finally { delete bill2Busy[key]; renderBill2(); }
 }
+/* ---- V58.2: ลบบิล (ย้ายเข้าถังขยะบิล กู้คืนได้) ---- */
+async function bill2Delete(uid){
+  const r=bill2Rows.find(x=>x.uid===uid); if(!r) return;
+  const go=await new Promise(res=>billDialog('🗑','ลบบิลใบนี้?',
+    '<div class="mrow">'+escHtml(r.customer||'-')+' · ตู้ '+escHtml(r.container||'-')+' · '+b2Money(b2RowTotal(r))+' บาท</div>'
+    +'<div class="ghl2">ไม่ได้ลบทิ้งถาวร — ย้ายไปเก็บที่แท็บ <b>“ถังขยะบิล”</b> ในชีท พร้อมวันเวลาและชื่อคนลบ<br>ถ้าลบผิด ก๊อปแถวจากถังขยะกลับมาที่แท็บ “บิล” ได้เลย</div>',
+    '🗑 ลบบิล','ยกเลิก',()=>res(true),()=>res(false)));
+  if(!go) return;
+  try{
+    const j=await callAct({act:'bdel',uids:uid});
+    if(j&&j.ok){ flash('🗑 ลบบิลแล้ว — อยู่ในแท็บ “ถังขยะบิล” กู้คืนได้','ok'); bill2Sel={}; await bill2Fresh(); renderBill2(); }
+    else if(j&&j.result==='not-owner') flash('ลบได้เฉพาะบิลที่ตัวเองจด — ให้แอดมินลบให้','err');
+    else if(j&&j.result==='locked-printed') flash('บิลนี้พิมพ์/วางบิลไปแล้ว — ให้แอดมินลบให้ (หรือกด ↩ ย้อนสถานะก่อน)','err');
+    else flash('ลบไม่สำเร็จ'+((j&&j.result)?': '+(ACT_ERR[j.result]||j.result):''),'err');
+  }catch(e){ flash('เชื่อมต่อไม่สำเร็จ','err'); }
+}
+/* ---- V58.2: ดูประวัติการแก้ไขของบิลใบเดียว ---- */
+async function bill2ShowHistory(uid){
+  const r=bill2Rows.find(x=>x.uid===uid);
+  let ov=document.getElementById('billOvl'); if(ov) ov.remove();
+  ov=document.createElement('div'); ov.id='billOvl';
+  ov.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:9000;display:flex;align-items:flex-start;justify-content:center;padding:24px 14px;overflow:auto';
+  const head='<div style="font-size:30px;text-align:center">🕘</div><h3 style="text-align:center;margin:6px 0 4px;font-size:17px">ประวัติการแก้ไข</h3>'
+    +'<div style="text-align:center;font-size:12.5px;color:var(--ink-soft);margin-bottom:10px">'+escHtml(r?(r.customer+' · ตู้ '+(r.container||'-')):uid)+'</div>';
+  ov.innerHTML='<div style="background:var(--panel);color:var(--ink);border-radius:14px;max-width:520px;width:100%;padding:20px;box-shadow:var(--shadow)">'
+    +head+'<div id="b2HistBody" style="font-size:13px">กำลังโหลด…</div>'
+    +'<button id="b2HistClose" style="width:100%;margin-top:14px;padding:11px;border-radius:9px;border:1px solid var(--line-strong);background:transparent;color:var(--ink);font-weight:700;cursor:pointer;font-family:inherit">ปิด</button></div>';
+  document.body.appendChild(ov);
+  ov.onclick=e=>{ if(e.target===ov) ov.remove(); };
+  document.getElementById('b2HistClose').onclick=()=>ov.remove();
+  try{
+    const j=await callAct({act:'bhist',uid:uid});
+    const box=document.getElementById('b2HistBody'); if(!box) return;
+    if(!(j&&j.ok)){ box.innerHTML='<div class="hint" style="margin:0">'+(j&&j.result==='not-found'?'ไม่พบบิลใบนี้':'โหลดประวัติไม่สำเร็จ')+'</div>'; return; }
+    if(!j.rows.length){ box.innerHTML='<div class="hint" style="margin:0">ใบนี้ยังไม่เคยถูกแก้ไข — เป็นข้อมูลตอนจดครั้งแรกทั้งหมด</div>'; return; }
+    box.innerHTML=j.rows.map(h=>'<div class="hrow"><span class="hf">'+escHtml(h.field)+'</span>'
+      +'<span style="flex:1"><span class="ho">'+escHtml(h.old||'(ว่าง)')+'</span> → <span class="hn">'+escHtml(h.neu||'(ว่าง)')+'</span></span>'
+      +'<span class="hwhen">'+escHtml(String(h.time).replace('T',' '))+' · '+escHtml(h.editor||'-')+'</span></div>').join('');
+  }catch(e){ const box=document.getElementById('b2HistBody'); if(box) box.innerHTML='<div class="hint" style="margin:0">เชื่อมต่อไม่สำเร็จ</div>'; }
+}
+
 /* รวมงาน: หลายบิล → บิลเดียว (เก็บถาวรในชีท) — งานที่ใช้หลายรถ/หลายคนขับ หรือหลายตู้ที่ต้องออกใบเดียว */
 async function bill2Merge(){
   const keys=Object.keys(bill2Sel).filter(k=>bill2Sel[k]&&bill2Map[k]);
