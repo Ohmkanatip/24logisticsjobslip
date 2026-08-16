@@ -522,6 +522,10 @@
   .b3acts .btn{border:none;border-radius:8px;padding:8px 13px;font-size:12.5px;font-weight:700;cursor:pointer;font-family:inherit}
   .b3acts .bpay{background:var(--ok);color:#fff}
   .b3acts .bdue{background:var(--field);color:var(--ink);border:1px solid var(--line)}
+  .b3acts .bundo{background:transparent;color:var(--ink);border:1px solid var(--line-strong)}
+  .b3acts .bdel3{background:transparent;color:var(--warn);border:1px solid var(--warn)}
+  .b3card.done{border-left-color:var(--ok);opacity:.82}
+  .b3card.done .b3amt{color:var(--ok)}
   #b3QInfo:empty{display:none}
   #b3QInfo{align-self:center;font-size:12.5px;font-weight:700;color:var(--accent);background:var(--accent-soft);border:1px solid var(--accent);border-radius:20px;padding:5px 11px}
 </style>
@@ -948,6 +952,7 @@
         <button class="fb" data-f="over">🔴 เกินกำหนด <span class="b" id="b3c-over">0</span></button>
         <button class="fb" data-f="soon" title="ครบกำหนดภายใน 7 วัน · รวมบิลที่ยังไม่ได้ตั้งวันครบกำหนดด้วย">🟠 ใกล้ครบ / ยังไม่ตั้ง <span class="b" id="b3c-soon">0</span></button>
         <button class="fb" data-f="ok">🟢 ยังไม่ถึงกำหนด <span class="b" id="b3c-ok">0</span></button>
+        <button class="fb" data-f="done" title="เก็บเงินครบแล้ว — ไม่นับเป็นยอดค้าง แต่ยังหาเจอไว้แก้/ลบได้">✅ เก็บแล้ว <span class="b" id="b3c-done">0</span></button>
       </div>
     </div>
     <div class="billsearch" id="b3Search">
@@ -2257,8 +2262,10 @@ function dashPageSync(){
    ============================================================ */
 let debtInvs=[], debtFilter='all', debtQ='', debtLoaded=false;
 function b3Money(n){ n=Number(n)||0; return n.toLocaleString('th-TH',{minimumFractionDigits:2,maximumFractionDigits:2}); }
-function b3Bucket(x){ if(x.overdue>0) return 'over'; if(x.overdue>=-7) return 'soon'; return 'ok'; }
+/* V61: ใบที่เก็บเงินครบแล้วแยกเป็นกลุ่มของตัวเอง — ไม่ใช่ยอดค้าง แต่ยังหาเจอไว้แก้/ลบได้ */
+function b3Bucket(x){ if(x.done) return 'done'; if(x.overdue>0) return 'over'; if(x.overdue>=-7) return 'soon'; return 'ok'; }
 function b3DueTxt(x){
+  if(x.done) return '✅ เก็บเงินครบแล้ว';   // V61: เก็บครบแล้วไม่ต้องตามอะไรอีก อย่าโชว์วันครบกำหนดให้ตกใจ
   if(!x.due) return 'ยังไม่ได้ตั้งวันครบกำหนด';
   if(x.overdue>0) return '🔴 เกินกำหนด '+x.overdue+' วัน (ครบ '+thd(x.due)+')';
   if(x.overdue===0) return '🟠 ครบกำหนดวันนี้';
@@ -2278,20 +2285,25 @@ function debtMatch(x){
 }
 function renderDebt(){
   const all=debtInvs.filter(debtMatch);
-  const nOver=all.filter(x=>b3Bucket(x)==='over').length, nSoon=all.filter(x=>b3Bucket(x)==='soon').length, nOk=all.filter(x=>b3Bucket(x)==='ok').length;
-  const sumAll=all.reduce((s,x)=>s+(Number(x.remain)||0),0);
-  const sumOver=all.filter(x=>b3Bucket(x)==='over').reduce((s,x)=>s+(Number(x.remain)||0),0);
-  $("b3Count").textContent=all.length+' บิลที่ยังไม่ได้เงิน';
+  /* V61: ทุกตัวเลข "ค้างรับ" ต้องนับจาก open เท่านั้น — ใบที่เก็บเงินแล้วอยู่หลังชิป ✅ เก็บแล้ว
+     ถ้าเผลอเอา all ไปรวม ยอดค้างจะพองขึ้นทันทีที่มีใบเก็บแล้ว */
+  const open=all.filter(x=>!x.done), nDone=all.length-open.length;
+  const nOver=open.filter(x=>b3Bucket(x)==='over').length, nSoon=open.filter(x=>b3Bucket(x)==='soon').length, nOk=open.filter(x=>b3Bucket(x)==='ok').length;
+  const sumAll=open.reduce((s,x)=>s+(Number(x.remain)||0),0);
+  const sumOver=open.filter(x=>b3Bucket(x)==='over').reduce((s,x)=>s+(Number(x.remain)||0),0);
+  $("b3Count").textContent=open.length+' บิลที่ยังไม่ได้เงิน';
   $("b3Sum").innerHTML='<div class="box"><div class="lbl">รวมค้างรับทั้งหมด</div><div class="val">'+b3Money(sumAll)+'</div></div>'
     +'<div class="box"><div class="lbl">เกินกำหนดแล้ว</div><div class="val'+(sumOver?' red':'')+'">'+b3Money(sumOver)+'</div></div>'
-    +'<div class="box"><div class="lbl">จำนวนบิล</div><div class="val">'+all.length+'</div></div>';
-  $("b3c-all").textContent=all.length; $("b3c-over").textContent=nOver; $("b3c-soon").textContent=nSoon; $("b3c-ok").textContent=nOk;
+    +'<div class="box"><div class="lbl">จำนวนบิล</div><div class="val">'+open.length+'</div></div>';
+  $("b3c-all").textContent=open.length; $("b3c-over").textContent=nOver; $("b3c-soon").textContent=nSoon; $("b3c-ok").textContent=nOk;
+  $("b3c-done").textContent=nDone;
   $("b3QInfo").textContent=debtQ?('🔍 ตรงกับที่ค้น '+all.length+' จาก '+debtInvs.length+' บิล'):'';
   document.querySelectorAll('#b3Filter .fb').forEach(f=>f.classList.toggle('on',f.dataset.f===debtFilter));
-  const shown=all.filter(x=>debtFilter==='all'||b3Bucket(x)===debtFilter)
+  // "ทั้งหมด" = เฉพาะที่ยังค้าง · ใบที่เก็บแล้วดูได้ที่ชิป ✅ เก็บแล้ว (หน้านี้คือหน้าติดตามหนี้ ความหมายต้องไม่เพี้ยน)
+  const shown=(debtFilter==='all'?open:all.filter(x=>b3Bucket(x)===debtFilter))
     .sort((a,b)=>(b.overdue||0)-(a.overdue||0));   // ค้างนานสุดขึ้นก่อน
   if(!shown.length){
-    $("b3Body").innerHTML='<div class="empty" style="color:var(--ok)">'+(debtQ?'ไม่พบบิลที่ตรงกับที่ค้น':(debtInvs.length?'ไม่มีบิลในกลุ่มนี้':'เก็บเงินครบทุกบิลแล้ว 🎉'))+'</div>';
+    $("b3Body").innerHTML='<div class="empty" style="color:var(--ok)">'+(debtQ?'ไม่พบบิลที่ตรงกับที่ค้น':(debtFilter==='done'?'ยังไม่มีบิลที่เก็บเงินครบ':(debtInvs.length?'ไม่มีบิลในกลุ่มนี้':'เก็บเงินครบทุกบิลแล้ว 🎉')))+'</div>';
     return;
   }
   $("b3Body").innerHTML=shown.map(x=>{
@@ -2304,11 +2316,20 @@ function renderDebt(){
       +(x.uids.length>1?' <span class="lchip">'+x.uids.length+' ใบ</span>':'')+'<br>'
       +b3DueTxt(x)+(x.credit?' · เครดิต '+x.credit+' วัน':'')+'</div>'+part+'</div>'
       +'<div class="b3amt">'+b3Money(x.remain)+'<small>บาท</small></div></div>'
-      +'<div class="b3acts"><button class="btn bpay" data-pay="'+escAttr(x.key)+'">✓ รับเงินแล้ว</button>'
-      +'<button class="btn bdue" data-due="'+escAttr(x.key)+'">📅 แก้วันครบกำหนด</button></div></div>';
+      +'<div class="b3acts">'
+      +(x.done?'':'<button class="btn bpay" data-pay="'+escAttr(x.key)+'">✓ รับเงินแล้ว</button>')
+      +(x.done?'':'<button class="btn bdue" data-due="'+escAttr(x.key)+'">📅 แก้วันครบกำหนด</button>')
+      /* V61: ทางแก้บิลที่จดผิด — เดิมพอยืนยันวางบิลแล้วทำอะไรไม่ได้เลย */
+      +((Number(x.paidAmt)||0)>0||x.done?'<button class="btn bundo" data-unpay="'+escAttr(x.key)+'">↩ ถอนรับเงิน</button>':'')
+      +'<button class="btn bundo" data-unbill="'+escAttr(x.key)+'">↩ ดึงกลับไปแก้</button>'
+      +(adminToken?'<button class="btn bdel3" data-del="'+escAttr(x.key)+'">🗑 ลบบิล</button>':'')
+      +'</div></div>';
   }).join('');
   $("b3Body").querySelectorAll('[data-pay]').forEach(b=>b.onclick=()=>debtPay(b.dataset.pay));
   $("b3Body").querySelectorAll('[data-due]').forEach(b=>b.onclick=()=>debtDue(b.dataset.due));
+  $("b3Body").querySelectorAll('[data-unbill]').forEach(b=>b.onclick=()=>debtUnbill(b.dataset.unbill));
+  $("b3Body").querySelectorAll('[data-unpay]').forEach(b=>b.onclick=()=>debtUnpay(b.dataset.unpay));
+  $("b3Body").querySelectorAll('[data-del]').forEach(b=>b.onclick=()=>debtDelete(b.dataset.del));
 }
 /* กล่องบันทึกรับเงิน — ใส่ยอดที่ได้รับจริงได้ (เผื่อลูกค้าหักอะไรเพิ่ม หรือจ่ายมาบางส่วน) */
 function debtPay(key){
@@ -2358,6 +2379,72 @@ function debtDue(key){
       else flash('แก้ไม่สำเร็จ'+((j&&j.result)?': '+(ACT_ERR[j.result]||j.result):''),'err');
     }catch(e){ flash('เชื่อมต่อไม่สำเร็จ','err'); }
   })();
+}
+
+/* ============================================================
+   V61 — แก้บิลที่ยืนยันวางบิลไปแล้ว
+   เดิม: ยืนยันแล้ว = แก้/ลบไม่ได้เลย · ถ้าเผลอกดรับเงินด้วยจะหาไม่เจอทั้งเว็บ
+   แต่เงินยังนับในแดชบอร์ด → ตัวเลขมั่วโดยที่แก้อะไรไม่ได้
+   ============================================================ */
+/* หลังลงมือทุกครั้ง: รีเฟรชทั้งลูกหนี้+คิว และล้างแคชแดชบอร์ด ไม่งั้นเลขเก่าค้างหลอกตา */
+async function debtRefreshAll(){
+  try{ localStorage.removeItem(DASHCACHE); }catch(e){}
+  dashData=null; dashLast=0;
+  try{ await loadDebt(); }catch(e){}
+  try{ await bill2Fresh(); if(billMode==='new') renderBill2(); }catch(e){}
+}
+/* ↩ ดึงกลับไปแก้ — บิลกลับเข้าคิววางบิลเป็น "ยังไม่พิมพ์" แล้วแก้/ลบต่อได้ตามปกติ */
+async function debtUnbill(key){
+  const x=debtInvs.find(v=>v.key===key); if(!x) return;
+  const paid=(Number(x.paidAmt)||0)>0||x.done;
+  const go=await new Promise(res=>billDialog('↩','ดึงบิลกลับไปแก้?',
+    '<div class="mrow">'+escHtml(x.cust||'-')+(x.invno?' · 🧾 '+escHtml(x.invno):'')
+      +'<br>ตู้ '+escHtml((x.conts||[]).join(' + ')||'-')+(x.uids.length>1?' <b>('+x.uids.length+' ใบ)</b>':'')+'</div>'
+    +'<div class="ghl2">บิลจะ<b>หายจากหน้าลูกหนี้</b> กลับไปอยู่ใน <b>คิววางบิล</b> เป็น “ยังไม่พิมพ์”<br>'
+    +'แก้ตัวเลขให้ถูก → พิมพ์ใหม่ → ยืนยันอีกที · <b>เลขบิลเดิมยังอยู่</b><br>'
+    +'<span style="color:var(--ink-soft)">ยอดเงินยังนับในแดชบอร์ดอยู่ เพราะบิลยังไม่ถูกลบ — ถ้าเป็นบิลที่ไม่ควรมีเลย ให้ลบทิ้งแทน</span></div>'
+    +(paid?'<div class="ghl3">⚠️ บิลนี้บันทึกรับเงินไว้ <b>'+b3Money(x.paidAmt||0)+' บาท</b> — ดึงกลับแล้ว<b>ยอดรับเงินจะถูกล้างทิ้ง</b> ต้องมาบันทึกใหม่หลังยืนยันรอบหน้า</div>':''),
+    '↩ ดึงกลับไปแก้','ยกเลิก',()=>res(true),()=>res(false)));
+  if(!go) return;
+  const r=await b2Chunked('bset',x.uids,{state:'reset'});
+  if(r.bad){ flash('ดึงกลับไม่สำเร็จ — '+escHtml(ACT_ERR[r.bad]||r.bad),'err'); return; }
+  await debtRefreshAll();
+  flash('↩ ดึงกลับแล้ว — อยู่ในคิววางบิล กด ✏️ แก้ได้เลย','ok');
+}
+/* ↩ ถอนรับเงิน — กดรับผิดใบ หรือกดเผลอ */
+async function debtUnpay(key){
+  const x=debtInvs.find(v=>v.key===key); if(!x) return;
+  const go=await new Promise(res=>billDialog('↩','ถอนรายการรับเงิน?',
+    '<div class="mrow">'+escHtml(x.cust||'-')+(x.invno?' · 🧾 '+escHtml(x.invno):'')
+      +'<br>ยอดที่บันทึกไว้ <b>'+b3Money(x.paidAmt||0)+' บาท</b></div>'
+    +'<div class="ghl2">ยอดรับเงินจะถูกล้าง และบิลจะ<b>กลับมาอยู่ในรายการค้างรับ</b>เหมือนเดิม<br>ตัวบิลไม่ได้ถูกลบ ตัวเลขในแดชบอร์ดไม่เปลี่ยน</div>',
+    '↩ ถอนรับเงิน','ยกเลิก',()=>res(true),()=>res(false)));
+  if(!go) return;
+  const r=await b2Chunked('bpay',x.uids,{state:'unpaid'});
+  if(r.bad){ flash('ถอนไม่สำเร็จ — '+escHtml(ACT_ERR[r.bad]||r.bad),'err'); return; }
+  await debtRefreshAll();
+  flash('↩ ถอนรับเงินแล้ว — กลับมาอยู่ในรายการค้างรับ','ok');
+}
+/* 🗑 ลบบิล — บิลที่ไม่ควรมีอยู่เลย (จดซ้ำ/จดมั่ว) · แอดมินเท่านั้น */
+async function debtDelete(key){
+  const x=debtInvs.find(v=>v.key===key); if(!x) return;
+  if(!adminToken){ flash('ลบบิลที่ยืนยันแล้วได้เฉพาะแอดมิน — กด ↩ ดึงกลับไปแก้ ก่อนแล้วลบในคิวได้','err'); return; }
+  const paid=(Number(x.paidAmt)||0)>0||x.done;
+  const go=await new Promise(res=>billDialog('🗑','ลบบิลนี้?',
+    '<div class="mrow">'+escHtml(x.cust||'-')+(x.invno?' · 🧾 '+escHtml(x.invno):'')
+      +'<br>ตู้ '+escHtml((x.conts||[]).join(' + ')||'-')+(x.uids.length>1?' <b>('+x.uids.length+' ใบ)</b>':'')
+      +'<br>ยอดบิล <b>'+b3Money(x.amount||0)+' บาท</b></div>'
+    +'<div class="ghl2">ลบแล้วบิลจะ<b>หายจากทุกหน้าพร้อมกัน</b> — คิววางบิล · ลูกหนี้ · <b>แดชบอร์ดภาพรวมเงิน</b> · สรุปรายเดือน<br>'
+    +'ไม่ได้ลบถาวร — เก็บไว้ที่ <b>🗑 ถังขยะ</b> กดกู้คืนได้ทุกเมื่อ</div>'
+    +(paid?'<div class="ghl3">⚠️ บิลนี้บันทึกรับเงินไว้ <b>'+b3Money(x.paidAmt||0)+' บาท</b> — ประวัติการรับเงินจะหายไปกับบิลด้วย</div>':''),
+    '🗑 ลบบิล','ยกเลิก',()=>res(true),()=>res(false)));
+  if(!go) return;
+  const r=await b2Chunked('bdel',x.uids);
+  if(r.bad){ flash('ลบไม่สำเร็จ — '+escHtml(ACT_ERR[r.bad]||r.bad),'err'); return; }
+  if(!r.done){ flash('ลบไม่ได้ — บิลนี้ไม่ใช่ของคุณ หรือถูกลบไปแล้ว','err'); await debtRefreshAll(); return; }
+  trLoaded=false;
+  await debtRefreshAll();
+  flash('🗑 ลบแล้ว — หายจากแดชบอร์ดและทุกหน้าแล้ว · อยู่ใน 🗑 ถังขยะ กู้คืนได้','ok');
 }
 
 /* ---- โหลดคิว (V57.3 เร่งความเร็ว) ----
