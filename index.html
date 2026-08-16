@@ -2317,10 +2317,11 @@ function renderDebt(){
       +b3DueTxt(x)+(x.credit?' · เครดิต '+x.credit+' วัน':'')+'</div>'+part+'</div>'
       +'<div class="b3amt">'+b3Money(x.remain)+'<small>บาท</small></div></div>'
       +'<div class="b3acts">'
-      +(x.done?'':'<button class="btn bpay" data-pay="'+escAttr(x.key)+'">✓ รับเงินแล้ว</button>')
+      /* V62: ปุ่มที่แตะ "เงินที่รับมาจริง" = แอดมินเท่านั้น · คนวางบิลยังแก้วันครบกำหนด/ดึงกลับไปแก้ได้ */
+      +(x.done||!adminToken?'':'<button class="btn bpay" data-pay="'+escAttr(x.key)+'">✓ รับเงินแล้ว</button>')
       +(x.done?'':'<button class="btn bdue" data-due="'+escAttr(x.key)+'">📅 แก้วันครบกำหนด</button>')
       /* V61: ทางแก้บิลที่จดผิด — เดิมพอยืนยันวางบิลแล้วทำอะไรไม่ได้เลย */
-      +((Number(x.paidAmt)||0)>0||x.done?'<button class="btn bundo" data-unpay="'+escAttr(x.key)+'">↩ ถอนรับเงิน</button>':'')
+      +(adminToken&&((Number(x.paidAmt)||0)>0||x.done)?'<button class="btn bundo" data-unpay="'+escAttr(x.key)+'">↩ ถอนรับเงิน</button>':'')
       +'<button class="btn bundo" data-unbill="'+escAttr(x.key)+'">↩ ดึงกลับไปแก้</button>'
       +(adminToken?'<button class="btn bdel3" data-del="'+escAttr(x.key)+'">🗑 ลบบิล</button>':'')
       +'</div></div>';
@@ -2334,6 +2335,7 @@ function renderDebt(){
 /* กล่องบันทึกรับเงิน — ใส่ยอดที่ได้รับจริงได้ (เผื่อลูกค้าหักอะไรเพิ่ม หรือจ่ายมาบางส่วน) */
 function debtPay(key){
   const x=debtInvs.find(v=>v.key===key); if(!x) return;
+  if(!adminToken){ flash('บันทึกรับเงินได้เฉพาะแอดมิน — แจ้งเจ้าของให้กดให้','err'); return; }   // V62
   let ov=document.getElementById('billOvl'); if(ov) ov.remove();
   ov=document.createElement('div'); ov.id='billOvl'; let done=false;
   ov.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:9000;display:flex;align-items:center;justify-content:center;padding:20px';
@@ -2414,6 +2416,7 @@ async function debtUnbill(key){
 /* ↩ ถอนรับเงิน — กดรับผิดใบ หรือกดเผลอ */
 async function debtUnpay(key){
   const x=debtInvs.find(v=>v.key===key); if(!x) return;
+  if(!adminToken){ flash('ถอนรับเงินได้เฉพาะแอดมิน — แจ้งเจ้าของให้กดให้','err'); return; }   // V62
   const go=await new Promise(res=>billDialog('↩','ถอนรายการรับเงิน?',
     '<div class="mrow">'+escHtml(x.cust||'-')+(x.invno?' · 🧾 '+escHtml(x.invno):'')
       +'<br>ยอดที่บันทึกไว้ <b>'+b3Money(x.paidAmt||0)+' บาท</b></div>'
@@ -3566,6 +3569,7 @@ const ACT_ERR={forbidden:'รหัสแอดมินไม่ถูกต้
   'no-return-col':'ชีทยังไม่มีคอลัมน์ “วันคืนจริง” — รัน reorderSheet ในชีทก่อน',
   'self-verify':'จดเอง ตรวจเอง/ถอนเองไม่ได้ — ต้องให้อีกคนเป็นคนตรวจ',
   'reset-locked':'ป้าย “แก้หลังตรวจ” ถอนไม่ได้ — เทียบใบจริงแล้วกด ✅ ตรวจใหม่เท่านั้น',
+  'pay-admin-only':'บันทึก/ถอนรับเงินได้เฉพาะแอดมิน — แจ้งเจ้าของให้กดให้',
   'unknown-act':'หลังบ้านยังไม่ได้อัปเดต — ต้อง deploy Apps Script เวอร์ชันใหม่ก่อน'};
 async function deleteSelected(){
   const url=endpoint(); if(!url.startsWith('http')){ flash('ยังไม่ได้ตั้ง Sheet URL','err'); return; }
