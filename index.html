@@ -446,8 +446,36 @@
   .dnext{background:rgba(255,255,255,.14);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);border-radius:14px;padding:14px;text-align:center;color:#fff;font-size:13.5px;line-height:1.8}
   @media(max-width:820px){.dnext{backdrop-filter:none!important;-webkit-backdrop-filter:none!important;background:rgba(20,26,44,.6)}}
   /* ป้ายช่วงวันที่บนแถบเลือกเดือน — อยู่บนฉากพื้นหลัง ใช้ .hint ไม่ได้ (จางจนอ่านไม่ออก บทเรียน V55) */
-  #dRange{color:#fff;background:rgba(255,255,255,.16);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);border-radius:20px;padding:5px 12px;margin:0;font-size:12px}
-  @media(max-width:820px){#dRange{backdrop-filter:none!important;-webkit-backdrop-filter:none!important;background:rgba(20,26,44,.6)}}
+  #dRange,#pRange{color:#fff;background:rgba(255,255,255,.16);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);border-radius:20px;padding:5px 12px;margin:0;font-size:12px}
+  @media(max-width:820px){#dRange,#pRange{backdrop-filter:none!important;-webkit-backdrop-filter:none!important;background:rgba(20,26,44,.6)}}
+  /* ===== V63: หน้าเงินคนขับ + ช่องค่าเที่ยวในฟอร์ม ===== */
+  #payPage{position:fixed;inset:0;z-index:8000;background:transparent;overflow:auto;display:none;-webkit-overflow-scrolling:touch}
+  body.pay-on .wrap>*:not(#payPage){display:none!important}
+  .triprow{display:flex;align-items:center;gap:9px;flex-wrap:wrap;padding:11px 14px;background:var(--field);border:1px solid var(--line);border-radius:10px;margin-top:8px}
+  .triprow>input{width:130px;font-family:'IBM Plex Mono',monospace;font-weight:600;text-align:right}
+  .tripinfo{flex:1;min-width:170px;font-size:12.5px;color:var(--ink-soft);line-height:1.6}
+  .tripinfo.ok{color:var(--ok);font-weight:600}
+  .tripinfo.manual{color:var(--warn);font-weight:600}
+  .prow{display:flex;align-items:center;gap:11px;padding:11px 0;border-bottom:1px dashed var(--line);cursor:pointer}
+  .prow:last-child{border-bottom:none}
+  .prow .pn{width:24px;height:24px;border-radius:50%;background:var(--field);color:var(--ink-soft);display:grid;place-items:center;font-size:11.5px;font-weight:700;flex:none}
+  .prow .pn.top{background:var(--accent);color:#fff}
+  .prow .pnm{flex:1;min-width:0;font-size:14px;font-weight:600}
+  .prow .pnm small{display:block;color:var(--ink-soft);font-size:11.5px;font-weight:400;margin-top:2px}
+  .prow .pamt{font-family:'IBM Plex Mono',monospace;font-size:15px;font-weight:600;white-space:nowrap}
+  .ptrips{display:none;padding:2px 0 12px 35px}
+  .ptrips.on{display:block}
+  .ptable{width:100%;border-collapse:collapse;font-size:12px}
+  .ptable th{background:var(--field);text-align:left;padding:7px 9px;font-weight:700;font-size:11px;color:var(--ink-soft);white-space:nowrap}
+  .ptable td{padding:7px 9px;border-bottom:1px dashed var(--line)}
+  .ptable td.n{text-align:right;font-family:'IBM Plex Mono',monospace;font-weight:600;white-space:nowrap}
+  .pscroll{overflow-x:auto}
+  .ratepick{display:flex;align-items:center;gap:10px;padding:10px 12px;border:1px solid var(--line);border-radius:10px;margin-bottom:8px;cursor:pointer;background:var(--panel)}
+  .ratepick:hover{border-color:var(--accent)}
+  .ratepick .ri{flex:1;min-width:0;font-size:13px}
+  .ratepick .ri small{display:block;color:var(--ink-soft);font-size:11.5px;margin-top:2px}
+  .ratepick .rp{font-family:'IBM Plex Mono',monospace;font-weight:600;white-space:nowrap}
+
   /* ===== V60: ถังขยะบิล + ประวัติแก้ไขรวม ===== */
   .trow{display:flex;align-items:center;gap:11px;padding:11px 14px;border-bottom:1px dashed var(--line)}
   .trow:last-child{border-bottom:none}
@@ -681,6 +709,12 @@
     <div class="gb-arrow">→</div>
   </div>
 
+  <!-- V63: หน้าเงินคนขับ — แอดมินเท่านั้น (JS เปิดให้เมื่อเป็นแอดมิน) -->
+  <div class="gobill" id="goPay" role="button" tabindex="0" style="border-color:var(--ok);display:none">
+    <div><b>🧑‍✈️ เงินคนขับ (ค่าเที่ยว)</b><div class="gb-sub">รวมค่าเที่ยวรายคน · แจกแจงรายเที่ยว · พิมพ์ไปจ่ายเงินได้ — ลิงก์ท้าย #pay</div></div>
+    <div class="gb-arrow">→</div>
+  </div>
+
   <!-- V59: หน้าภาพรวมเงิน — บุ๊กมาร์กแยกได้ที่ #dash -->
   <div class="gobill" id="goDash" role="button" tabindex="0" style="border-color:var(--accent)">
     <div><b>📊 ภาพรวมเงิน &amp; ต้นทุน</b><div class="gb-sub">เงินรอเก็บ · เกินกำหนด · ตู้ที่วิ่ง · ต้นทุนที่ไม่ได้อยู่ในบิล — เปิดดูได้ทุกที่ด้วยลิงก์ท้าย #dash</div></div>
@@ -817,6 +851,40 @@
   </div>
 
   <!-- ============ V59: หน้าภาพรวม (Dashboard) ============ -->
+  <!-- ============ V63: หน้าเงินคนขับ ============ -->
+  <div id="payPage">
+  <div class="bp-top">
+    <button class="btn btn-ghost" id="ppBack">← กลับหน้าจด</button>
+    <div class="bp-title">🧑‍✈️ เงินคนขับ — ค่าเที่ยว</div>
+    <button class="btn btn-ghost" id="ppPrint" title="พิมพ์ไปใช้จ่ายเงิน">🖨 พิมพ์</button>
+  </div>
+  <div class="bp-inner">
+    <div class="period" id="pPeriod">
+      <button class="on" data-pp="m">เดือนนี้</button>
+      <button data-pp="lm">เดือนที่แล้ว</button>
+      <button data-pp="q">3 เดือนล่าสุด</button>
+      <span style="align-self:center" id="pRange"></span>
+    </div>
+    <div class="kpis">
+      <div class="kpi dark"><div class="lbl">💰 รวมค่าเที่ยวทั้งช่วง</div><div class="val" id="pk1">—</div><div class="sub" id="pk1s"></div><div class="spark">💰</div></div>
+      <div class="kpi plain"><div class="lbl">🚚 จำนวนเที่ยว</div><div class="val" id="pk2">—</div><div class="sub" id="pk2s"></div><div class="spark">🚚</div></div>
+      <div class="kpi amber"><div class="lbl">⚠️ ยังไม่มีค่าเที่ยว</div><div class="val" id="pk3">—</div><div class="sub" id="pk3s"></div><div class="spark">⚠️</div></div>
+    </div>
+    <div class="dcard">
+      <div class="dcard-h"><h3>👥 แยกรายคนขับ</h3><span class="note">กดที่ชื่อเพื่อดูรายเที่ยว</span></div>
+      <div class="dcard-b" id="pDrvList"></div>
+    </div>
+    <div class="dcard" id="pMissCard" style="display:none">
+      <div class="dcard-h"><h3>⚠️ บิลที่ยังไม่มีค่าเที่ยว</h3><span class="note">เปิดหน้าวางบิลไปเติมได้</span></div>
+      <div class="dcard-b" id="pMissList"></div>
+    </div>
+    <div class="dnext">
+      🔜 <b>ขั้นต่อไป: กำไรต่อเที่ยว</b><br>
+      มีค่าเที่ยวคนขับแล้ว เหลือ <b>ค่าน้ำมัน</b> กับ <b>ค่าใช้จ่ายประจำ</b> ก็คิดกำไรจริงได้
+    </div>
+  </div>
+  </div>
+
   <div id="dashPage">
   <div class="bp-top">
     <button class="btn btn-ghost" id="dpBack">← กลับหน้าจด</button>
@@ -990,6 +1058,9 @@
       <div class="three">
         <div class="field"><label>Job.Ref / เลขอ้างอิง</label><input id="b2_jobref" class="mono" placeholder="เช่น 2607-102" autocomplete="off"></div>
         <div class="field"><label>B/L</label><input id="b2_bl" class="mono" placeholder="เช่น 120GA06011" autocomplete="off"></div>
+        <div class="field"><label>Booking No. <span style="color:var(--ink-soft);font-weight:400">(ไม่ใส่ก็ได้)</span></label><input id="b2_booking" class="mono" placeholder="เช่น BKG2608114" autocomplete="off"><span style="display:block;color:var(--ink-soft);font-size:11.5px;margin-top:3px">ยังไม่มี B/L ก็ใส่ตัวนี้ไว้ — บนบิลจะขึ้นแทนช่อง B/L ให้เอง</span></div>
+      </div>
+      <div class="three">
         <div class="field"><label>ป้ายมุมขวาบนของบิล <span style="color:var(--ink-soft);font-weight:400">(ไม่ใส่ก็ได้)</span></label><input id="b2_tag" placeholder="เช่น XIANGJIA" autocomplete="off"></div>
       </div>
       <div class="three">
@@ -1004,6 +1075,15 @@
       <div class="b2exhead"><span class="t">รายการค่าใช้จ่ายเพิ่ม — ขึ้นเป็น<span class="yl">แถวไฮไลท์เหลือง</span>บนบิล ยอดลงช่องค่าขนส่ง (โดนหัก 1% ด้วย)</span><button type="button" class="b2exadd" id="btnB2ExAdd">➕ เพิ่มรายการ</button></div>
       <div id="b2ExList"></div>
       <p class="hint" id="b2ExEmpty" style="margin:2px 0 0">ยังไม่มีรายการเพิ่ม — เช่น ค่าค้างหางตู้หนัก, ค่าปั่นไฟ, ค่าฝากตู้ · 🚫 ไม่มีช่องค่าทางด่วน (ต้นทุนภายใน ไม่เรียกเก็บลูกค้า)</p>
+
+      <!-- V63: ค่าเที่ยวคนขับ — ต้นทุนภายใน ไม่ขึ้นบนใบวางบิลที่ส่งลูกค้า -->
+      <div class="col-title" style="margin-top:16px">ค่าเที่ยวคนขับ <span style="color:var(--ink-soft);font-weight:400;font-size:12px">· ต้นทุนภายใน ไม่ขึ้นบนบิลที่ส่งลูกค้า</span></div>
+      <div class="triprow">
+        <input type="hidden" id="b2_tripRefVal">
+        <input id="b2_tripPay" inputmode="decimal" placeholder="0" autocomplete="off">
+        <span class="tripinfo" id="b2TripChip">กรอกลูกค้า / สถานที่โหลด / ลานรับ / ลานคืน แล้วระบบจะหาเรทให้เอง</span>
+        <button type="button" class="minib" id="btnTripPick">🔎 เลือกเรทเอง</button>
+      </div>
       <div class="field" style="margin-top:12px"><label>หมายเหตุ (เก็บในชีท ไม่ขึ้นบนบิล)</label><input id="b2_note" placeholder="โน้ตภายใน เช่น รอใบเสร็จตัวจริง" autocomplete="off"></div>
       <div class="b2total"><span class="lbl">รวมเงินบิล (ก่อนหักภาษี)</span><span class="val" id="b2Total">0</span></div>
       <div class="b2acts">
@@ -2499,7 +2579,7 @@ function bill2Match(r){
   if(f&&(!r.date||r.date<f)) return false;
   if(t&&(!r.date||r.date>t)) return false;
   if(!q) return true;
-  const hay=b2Norm([r.container,r.customer,r.truck,r.driver,r.date,thd(r.date),r.invno,r.jobref,r.bl,r.tag].join('|'));
+  const hay=b2Norm([r.container,r.customer,r.truck,r.driver,r.date,thd(r.date),r.invno,r.jobref,r.bl,r.booking,r.tag].join('|'));
   return hay.indexOf(b2Norm(q))>-1;
 }
 function bill2SearchSync(){ $("b2QClear").style.display=bill2SearchOn()?'':'none'; renderBill2(); }
@@ -2548,7 +2628,7 @@ function bill2Card(g){
   const twin=bill2Rows.filter(x=>g.uids.indexOf(x.uid)<0&&x.container&&conts.some(c=>b2Norm(c)===b2Norm(x.container))).length;
   const chips=(multi?'<span class="lchip" title="บิลนี้รวม '+g.rows.length+' ใบเป็นใบเดียว — พิมพ์ออกมาเป็นบิลเดียวหลายบรรทัด">🔗 รวมงาน '+g.rows.length+' ใบ</span>':'')
     +'<span class="docchip2">Job.Ref '+escHtml(g.rows.map(r=>r.jobref).filter(Boolean)[0]||'—')+'</span>'
-    +'<span class="docchip2">B/L '+escHtml(g.rows.map(r=>r.bl).filter(Boolean)[0]||'—')+'</span>'
+    +'<span class="docchip2">B/L '+escHtml(g.rows.map(r=>r.bl).filter(Boolean)[0]||g.rows.map(r=>r.booking).filter(Boolean)[0]||'—')+'</span>'
     +(g.rows.map(r=>r.tag).filter(Boolean)[0]?'<span class="docchip2">🔖 '+escHtml(g.rows.map(r=>r.tag).filter(Boolean)[0])+'</span>':'')
     +(g.invno?'<span class="invchip2">🧾 '+escHtml(g.invno)+'</span>':'')
     +(twin&&!multi?'<span class="invchip2" title="ติ๊กเลือกทุกใบของตู้นี้ แล้วกด 🔗 รวมเป็นบิลเดียว">🔗 ตู้นี้มี '+(twin+1)+' ใบในคิว — รวมเป็นบิลเดียวได้</span>':'')
@@ -2808,6 +2888,194 @@ async function bill2ShowHistory(uid){
 }
 
 /* ============================================================
+   V63 — ค่าเที่ยวคนขับ: หาเรทอัตโนมัติจากตารางในชีท + หน้าเงินคนขับ
+   ⚠️ ค่าเที่ยวเป็นต้นทุนภายใน ห้ามโผล่บนใบวางบิลที่ส่งลูกค้าเด็ดขาด
+   ============================================================ */
+const RATECACHE='jobform_rates';
+let rateRows=[], rateZones={}, rateLoaded=false, tripManual=false, tripPickList=[];
+
+function rNorm(s){ return String(s==null?'':s).toLowerCase().replace(/[\s\-._/]/g,''); }
+function zoneOf(s){
+  const z=String(s||'').trim().toUpperCase().replace(/[\s.]/g,'');
+  if(z==='LKB') return 'LCB';
+  if(z==='LCB'||z==='BKK'||z==='PAT') return z;
+  return rateZones[rNorm(s)]||'';        // ลานที่เคยจับคู่ไว้ เช่น WGD → LCB
+}
+async function loadRates(force){
+  if(rateLoaded&&!force) return;
+  try{ const c=localStorage.getItem(RATECACHE); if(c){ const j=JSON.parse(c); rateRows=j.rows||[]; rateZones=j.zones||{}; rateLoaded=true; } }catch(e){}
+  try{
+    const j=await callAct({act:'rates'});
+    if(j&&j.ok&&Array.isArray(j.rows)){
+      rateRows=j.rows; rateZones=j.zones||{}; rateLoaded=true;
+      try{ localStorage.setItem(RATECACHE,JSON.stringify({rows:rateRows,zones:rateZones})); }catch(e){}
+    }
+  }catch(e){}
+}
+/* ราคาตามขนาดตู้ · ตู้ RF ใช้คอลัมน์ RF ไม่สนว่า 20 หรือ 40 (เจ้าของเคาะ 16 ส.ค.) */
+function ratePrice(row,size){
+  const sz=String(size||'').toUpperCase();
+  if(sz.indexOf('RF')>-1||sz.indexOf('REEFER')>-1) return Number(row.rf)||0;
+  const is20=/(^|[^0-9])20/.test(sz), isHQ=sz.indexOf('HQ')>-1;
+  const cand=is20?[row.p20,row.p40dc,row.p40hq]:(isHQ?[row.p40hq,row.p40dc,row.p20]:[row.p40dc,row.p40hq,row.p20]);
+  for(const v of cand){ if(Number(v)) return Number(v); }
+  return Number(row.rf)||0;
+}
+function rateLabel(r){ return [r.sub,r.load,(r.from&&r.to)?(r.from+' - '+r.to):(r.rawRoute||'')].filter(Boolean).join(' / '); }
+/* หาเรทจากสิ่งที่กรอกในฟอร์ม — คืนรายการที่เข้าเกณฑ์ (0 / 1 / หลายอัน) */
+function findRates(rec){
+  const cu=rNorm(rec.customer); if(!cu||!rateRows.length) return [];
+  let rows=rateRows.filter(r=>rNorm(r.cust)===cu);
+  if(!rows.length) return [];
+  const lp=rNorm(rec.loadPlace);
+  if(lp){ const byLoad=rows.filter(r=>rNorm(r.load)===lp); if(byLoad.length) rows=byLoad; }
+  const a=zoneOf(rec.yardIn), b=zoneOf(rec.yardOut);
+  if(a&&b){ const byRoute=rows.filter(r=>r.from===a&&r.to===b); if(byRoute.length) rows=byRoute; else if(lp) return rows; }
+  return rows.filter(r=>ratePrice(r,rec.size)>0);
+}
+function b2FormRec(){
+  return {customer:$("b2_customer").value,loadPlace:$("b2_loadPlace").value,
+          yardIn:$("b2_yardIn").value,yardOut:$("b2_yardOut").value,size:$("b2_size").value};
+}
+function tripChip(txt,cls){ const c=$("b2TripChip"); c.textContent=txt; c.className='tripinfo'+(cls?(' '+cls):''); }
+/* เรียกทุกครั้งที่ช่องที่เกี่ยวข้องเปลี่ยน */
+function tripAuto(){
+  if(tripManual) return;
+  const rec=b2FormRec();
+  if(!rec.customer){ tripChip('กรอกลูกค้า / สถานที่โหลด / ลานรับ / ลานคืน แล้วระบบจะหาเรทให้เอง'); return; }
+  const hits=findRates(rec);
+  if(hits.length===1){
+    $("b2_tripPay").value=ratePrice(hits[0],rec.size);
+    $("b2_tripRefVal").value=rateLabel(hits[0]);
+    tripChip('✅ ใช้เรท: '+rateLabel(hits[0]),'ok');
+  } else if(hits.length>1){
+    tripChip('เจอ '+hits.length+' เรทที่เข้าได้ — กด “เลือกเรทเอง” เพื่อเลือกให้ตรง');
+  } else {
+    tripChip(rateLoaded?'ไม่เจอเรทที่ตรง — กรอกเองหรือกด “เลือกเรทเอง”':'กำลังโหลดตารางเรท…');
+  }
+}
+/* ป๊อปอัพเลือกเรท — ใช้ทั้งตอนเจอหลายอันและตอนกดเลือกเอง */
+function tripPick(){
+  const rec=b2FormRec();
+  if(!rateRows.length){ flash('ยังไม่มีตารางเรท — วาง .gs แล้วก๊อปตารางลงแท็บ “เรทค่าเที่ยว” ก่อน','err'); return; }
+  const cu=rNorm(rec.customer);
+  let list=cu?rateRows.filter(r=>rNorm(r.cust)===cu):[];
+  const narrowed=findRates(rec);
+  if(narrowed.length) list=narrowed;
+  if(!list.length){ flash('ไม่มีเรทของลูกค้ารายนี้ในตาราง — กรอกค่าเที่ยวเองได้เลย','err'); return; }
+  let ov=document.getElementById('billOvl'); if(ov) ov.remove();
+  ov=document.createElement('div'); ov.id='billOvl';
+  ov.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:9000;display:flex;align-items:flex-start;justify-content:center;padding:24px 14px;overflow:auto';
+  ov.innerHTML='<div style="background:var(--panel);color:var(--ink);border-radius:14px;max-width:560px;width:100%;padding:20px;box-shadow:var(--shadow)">'
+    +'<div style="font-size:30px;text-align:center">🔎</div><h3 style="text-align:center;margin:6px 0 4px;font-size:17px">เลือกเรทค่าเที่ยว</h3>'
+    +'<div style="text-align:center;font-size:12.5px;color:var(--ink-soft);margin-bottom:12px">'+escHtml(rec.customer||'-')+(rec.size?(' · ตู้ '+escHtml(rec.size)):'')+'</div>'
+    +'<input id="tpQ" placeholder="ค้นสถานที่โหลด / ลูกค้าปลายทาง / เส้นทาง" autocomplete="off" style="margin-bottom:10px">'
+    +'<div id="tpList" style="max-height:46vh;overflow:auto"></div>'
+    +'<button id="tpClose" style="width:100%;margin-top:12px;padding:11px;border-radius:9px;border:1px solid var(--line-strong);background:transparent;color:var(--ink);font-weight:700;cursor:pointer;font-family:inherit">ปิด</button></div>';
+  document.body.appendChild(ov);
+  tripPickList=list;
+  const draw=()=>{
+    const q=rNorm(document.getElementById('tpQ').value);
+    const shown=tripPickList.filter(r=>!q||rNorm([r.sub,r.load,r.from,r.to,r.rawRoute].join(' ')).indexOf(q)>-1);
+    document.getElementById('tpList').innerHTML=shown.length?shown.map((r,i)=>
+      '<div class="ratepick" data-i="'+tripPickList.indexOf(r)+'"><span class="ri"><b>'+escHtml(r.sub||'(ไม่ระบุลูกค้าปลายทาง)')+'</b>'
+      +'<small>'+escHtml(r.load||'-')+' · '+escHtml((r.from&&r.to)?(r.from+' → '+r.to):(r.rawRoute||'ไม่ระบุเส้นทาง'))+'</small></span>'
+      +'<span class="rp">'+b2Money(ratePrice(r,rec.size))+'</span></div>').join('')
+      :'<div class="empty">ไม่พบเรทที่ตรงกับที่ค้น</div>';
+    document.getElementById('tpList').querySelectorAll('[data-i]').forEach(el=>el.onclick=()=>{
+      const r=tripPickList[+el.dataset.i];
+      $("b2_tripPay").value=ratePrice(r,rec.size);
+      $("b2_tripRefVal").value=rateLabel(r);
+      tripManual=false; tripChip('✅ ใช้เรท: '+rateLabel(r),'ok');
+      /* จำไว้ว่าลานที่กรอกอยู่โซนไหน ครั้งหน้าระบบเติมให้เอง (ไม่ต้องกรอกตารางแปลงลานล่วงหน้า) */
+      if(r.from&&!zoneOf(rec.yardIn)&&rec.yardIn) rememberZone(rec.yardIn,r.from);
+      if(r.to&&!zoneOf(rec.yardOut)&&rec.yardOut) rememberZone(rec.yardOut,r.to);
+      ov.remove();
+    });
+  };
+  draw();
+  document.getElementById('tpQ').oninput=draw;
+  ov.onclick=e=>{ if(e.target===ov) ov.remove(); };
+  document.getElementById('tpClose').onclick=()=>ov.remove();
+}
+async function rememberZone(yard,zone){
+  rateZones[rNorm(yard)]=zone;
+  try{ localStorage.setItem(RATECACHE,JSON.stringify({rows:rateRows,zones:rateZones})); }catch(e){}
+  try{ await callAct({act:'yardzone',yard:yard,zone:zone}); }catch(e){}
+}
+
+/* ---- หน้าเงินคนขับ ---- */
+let payData=null, payPeriod='m', payLast=0, payOpen={};
+function payPageSync(){
+  const on=(location.hash==='#pay');
+  document.body.classList.toggle('pay-on',on);
+  const el=$("payPage"); if(el) el.style.display=on?'block':'none';
+  if(on){ if(payData) renderPay(); loadPay(); }
+}
+async function loadPay(force){
+  if(!force&&Date.now()-payLast<20000) return;
+  payLast=Date.now();
+  try{
+    const j=await callAct({act:'pay',p:payPeriod});
+    if(j&&j.ok){ payData=j; renderPay(); }
+    else if(j&&j.result==='pay-admin-only') $("pDrvList").innerHTML='<div class="empty">🔒 หน้านี้เปิดได้เฉพาะแอดมิน</div>';
+    else if(j&&j.result==='unknown-act') $("pDrvList").innerHTML='<div class="empty">⚙️ หลังบ้านยังไม่ได้อัปเดตเป็น V63 — วางไฟล์ .gs แล้ว Deploy → New version ก่อน</div>';
+    else $("pDrvList").innerHTML='<div class="empty">โหลดไม่สำเร็จ'+((j&&j.result)?' — '+escHtml(j.result):'')+'</div>';
+  }catch(e){ $("pDrvList").innerHTML='<div class="empty">เชื่อมต่อไม่สำเร็จ</div>'; }
+}
+function renderPay(){
+  const d=payData; if(!d) return;
+  document.querySelectorAll('#pPeriod button').forEach(b=>b.classList.toggle('on',b.dataset.pp===payPeriod));
+  $("pRange").textContent=thd(d.from)+' – '+thd(d.to);
+  $("pk1").textContent=b2Money(d.total); $("pk1s").textContent=d.drivers+' คนขับ';
+  $("pk2").textContent=d.trips; $("pk2s").textContent=d.trips?('เฉลี่ย '+b2Money(Math.round(d.total/d.trips))+' บาท/เที่ยว'):'ยังไม่มีเที่ยว';
+  $("pk3").textContent=d.missingN; $("pk3s").textContent=d.missingN?'ใบที่ยังไม่ได้ใส่ค่าเที่ยว':'ครบทุกใบแล้ว 🎉';
+  $("pDrvList").innerHTML=d.drv.length?d.drv.map((x,i)=>
+    '<div class="prow" data-d="'+escAttr(x.name)+'"><span class="pn'+(i===0?' top':'')+'">'+(i+1)+'</span>'
+    +'<span class="pnm">'+escHtml(x.name)+'<small>'+x.n+' เที่ยว · เฉลี่ย '+b2Money(Math.round(x.total/x.n))+' บาท/เที่ยว</small></span>'
+    +'<span class="pamt">'+b2Money(x.total)+'</span></div>'
+    +'<div class="ptrips'+(payOpen[x.name]?' on':'')+'" data-t="'+escAttr(x.name)+'"><div class="pscroll"><table class="ptable">'
+    +'<thead><tr><th>วันที่</th><th>เบอร์ตู้</th><th>ลูกค้า</th><th>เส้นทาง</th><th>ขนาด</th><th style="text-align:right">ค่าเที่ยว</th></tr></thead><tbody>'
+    +x.trips.map(t=>'<tr><td style="white-space:nowrap">'+escHtml(thd(t.date))+'</td><td class="mono">'+escHtml(t.cont||'-')+'</td>'
+      +'<td>'+escHtml(t.cust||'-')+'</td><td>'+escHtml(t.route||'-')+(t.load?('<br><span style="color:var(--ink-soft);font-size:11px">'+escHtml(t.load)+'</span>'):'')+'</td>'
+      +'<td>'+escHtml(t.size||'-')+'</td><td class="n">'+b2Money(t.pay)+'</td></tr>').join('')
+    +'</tbody></table></div></div>').join('')
+    :'<div class="empty">ยังไม่มีค่าเที่ยวในช่วงนี้ — จดบิลแล้วใส่ค่าเที่ยว ตัวเลขจะขึ้นที่นี่</div>';
+  $("pDrvList").querySelectorAll('[data-d]').forEach(el=>el.onclick=()=>{
+    const n=el.dataset.d; payOpen[n]=!payOpen[n];
+    const t=$("pDrvList").querySelector('[data-t="'+n.replace(/"/g,'\\"')+'"]');
+    if(t) t.classList.toggle('on',!!payOpen[n]);
+  });
+  const mc=$("pMissCard");
+  if(d.missingN){ mc.style.display='';
+    $("pMissList").innerHTML=d.missing.map(m=>'<div class="cost"><span class="nm">'+escHtml(m.cust||'-')
+      +'<span style="display:block;color:var(--ink-soft);font-size:11.5px">'+escHtml(thd(m.date))+' · ตู้ '+escHtml(m.cont||'-')+' · '+escHtml(m.drv||'-')+'</span></span></div>').join('')
+      +(d.missingN>d.missing.length?('<div style="margin-top:8px;font-size:12.5px;color:var(--ink-soft)">… และอีก '+(d.missingN-d.missing.length)+' ใบ</div>'):'')
+      +'<div style="margin-top:10px;padding-top:10px;border-top:1px solid var(--line);font-size:12.5px;color:var(--ink-soft);line-height:1.8">'
+      +'บิลที่จดก่อนมีระบบค่าเที่ยว หรือหาเรทไม่เจอ · เปิด <b>หน้าวางบิล → ✏️ แก้</b> แล้วใส่ค่าเที่ยวได้</div>';
+  } else mc.style.display='none';
+}
+function printPay(){
+  const w=window.open('','_blank');          // เปิดก่อน await เสมอ (กันป๊อปอัปบล็อก — กติกา V52)
+  const d=payData;
+  if(!w) { flash('เบราว์เซอร์บล็อกหน้าต่างใหม่ — อนุญาตป๊อปอัปก่อน','err'); return; }
+  if(!d){ w.document.write('ยังไม่มีข้อมูล'); w.document.close(); return; }
+  const rows=d.drv.map((x,i)=>'<tr><td>'+(i+1)+'</td><td>'+escHtml(x.name)+'</td><td style="text-align:right">'+x.n+'</td>'
+    +'<td style="text-align:right">'+b2Money(x.total)+'</td><td style="width:120px"></td></tr>').join('');
+  w.document.write('<!doctype html><html lang="th"><head><meta charset="utf-8"><title>เงินคนขับ '+escHtml(d.label||'')+'</title>'
+    +'<style>body{font-family:sans-serif;padding:26px;color:#222}h2{margin:0 0 4px}table{width:100%;border-collapse:collapse;margin-top:14px;font-size:14px}'
+    +'th,td{border:1px solid #999;padding:7px 9px}th{background:#eee}tfoot td{font-weight:700;background:#f6f6f6}</style></head><body>'
+    +'<h2>เงินค่าเที่ยวคนขับ</h2><div>ช่วง '+escHtml(d.label||'')+' ('+escHtml(thd(d.from))+' – '+escHtml(thd(d.to))+')</div>'
+    +'<table><thead><tr><th>#</th><th>คนขับ</th><th style="text-align:right">เที่ยว</th><th style="text-align:right">รวมค่าเที่ยว</th><th>ลายเซ็นรับเงิน</th></tr></thead>'
+    +'<tbody>'+rows+'</tbody>'
+    +'<tfoot><tr><td colspan="2">รวมทั้งหมด</td><td style="text-align:right">'+d.trips+'</td><td style="text-align:right">'+b2Money(d.total)+'</td><td></td></tr></tfoot></table>'
+    +(d.missingN?('<p style="margin-top:14px;color:#a4520f">⚠️ ยังมีบิลที่ไม่ได้ใส่ค่าเที่ยวอีก '+d.missingN+' ใบ — ยอดนี้อาจยังไม่ครบ</p>'):'')
+    +'</body></html>');
+  w.document.close(); w.focus();
+  setTimeout(()=>{ try{ w.print(); }catch(e){} },350);
+}
+
+/* ============================================================
    V60 — ถังขยะบิล (ดู/กู้คืน/ลบถาวร) + ประวัติแก้ไขรวม + ลบทีเดียวหลายใบ
    ทั้งหมดอ่านอย่างเดียวจากชีท ไม่ยิง LINE/อีเมล
    ============================================================ */
@@ -3059,6 +3327,10 @@ function bill2FormOpen(rec){
     $("b2_date").value=rec.date||''; $("b2_customer").value=rec.customer||''; $("b2_container").value=rec.container||'';
     $("b2_size").value=rec.size||''; $("b2_truck").value=rec.truck||''; $("b2_driver").value=rec.driver||'';
     $("b2_jobref").value=rec.jobref||''; $("b2_bl").value=rec.bl||''; $("b2_tag").value=rec.tag||'';
+    $("b2_booking").value=rec.booking||'';
+    $("b2_tripPay").value=Number(rec.tripPay)||''; $("b2_tripRefVal").value=rec.tripRef||'';
+    tripManual=!!rec.tripPay&&!rec.tripRef;
+    tripChip(rec.tripRef?('✅ ใช้เรท: '+rec.tripRef):(rec.tripPay?'กรอกเอง':'ยังไม่ได้ใส่ค่าเที่ยว'),rec.tripRef?'ok':(rec.tripPay?'manual':''));
     $("b2_yardIn").value=rec.yardIn||''; $("b2_loadPlace").value=rec.loadPlace||''; $("b2_yardOut").value=rec.yardOut||'';
     $("b2_trans").value=b2Num(rec.c_trans)||''; $("b2_recv").value=b2Num(rec.c_recv)||''; $("b2_ret").value=b2Num(rec.c_return)||'';
     $("b2_note").value=rec.note||'';
@@ -3073,7 +3345,9 @@ function bill2FormOpen(rec){
    ล้างทิ้งหมด: เบอร์ตู้ · ทะเบียน · คนขับ · ขนาดตู้ · เอกสาร · ป้ายขวาบน · เงิน · ค่าเพิ่ม
    (ทะเบียน/คนขับ/ขนาดตู้ เปลี่ยนเกือบทุกใบ — ถ้าค้างไว้เสี่ยงจดผิดคัน) */
 function bill2FormClear(keepBatch){
-  ['b2_container','b2_size','b2_truck','b2_driver','b2_jobref','b2_bl','b2_tag','b2_recv','b2_ret','b2_note'].forEach(id=>$(id).value='');
+  ['b2_container','b2_size','b2_truck','b2_driver','b2_jobref','b2_bl','b2_tag','b2_recv','b2_ret','b2_note',
+   'b2_booking','b2_tripPay','b2_tripRefVal'].forEach(id=>$(id).value='');
+  tripManual=false; tripChip('กรอกลูกค้า / สถานที่โหลด / ลานรับ / ลานคืน แล้วระบบจะหาเรทให้เอง');
   if(!keepBatch){ ['b2_customer','b2_yardIn','b2_loadPlace','b2_yardOut','b2_trans'].forEach(id=>$(id).value=''); $("b2RateChip").textContent=''; }
   b2Ex=[]; b2RenderEx();
 }
@@ -3081,6 +3355,8 @@ function bill2Collect(){
   return { date:$("b2_date").value, customer:$("b2_customer").value.trim(), container:$("b2_container").value.trim(),
     size:$("b2_size").value.trim(), truck:$("b2_truck").value.trim(), driver:$("b2_driver").value.trim(),
     jobref:$("b2_jobref").value.trim(), bl:$("b2_bl").value.trim(), tag:$("b2_tag").value.trim(),
+    booking:$("b2_booking").value.trim(),
+    tripPay:b2Num($("b2_tripPay").value), tripRef:$("b2_tripRefVal").value.trim(),
     yardIn:$("b2_yardIn").value.trim(), loadPlace:$("b2_loadPlace").value.trim(), yardOut:$("b2_yardOut").value.trim(),
     c_trans:b2Num($("b2_trans").value), c_recv:b2Num($("b2_recv").value), c_return:b2Num($("b2_ret").value),
     extras:b2ExStr(b2Ex), note:$("b2_note").value.trim() };
@@ -3649,6 +3925,7 @@ function updateAdminUI(){
   $("adminBtn").textContent=adminToken?'แอดมิน ✓':'แอดมิน'; $("adminBtn").style.color=adminToken?'var(--ok)':'';
   const vis=adminToken?'':'none';
   ['btnAudit','btnEditLog'].forEach(id=>{ const b=$(id); if(b) b.style.display=vis; }); // เครื่องมือตรวจสอบ = แอดมินเท่านั้น
+  const gp=$("goPay"); if(gp) gp.style.display=adminToken?'flex':'none';   // V63: เงินคนขับ = ยอดค่าแรง เห็นเฉพาะแอดมิน
 }
 function setAdmin(t){ adminToken=t; try{ t?localStorage.setItem('jobform_admin',t):localStorage.removeItem('jobform_admin'); }catch(e){} updateAdminUI(); }
 async function tryAdmin(t){
@@ -3947,6 +4224,8 @@ $("dpReload").addEventListener('click',()=>{ loadDash(true); flash('ดึงข
 document.querySelectorAll('#dPeriod button').forEach(b=>b.addEventListener('click',()=>{ dashPeriod=b.dataset.p; dashData=null; if(dashCacheLoad()) renderDash(); loadDash(true); }));
 document.querySelectorAll('.views button').forEach(b=>b.addEventListener('click',()=>{ dashView=b.dataset.v; renderDash(); }));
 dashPageSync();
+payPageSync();
+loadRates();                                    // โหลดตารางเรทไว้ล่วงหน้า (มีแคชในเครื่อง เปิดมาใช้ได้ทันที)
 $("goBill").addEventListener('click',()=>{ location.hash='bill'; });
 $("bpBack").addEventListener('click',()=>{ location.hash=''; });
 $("bpReload").addEventListener('click',()=>{ // V57: รีเฟรชตามโหมดที่เปิดอยู่
@@ -3969,6 +4248,22 @@ $("billQClear").addEventListener('click',billSearchClear);
 /* ---- V57: คิวบิลใหม่ ---- */
 $("bmNew").addEventListener('click',()=>{ billMode='new'; billModeSync(); });
 $("bmDebt").addEventListener('click',()=>{ billMode='debt'; billModeSync(); });
+/* V63: ค่าเที่ยวคนขับ + หน้าเงินคนขับ */
+['b2_customer','b2_loadPlace','b2_yardIn','b2_yardOut','b2_size'].forEach(id=>{
+  $(id).addEventListener('change',tripAuto); $(id).addEventListener('blur',tripAuto);
+});
+$("b2_tripPay").addEventListener('input',()=>{        // พิมพ์เอง = หยุดเติมอัตโนมัติ ไม่งั้นระบบจะทับที่พิมพ์
+  tripManual=true; $("b2_tripRefVal").value='';
+  tripChip($("b2_tripPay").value?'กรอกเอง (ไม่ได้ใช้เรทจากตาราง)':'ยังไม่ได้ใส่ค่าเที่ยว',$("b2_tripPay").value?'manual':'');
+});
+$("btnTripPick").addEventListener('click',tripPick);
+window.addEventListener('hashchange',payPageSync);
+$("goPay").addEventListener('click',()=>{ location.hash='pay'; });
+$("goPay").addEventListener('keydown',e=>{ if(e.key==='Enter'||e.key===' ') location.hash='pay'; });
+$("ppBack").addEventListener('click',()=>{ location.hash=''; });
+$("ppPrint").addEventListener('click',printPay);
+document.querySelectorAll('#pPeriod button').forEach(b=>b.addEventListener('click',()=>{ payPeriod=b.dataset.pp; payData=null; payOpen={}; loadPay(true); }));
+
 $("bmTrash").addEventListener('click',()=>{ billMode='trash'; billModeSync(); });
 $("bmHist").addEventListener('click',()=>{ billMode='hist'; billModeSync(); });
 $("bmOld").addEventListener('click',()=>{ billMode='old'; billModeSync(); });
@@ -4274,7 +4569,7 @@ function openInvoice2(recs,win,invnoSuggest){
       +'<td><div class="cell jr" contenteditable="true">'+esc(r.jobref||'')+'</div></td>'
       +'<td><div class="cell" contenteditable="true">'+esc(thd(r.date))+'</div></td>'
       +'<td><div class="cell" contenteditable="true">'+esc(r.truck||'')+'</div></td>'
-      +(i===0?('<td rowspan="'+nrows+'" class="blx"><div class="cell bl" contenteditable="true" style="text-align:center">'+esc(recs.map(x=>x.bl).filter(Boolean)[0]||'')+'</div></td>'):'')
+      +(i===0?('<td rowspan="'+nrows+'" class="blx"><div class="cell bl" contenteditable="true" style="text-align:center">'+esc(recs.map(x=>x.bl).filter(Boolean)[0]||recs.map(x=>x.booking).filter(Boolean)[0]||'')+'</div></td>'):'')
       +'<td><div class="cell" contenteditable="true">'+esc(qty)+'</div></td>'
       +'<td><div class="cell" contenteditable="true">'+esc(r.container||'')+'</div></td>'
       +'<td><div class="cell" contenteditable="true">'+esc(r.yardIn||'')+'</div></td>'
@@ -4624,7 +4919,8 @@ function bulkWindow2Main(){
   function renderBillW(recs,cust,info,invno,today){
     var exAll=[]; recs.forEach(function(r){(r.extras||[]).forEach(function(e){exAll.push(e);});});
     var MINROWS=6, n=Math.max(recs.length+exAll.length,MINROWS), rowsHtml='';
-    var bl=recs.map(function(x){return x.bl;}).filter(Boolean)[0]||'';
+    var bl=recs.map(function(x){return x.bl;}).filter(Boolean)[0]
+             ||recs.map(function(x){return x.booking;}).filter(Boolean)[0]||'';   // V63: ไม่มี B/L → ใช้ Booking No.
     var tag=recs.map(function(x){return x.tag;}).filter(Boolean)[0]||'';
     recs.forEach(function(r,i){
       var qty=r.size?('1*'+r.size):'';
@@ -4738,7 +5034,7 @@ function openBulkInvoice2(recs,win){
   const data={
     company:{name:COMPANY.name,addr:COMPANY.addr,tax:COMPANY.tax,tel:COMPANY.tel,bank:COMPANY.bank},
     custBook:store.custBook||{}, logo:BULK_LOGO, lastInvByCust:bill2Meta.lastInvByCust||{},
-    recs:recs.map(r=>({uid:String(r.uid||''),customer:r.customer||'',dateTh:thd(r.date),truck:r.truck||'',container:r.container||'',size:r.size||'',yardIn:r.yardIn||'',loadPlace:r.loadPlace||'',yardOut:r.yardOut||'',c_recv:b2Num(r.c_recv),c_return:b2Num(r.c_return),c_trans:b2Num(r.c_trans),jobref:r.jobref||'',bl:r.bl||'',tag:r.tag||'',invno:r.invno||'',link:String(r.link||'').trim(),extras:b2ParseEx(r.extras)}))
+    recs:recs.map(r=>({uid:String(r.uid||''),customer:r.customer||'',dateTh:thd(r.date),truck:r.truck||'',container:r.container||'',size:r.size||'',yardIn:r.yardIn||'',loadPlace:r.loadPlace||'',yardOut:r.yardOut||'',c_recv:b2Num(r.c_recv),c_return:b2Num(r.c_return),c_trans:b2Num(r.c_trans),jobref:r.jobref||'',bl:r.bl||'',booking:r.booking||'',tag:r.tag||'',invno:r.invno||'',link:String(r.link||'').trim(),extras:b2ParseEx(r.extras)}))
   };
   const css='*{box-sizing:border-box}body{font-family:Sarabun,sans-serif;color:#000;margin:0;padding:10mm 5mm;font-size:12px}'
     +'.tool{background:#0f6e78;color:#fff;padding:8px 12px;border-radius:8px;margin-bottom:10px;display:flex;gap:8px;flex-wrap:wrap;align-items:center;position:sticky;top:0;z-index:5}'
