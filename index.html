@@ -2895,11 +2895,20 @@ const RATECACHE='jobform_rates';
 let rateRows=[], rateZones={}, rateLoaded=false, tripManual=false, tripPickList=[];
 
 function rNorm(s){ return String(s==null?'':s).toLowerCase().replace(/[\s\-._/]/g,''); }
+/* ชื่อที่คนกรอกจริงในช่องลาน — เจ้าของยืนยัน 16 ส.ค.: LCB = แหลมฉบัง · BKK = ลาดกระบัง
+   ต้องรู้จักทั้งตัวย่อและชื่อไทย ไม่งั้นพิมพ์ "แหลมฉบัง" แล้วระบบไม่รู้ว่าโซนไหน */
+const ZONE_WORDS=[
+  {z:'LCB',w:['lcb','lkb','แหลมฉบัง','ทลฉ','laemchabang','lchb']},
+  {z:'BKK',w:['bkk','ลาดกระบัง','icd','latkrabang','ladkrabang','คลองเตย']},
+  {z:'PAT',w:['pat','ปัตตานี']}
+];
 function zoneOf(s){
-  const z=String(s||'').trim().toUpperCase().replace(/[\s.]/g,'');
-  if(z==='LKB') return 'LCB';
-  if(z==='LCB'||z==='BKK'||z==='PAT') return z;
-  return rateZones[rNorm(s)]||'';        // ลานที่เคยจับคู่ไว้ เช่น WGD → LCB
+  const raw=String(s||'').trim(); if(!raw) return '';
+  const n=rNorm(raw);
+  const learned=rateZones[n]; if(learned) return learned;      // ที่เคยจับคู่ไว้เอง ชนะเสมอ
+  for(const g of ZONE_WORDS){ for(const w of g.w){ if(n===rNorm(w)) return g.z; } }
+  for(const g of ZONE_WORDS){ for(const w of g.w){ if(n.indexOf(rNorm(w))>-1) return g.z; } }  // "ท่าเรือแหลมฉบัง B5" ก็รู้
+  return '';
 }
 async function loadRates(force){
   if(rateLoaded&&!force) return;
@@ -2923,15 +2932,28 @@ function ratePrice(row,size){
 }
 function rateLabel(r){ return [r.sub,r.load,(r.from&&r.to)?(r.from+' - '+r.to):(r.rawRoute||'')].filter(Boolean).join(' / '); }
 /* หาเรทจากสิ่งที่กรอกในฟอร์ม — คืนรายการที่เข้าเกณฑ์ (0 / 1 / หลายอัน) */
+/* คืน {rows, why} — why บอกว่าอะไรตรง/ไม่ตรง เอาไปขึ้นบนชิปให้คนกรอกรู้ว่าต้องแก้ตรงไหน
+   จับแบบผ่อนปรน: ตรงเป๊ะก่อน → ไม่เจอค่อยลองแบบ "มีคำนี้อยู่ในนั้น" (ตารางเขียน "ระยอง" แต่คนกรอก "มาบยางพร ระยอง") */
 function findRates(rec){
-  const cu=rNorm(rec.customer); if(!cu||!rateRows.length) return [];
+  const why={cust:false,load:'',route:'',zoneIn:'',zoneOut:''};
+  const cu=rNorm(rec.customer);
+  if(!cu||!rateRows.length) return {rows:[],why:why};
   let rows=rateRows.filter(r=>rNorm(r.cust)===cu);
-  if(!rows.length) return [];
+  if(!rows.length) return {rows:[],why:why};
+  why.cust=true;
   const lp=rNorm(rec.loadPlace);
-  if(lp){ const byLoad=rows.filter(r=>rNorm(r.load)===lp); if(byLoad.length) rows=byLoad; }
+  if(lp){
+    let byLoad=rows.filter(r=>rNorm(r.load)===lp);
+    if(!byLoad.length) byLoad=rows.filter(r=>{ const rl=rNorm(r.load); return rl&&(rl.indexOf(lp)>-1||lp.indexOf(rl)>-1); });
+    if(byLoad.length){ rows=byLoad; why.load='ok'; } else why.load='miss';
+  } else why.load='empty';
   const a=zoneOf(rec.yardIn), b=zoneOf(rec.yardOut);
-  if(a&&b){ const byRoute=rows.filter(r=>r.from===a&&r.to===b); if(byRoute.length) rows=byRoute; else if(lp) return rows; }
-  return rows.filter(r=>ratePrice(r,rec.size)>0);
+  why.zoneIn=rec.yardIn?(a||'?'):''; why.zoneOut=rec.yardOut?(b||'?'):'';
+  if(a&&b){
+    const byRoute=rows.filter(r=>r.from===a&&r.to===b);
+    if(byRoute.length){ rows=byRoute; why.route='ok'; } else why.route='miss';
+  } else why.route='unknown';
+  return {rows:rows.filter(r=>ratePrice(r,rec.size)>0),why:why};
 }
 function b2FormRec(){
   return {customer:$("b2_customer").value,loadPlace:$("b2_loadPlace").value,
@@ -2939,19 +2961,35 @@ function b2FormRec(){
 }
 function tripChip(txt,cls){ const c=$("b2TripChip"); c.textContent=txt; c.className='tripinfo'+(cls?(' '+cls):''); }
 /* เรียกทุกครั้งที่ช่องที่เกี่ยวข้องเปลี่ยน */
+/* บอกให้รู้ว่าติดตรงไหน — ขึ้นแค่ "ไม่เจอ" คนกรอกไม่รู้จะแก้อะไร */
+function tripWhyText(w,rec){
+  const t=[];
+  if(!w.cust) return 'ไม่มีเรทของลูกค้า “'+(rec.customer||'-')+'” ในตาราง — กรอกค่าเที่ยวเองได้เลย';
+  if(w.load==='empty') t.push('ยังไม่ได้ใส่<b>สถานที่โหลด</b>');
+  else if(w.load==='miss') t.push('<b>สถานที่โหลด</b> “'+escHtml(rec.loadPlace)+'” ไม่ตรงกับในตาราง');
+  if(w.zoneIn==='?') t.push('ยังไม่รู้ว่า<b>ลานรับ</b> “'+escHtml(rec.yardIn)+'” อยู่โซนไหน');
+  if(w.zoneOut==='?') t.push('ยังไม่รู้ว่า<b>ลานคืน</b> “'+escHtml(rec.yardOut)+'” อยู่โซนไหน');
+  if(!rec.yardIn||!rec.yardOut) t.push('ยังไม่ได้ใส่<b>ลานรับ/ลานคืน</b>');
+  else if(w.route==='miss') t.push('ไม่มีเส้นทาง <b>'+w.zoneIn+' → '+w.zoneOut+'</b> ของลูกค้ารายนี้');
+  return t.length?(t.join(' · ')+' — กด “เลือกเรทเอง” 1 ครั้ง แล้วระบบจะจำไว้ให้'):'กด “เลือกเรทเอง” เพื่อเลือกให้ตรง';
+}
 function tripAuto(){
   if(tripManual) return;
   const rec=b2FormRec();
   if(!rec.customer){ tripChip('กรอกลูกค้า / สถานที่โหลด / ลานรับ / ลานคืน แล้วระบบจะหาเรทให้เอง'); return; }
-  const hits=findRates(rec);
+  if(!rateLoaded||!rateRows.length){
+    tripChip(rateLoaded?'ยังไม่มีตารางเรทในชีท — ก๊อปไฟล์ เรทค่าเที่ยว-นำเข้า.tsv ลงแท็บ “เรทค่าเที่ยว” ก่อน':'กำลังโหลดตารางเรท…');
+    return;
+  }
+  const res=findRates(rec), hits=res.rows;
   if(hits.length===1){
     $("b2_tripPay").value=ratePrice(hits[0],rec.size);
     $("b2_tripRefVal").value=rateLabel(hits[0]);
     tripChip('✅ ใช้เรท: '+rateLabel(hits[0]),'ok');
-  } else if(hits.length>1){
-    tripChip('เจอ '+hits.length+' เรทที่เข้าได้ — กด “เลือกเรทเอง” เพื่อเลือกให้ตรง');
   } else {
-    tripChip(rateLoaded?'ไม่เจอเรทที่ตรง — กรอกเองหรือกด “เลือกเรทเอง”':'กำลังโหลดตารางเรท…');
+    const c=$("b2TripChip");
+    c.className='tripinfo';
+    c.innerHTML=(hits.length>1?('เจอ '+hits.length+' เรทที่เข้าได้ — '):'')+tripWhyText(res.why,rec);
   }
 }
 /* ป๊อปอัพเลือกเรท — ใช้ทั้งตอนเจอหลายอันและตอนกดเลือกเอง */
@@ -2960,9 +2998,10 @@ function tripPick(){
   if(!rateRows.length){ flash('ยังไม่มีตารางเรท — วาง .gs แล้วก๊อปตารางลงแท็บ “เรทค่าเที่ยว” ก่อน','err'); return; }
   const cu=rNorm(rec.customer);
   let list=cu?rateRows.filter(r=>rNorm(r.cust)===cu):[];
-  const narrowed=findRates(rec);
+  const narrowed=findRates(rec).rows;
   if(narrowed.length) list=narrowed;
-  if(!list.length){ flash('ไม่มีเรทของลูกค้ารายนี้ในตาราง — กรอกค่าเที่ยวเองได้เลย','err'); return; }
+  if(!cu||!list.length) list=rateRows;      // ลูกค้าไม่ตรงตาราง → ให้ค้นจากทั้งหมด ดีกว่าตันไปเลย
+  if(!list.length){ flash('ตารางเรทยังว่าง — ก๊อปไฟล์ เรทค่าเที่ยว-นำเข้า.tsv ลงแท็บ “เรทค่าเที่ยว” ก่อน','err'); return; }
   let ov=document.getElementById('billOvl'); if(ov) ov.remove();
   ov=document.createElement('div'); ov.id='billOvl';
   ov.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:9000;display:flex;align-items:flex-start;justify-content:center;padding:24px 14px;overflow:auto';
