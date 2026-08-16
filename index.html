@@ -2383,6 +2383,14 @@ function renderDebt(){
   const shown=(debtFilter==='all'?open:all.filter(x=>b3Bucket(x)===debtFilter))
     .sort((a,b)=>(b.overdue||0)-(a.overdue||0));   // ค้างนานสุดขึ้นก่อน
   if(!shown.length){
+    /* V63.2: ค้นเจอแต่ใบอยู่หลังชิปอื่น → ห้ามบอก "ไม่พบ" เฉยๆ (ป้ายบนบอกว่าเจอ แต่การ์ดไม่โผล่ = คนใช้งง) */
+    const hiddenDone=debtQ?all.filter(x=>x.done):[];
+    if(debtQ&&debtFilter!=='done'&&hiddenDone.length){
+      $("b3Body").innerHTML='<div class="empty">เจอ <b>'+hiddenDone.length+' บิล</b> แต่เป็นบิลที่<b>เก็บเงินครบแล้ว</b>'
+        +'<div style="margin-top:8px"><button class="minib" id="b3GoDone">กดดูที่ชิป ✅ เก็บแล้ว →</button></div></div>';
+      const gb=document.getElementById('b3GoDone'); if(gb) gb.onclick=()=>{ debtFilter='done'; renderDebt(); };
+      return;
+    }
     $("b3Body").innerHTML='<div class="empty" style="color:var(--ok)">'+(debtQ?'ไม่พบบิลที่ตรงกับที่ค้น':(debtFilter==='done'?'ยังไม่มีบิลที่เก็บเงินครบ':(debtInvs.length?'ไม่มีบิลในกลุ่มนี้':'เก็บเงินครบทุกบิลแล้ว 🎉')))+'</div>';
     return;
   }
@@ -2412,6 +2420,48 @@ function renderDebt(){
   $("b3Body").querySelectorAll('[data-unpay]').forEach(b=>b.onclick=()=>debtUnpay(b.dataset.unpay));
   $("b3Body").querySelectorAll('[data-del]').forEach(b=>b.onclick=()=>debtDelete(b.dataset.del));
 }
+/* ============================================================
+   V63.2 — ตัวค้นข้ามหน้า: ค้นในคิวไม่เจอ ระบบไปส่องหน้าอื่นให้เอง
+   บทเรียน 16 ส.ค.: บิลที่ยืนยัน+เก็บเงินแล้วซ่อนหลังชิป "✅ เก็บแล้ว" — เจ้าของหาไม่เจอทั้งเว็บ
+   คนใช้ไม่ควรต้องรู้โครงระบบว่าบิลสถานะไหนอยู่หน้าไหน
+   ============================================================ */
+async function bill2CrossFind(q){
+  const box=document.getElementById('b2XFind'); if(!box||!q) { if(box) box.innerHTML=''; return; }
+  const nq=b2Norm(q);
+  try{
+    /* ลูกหนี้ (ครอบทุกใบที่ยืนยันวางบิลแล้ว — ทั้งค้างรับและเก็บแล้ว) */
+    if(!debtLoaded){ const j=await callAct({act:'bdebt'}); if(j&&j.ok&&Array.isArray(j.invs)){ debtInvs=j.invs; debtLoaded=true; } }
+    const inDebt=debtInvs.filter(x=>b2Norm([x.cust,x.invno,(x.conts||[]).join(' ')].join('|')).indexOf(nq)>-1);
+    /* ถังขยะ */
+    if(!trLoaded){ const j2=await callAct({act:'btrash'}); if(j2&&j2.ok&&Array.isArray(j2.rows)){ trRows=j2.rows; trAdmin=!!j2.admin||!!adminToken; trLoaded=true; updateTrashMark(); } }
+    const inTrash=trRows.filter(r=>b2Norm([r.customer,r.container,r.truck,r.driver,r.invno].join('|')).indexOf(nq)>-1);
+    const cur=document.getElementById('b2XFind'); if(!cur) return;   // คนกดออกไปแล้ว
+    if(!inDebt.length&&!inTrash.length){ cur.innerHTML='<span style="color:var(--ink-soft)">ดูหน้าลูกหนี้และถังขยะให้แล้ว — ไม่เจอเหมือนกัน</span>'; return; }
+    let h='';
+    if(inDebt.length){
+      const nDone=inDebt.filter(x=>x.done).length;
+      h+='<div style="margin-bottom:7px">💰 เจอ <b>'+inDebt.length+' บิล</b>ในหน้าลูกหนี้'
+        +(nDone===inDebt.length?' — เป็นบิลที่<b>เก็บเงินครบแล้ว</b> (อยู่หลังชิป ✅ เก็บแล้ว)':(nDone?(' ('+nDone+' ใบเก็บแล้ว)'):' — ยังค้างรับ'))
+        +' <button class="minib" data-xf="debt" data-done="'+(nDone===inDebt.length?'1':'')+'">ไปดู →</button></div>';
+    }
+    if(inTrash.length){
+      h+='<div>🗑 เจอ <b>'+inTrash.length+' ใบ</b>ในถังขยะ (ถูกลบไปแล้ว — กู้คืนได้) <button class="minib" data-xf="trash">ไปดู →</button></div>';
+    }
+    cur.innerHTML=h;
+    cur.querySelectorAll('[data-xf]').forEach(b=>b.onclick=()=>{
+      if(b.dataset.xf==='debt'){
+        billMode='debt'; if(b.dataset.done) debtFilter='done';
+        $("b3Q").value=q; debtQ=q;
+        billModeSync(); renderDebt();
+      } else {
+        billMode='trash';
+        $("trSearch").value=q;
+        billModeSync();
+      }
+    });
+  }catch(e){ const cur=document.getElementById('b2XFind'); if(cur) cur.innerHTML='<span style="color:var(--ink-soft)">เชื่อมต่อหน้าอื่นไม่สำเร็จ</span>'; }
+}
+
 /* กล่องบันทึกรับเงิน — ใส่ยอดที่ได้รับจริงได้ (เผื่อลูกค้าหักอะไรเพิ่ม หรือจ่ายมาบางส่วน) */
 function debtPay(key){
   const x=debtInvs.find(v=>v.key===key); if(!x) return;
@@ -2660,7 +2710,7 @@ function bill2Card(g){
 }
 function renderBill2(){
   if(bill2Filter==='recent'){ renderBill2Recent(); return; }
-  const bs=$("b2Search"); if(bs) bs.style.display=bill2Rows.length?'flex':'none';
+  const bs=$("b2Search"); if(bs) bs.style.display='flex';   // V63.2: โชว์เสมอ — คิวว่างก็ค้นได้ (ตัวค้นข้ามหน้าจะบอกว่าใบอยู่ไหน)
   const base=bill2Groups();
   const matched=base.filter(bill2MatchG);
   const nUn=matched.filter(g=>bill2State(g)==='unprinted').length, nPr=matched.filter(g=>bill2State(g)==='printed').length;
@@ -2688,8 +2738,11 @@ function renderBill2(){
   if(!shown.length){
     if(bill2SearchOn() && matched.length)
       $("b2Body").innerHTML='<div class="empty">คำค้นนี้เจอ '+matched.length+' ใบ แต่ไม่ได้อยู่ในสถานะ “'+(bill2Filter==='unprinted'?'ยังไม่พิมพ์':'พิมพ์แล้ว รอยืนยัน')+'”<div class="hint" style="margin:6px 0 0">กดปุ่ม “ทั้งหมด” เพื่อดูทั้งหมดที่ค้นเจอ</div></div>';
-    else if(bill2SearchOn())
-      $("b2Body").innerHTML='<div class="empty">ไม่พบบิลที่ตรงกับที่ค้น<div class="hint" style="margin:6px 0 0">คิวยังมี '+base.length+' ใบ — กด “✕ ล้างคำค้น” เพื่อดูทั้งหมด</div></div>';
+    else if(bill2SearchOn()){
+      $("b2Body").innerHTML='<div class="empty">ไม่พบในคิววางบิล'+(base.length?('<div style="color:var(--ink-soft);font-size:12px;margin-top:6px">คิวยังมี '+base.length+' ใบ — กด “✕ ล้างคำค้น” เพื่อดูทั้งหมด</div>'):'')
+        +'<div id="b2XFind" style="margin-top:10px;font-size:13px">กำลังดูหน้าอื่นให้…</div></div>';
+      bill2CrossFind($("b2Q").value.trim());   // V63.2: คิวไม่เจอ ≠ ไม่มี — ไปส่องลูกหนี้/ถังขยะให้ด้วย
+    }
     else
       $("b2Body").innerHTML='<div class="empty" style="color:var(--ok)">'+(bill2Filter==='printed'?'ไม่มีใบที่รอยืนยัน':(bill2Filter==='unprinted'?'ไม่มีใบที่ยังไม่พิมพ์ 🎉':'คิววางบิลว่างแล้ว 🎉 กด “➕ จดบิลใหม่” เพื่อคีย์ใบต่อไป'))+'</div>';
   } else {
@@ -3088,10 +3141,18 @@ function renderPay(){
   const mc=$("pMissCard");
   if(d.missingN){ mc.style.display='';
     $("pMissList").innerHTML=d.missing.map(m=>'<div class="cost"><span class="nm">'+escHtml(m.cust||'-')
-      +'<span style="display:block;color:var(--ink-soft);font-size:11.5px">'+escHtml(thd(m.date))+' · ตู้ '+escHtml(m.cont||'-')+' · '+escHtml(m.drv||'-')+'</span></span></div>').join('')
+      +'<span style="display:block;color:var(--ink-soft);font-size:11.5px">'+escHtml(thd(m.date))+' · ตู้ '+escHtml(m.cont||'-')+' · '+escHtml(m.drv||'-')+'</span></span>'
+      +(m.cont?'<button class="minib" data-pfind="'+escAttr(m.cont)+'">🔎 หาใบนี้</button>':'')+'</div>').join('')
       +(d.missingN>d.missing.length?('<div style="margin-top:8px;font-size:12.5px;color:var(--ink-soft)">… และอีก '+(d.missingN-d.missing.length)+' ใบ</div>'):'')
       +'<div style="margin-top:10px;padding-top:10px;border-top:1px solid var(--line);font-size:12.5px;color:var(--ink-soft);line-height:1.8">'
-      +'บิลที่จดก่อนมีระบบค่าเที่ยว หรือหาเรทไม่เจอ · เปิด <b>หน้าวางบิล → ✏️ แก้</b> แล้วใส่ค่าเที่ยวได้</div>';
+      /* V63.2: ใบที่ยืนยันวางบิลแล้วไม่อยู่ในคิว — บอกทางที่ใช้ได้จริง ไม่ใช่ชี้ไปหาปุ่ม ✏️ ที่ไม่มี */
+      +'ใบที่<b>ยังอยู่ในคิว</b> → กด ✏️ แก้ แล้วใส่ค่าเที่ยว · ใบที่<b>วางบิลไปแล้ว</b> → อยู่หน้าลูกหนี้ กด <b>↩ ดึงกลับไปแก้</b> ก่อน<br>'
+      +'ไม่แน่ใจว่าใบอยู่ไหน กด <b>🔎 หาใบนี้</b> ระบบพาไปเอง</div>';
+    $("pMissList").querySelectorAll('[data-pfind]').forEach(b=>b.onclick=()=>{
+      location.hash='bill'; billPageSync();
+      billMode='new'; billModeSync();
+      $("b2Q").value=b.dataset.pfind; bill2SearchSync();
+    });
   } else mc.style.display='none';
 }
 function printPay(){
