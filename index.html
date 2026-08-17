@@ -2188,11 +2188,13 @@ async function loadDash(force){
       try{ localStorage.setItem(DASHCACHE,JSON.stringify({p:dashPeriod,d:j,t:Date.now()})); }catch(e){}
       renderDash();
     }
+    else if(j&&j.result==='dash-admin-only'){ $("k1").textContent='🔒'; flash('หน้าภาพรวมเงินเปิดได้เฉพาะแอดมิน','err'); location.hash=''; }
     else if(j&&j.result==='unknown-act') $("k1").textContent='—', flash('หลังบ้านยังไม่ได้อัปเดตเป็น V59 — วางไฟล์ .gs แล้ว Deploy → New version ก่อน','err');
     else flash('โหลดภาพรวมไม่สำเร็จ'+((j&&j.result)?': '+j.result:''),'err');
   }catch(e){ flash('เชื่อมต่อไม่สำเร็จ — กด ⟳ รีเฟรช','err'); }
 }
 function dashCacheLoad(){
+  if(!adminToken) return false;   // V63.6: แดชบอร์ด = แอดมินเท่านั้น ไม่โชว์แคชให้คนอื่น
   try{ const c=JSON.parse(localStorage.getItem(DASHCACHE)||'null');
     if(c&&c.d&&c.p===dashPeriod){ dashData=c.d; return true; }
   }catch(e){}
@@ -4059,7 +4061,9 @@ function updateAdminUI(){
   $("adminBtn").textContent=adminToken?'แอดมิน ✓':'แอดมิน'; $("adminBtn").style.color=adminToken?'var(--ok)':'';
   const vis=adminToken?'':'none';
   ['btnAudit','btnEditLog'].forEach(id=>{ const b=$(id); if(b) b.style.display=vis; }); // เครื่องมือตรวจสอบ = แอดมินเท่านั้น
-  const gp=$("goPay"); if(gp) gp.style.display=adminToken?'flex':'none';   // V63: เงินคนขับ = ยอดค่าแรง เห็นเฉพาะแอดมิน
+  // V63.6 (เจ้าของเคาะ 17 ส.ค.): แดชบอร์ดภาพรวมเงิน = แอดมินเท่านั้น · หน้าเงินคนขับ = ทุกคนที่ล็อกอิน
+  const gd=$("goDash"); if(gd) gd.style.display=adminToken?'flex':'none';
+  const gp=$("goPay"); if(gp) gp.style.display='flex';
 }
 function setAdmin(t){ adminToken=t; try{ t?localStorage.setItem('jobform_admin',t):localStorage.removeItem('jobform_admin'); }catch(e){} /* V63.6: อย่าเรียกตอนโหลด — ไม่งั้นเครื่องที่แอดมินเคยใช้ โชว์เมนูแอดมินก่อนล็อกอิน · enterApp เรียกให้เอง */ }
 async function tryAdmin(t){
