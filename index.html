@@ -1065,7 +1065,7 @@
       </div>
       <div class="three">
         <div class="field"><label>ลานรับตู้ (CY)</label><input id="b2_yardIn" list="dl_yardIn" placeholder="เช่น LCB" autocomplete="off"><div class="combo-tools" id="b2ct_yardIn"></div></div>
-        <div class="field"><label>สถานที่ส่ง/บรรจุ (LOAD)</label><input id="b2_loadPlace" list="dl_loadPlace" placeholder="เช่น จินวลี่ฟู้ด (สมุทรสาคร)" autocomplete="off"><div class="combo-tools" id="b2ct_loadPlace"></div></div>
+        <div class="field"><label>สถานที่ส่ง/บรรจุ (LOAD)</label><input id="b2_loadPlace" list="dl_b2load" placeholder="เลือกลูกค้าก่อน แล้วรายการจากตารางเรทจะขึ้นให้เลือก" autocomplete="off"><datalist id="dl_b2load"></datalist><div class="combo-tools" id="b2ct_loadPlace"></div></div>
         <div class="field"><label>ลานคืนตู้ (Return)</label><input id="b2_yardOut" list="dl_yardOut" placeholder="เช่น WGD" autocomplete="off"><div class="combo-tools" id="b2ct_yardOut"></div></div>
       </div>
       <div class="col-title">เงินที่เรียกเก็บลูกค้า (คีย์จากใบเสร็จตัวจริง — ไม่เกี่ยวกับเงินเบิกคนขับ)</div>
@@ -3030,6 +3030,25 @@ function findRates(rec){
   } else why.route='unknown';
   return {rows:rows.filter(r=>ratePrice(r,rec.size)>0),why:why};
 }
+/* V63.4 (เจ้าของเสนอ 17 ส.ค.): ช่องสถานที่โหลดเสนอจากตารางเรทของลูกค้ารายนั้น
+   รู้เส้นทาง (ลานรับ→ลานคืน) แล้วเอาที่ตรงเส้นทางขึ้นก่อน · เลือกจากรายการ = เรทเด้งแน่นอน
+   ยังพิมพ์เองนอกรายการได้เสมอ (ตารางเรทมีไม่ครบทุกที่) — ต่อท้ายด้วย master list เดิมกันของหาย */
+function updateLoadSuggest(){
+  const dl=$("dl_b2load"); if(!dl) return;
+  const cu=rNorm($("b2_customer").value), size=$("b2_size").value;
+  const a=zoneOf($("b2_yardIn").value), b=zoneOf($("b2_yardOut").value);
+  const seen={}, opts=[];
+  const push=(load,label)=>{ const k=rNorm(load); if(!load||seen[k]) return; seen[k]=1;
+    opts.push('<option value="'+escAttr(load)+'"'+(label?(' label="'+escAttr(label)+'"'):'')+'></option>'); };
+  if(cu&&rateRows.length){
+    const mine=rateRows.filter(r=>rNorm(r.cust)===cu);
+    const lbl=r=>{ const pr=ratePrice(r,size); return [r.sub,(r.from&&r.to)?(r.from+'-'+r.to):'',pr?(b2Money(pr)+' บ.'):''].filter(Boolean).join(' · '); };
+    if(a&&b) mine.filter(r=>r.from===a&&r.to===b).forEach(r=>push(r.load,lbl(r)));   // ตรงเส้นทาง ขึ้นก่อน
+    mine.forEach(r=>push(r.load,lbl(r)));                                            // ที่เหลือของลูกค้ารายนี้
+  }
+  try{ uniq(store.lists.loadPlace||[]).forEach(v=>push(v,'')); }catch(e){}           // master list เดิมปิดท้าย
+  dl.innerHTML=opts.join('');
+}
 function b2FormRec(){
   return {customer:$("b2_customer").value,loadPlace:$("b2_loadPlace").value,
           yardIn:$("b2_yardIn").value,yardOut:$("b2_yardOut").value,size:$("b2_size").value};
@@ -3478,6 +3497,7 @@ function bill2FormClear(keepBatch){
   tripManual=false; tripChip('กรอกลูกค้า / สถานที่โหลด / ลานรับ / ลานคืน แล้วระบบจะหาเรทให้เอง');
   if(!keepBatch){ ['b2_customer','b2_yardIn','b2_loadPlace','b2_yardOut','b2_trans'].forEach(id=>$(id).value=''); $("b2RateChip").textContent=''; }
   b2Ex=[]; b2RenderEx();
+  try{ updateLoadSuggest(); }catch(e){}
 }
 function bill2Collect(){
   return { date:$("b2_date").value, customer:$("b2_customer").value.trim(), container:$("b2_container").value.trim(),
@@ -4427,6 +4447,10 @@ $("bmDebt").addEventListener('click',()=>{ billMode='debt'; billModeSync(); });
 ['b2_customer','b2_loadPlace','b2_yardIn','b2_yardOut','b2_size'].forEach(id=>{
   $(id).addEventListener('change',tripAuto); $(id).addEventListener('blur',tripAuto);
 });
+['b2_customer','b2_yardIn','b2_yardOut','b2_size'].forEach(id=>{
+  $(id).addEventListener('change',updateLoadSuggest); $(id).addEventListener('blur',updateLoadSuggest);
+});
+$("b2_loadPlace").addEventListener('focus',updateLoadSuggest);   // เผื่อเพิ่งโหลดเรทเสร็จหลังเปิดฟอร์ม
 $("b2_tripPay").addEventListener('input',()=>{        // พิมพ์เอง = หยุดเติมอัตโนมัติ ไม่งั้นระบบจะทับที่พิมพ์
   tripManual=true; $("b2_tripRefVal").value='';
   tripChip($("b2_tripPay").value?'กรอกเอง (ไม่ได้ใช้เรทจากตาราง)':'ยังไม่ได้ใส่ค่าเที่ยว',$("b2_tripPay").value?'manual':'');
