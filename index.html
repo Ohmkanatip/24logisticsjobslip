@@ -2340,7 +2340,7 @@ function dashPageSync(){
    V58 — หน้าลูกหนี้ (บิลที่วางไปแล้ว เก็บเงินได้หรือยัง)
    1 การ์ด = 1 ใบวางบิล (จับกลุ่มด้วยเลขบิลที่หลังบ้าน) · ยอดคิดด้วยสูตรเดียวกับหน้าบิล
    ============================================================ */
-let debtInvs=[], debtFilter='all', debtQ='', debtLoaded=false;
+let debtInvs=[], debtFilter='all', debtQ='', debtLoaded=false, debtLastFetch=0;
 function b3Money(n){ n=Number(n)||0; return n.toLocaleString('th-TH',{minimumFractionDigits:2,maximumFractionDigits:2}); }
 /* V61: ใบที่เก็บเงินครบแล้วแยกเป็นกลุ่มของตัวเอง — ไม่ใช่ยอดค้าง แต่ยังหาเจอไว้แก้/ลบได้ */
 function b3Bucket(x){ if(x.done) return 'done'; if(x.overdue>0) return 'over'; if(x.overdue>=-7) return 'soon'; return 'ok'; }
@@ -2351,7 +2351,9 @@ function b3DueTxt(x){
   if(x.overdue===0) return '🟠 ครบกำหนดวันนี้';
   return '🟢 ครบกำหนด '+thd(x.due)+' (อีก '+(-x.overdue)+' วัน)';
 }
-async function loadDebt(){
+async function loadDebt(force){
+  if(!force&&debtLoaded&&Date.now()-debtLastFetch<15000){ renderDebt(); return; }   // V63.3: กันยิงถี่ (สลับแท็บไปมา)
+  debtLastFetch=Date.now();
   try{
     const j=await callAct({act:'bdebt'});
     if(j&&j.ok&&Array.isArray(j.invs)){ debtInvs=j.invs; debtLoaded=true; renderDebt(); }
@@ -2425,17 +2427,28 @@ function renderDebt(){
    บทเรียน 16 ส.ค.: บิลที่ยืนยัน+เก็บเงินแล้วซ่อนหลังชิป "✅ เก็บแล้ว" — เจ้าของหาไม่เจอทั้งเว็บ
    คนใช้ไม่ควรต้องรู้โครงระบบว่าบิลสถานะไหนอยู่หน้าไหน
    ============================================================ */
+/* V63.3: พิมพ์รัวตอนคิวว่าง เคยยิง bdebt/btrash ซ้ำได้เป็นสิบ call (ธงถูกตั้งหลัง await) → ทั้งหน้าอืด
+   แก้ 3 ชั้น: debounce 400ms (ที่จุดเรียก) · จำ promise ที่กำลังยิงไว้แชร์กัน · ยิงสองตัวขนาน */
+let __xfDebtP=null, __xfTrashP=null;
+function xfLoadDebt(){
+  if(debtLoaded) return Promise.resolve();
+  if(!__xfDebtP) __xfDebtP=callAct({act:'bdebt'}).then(j=>{ if(j&&j.ok&&Array.isArray(j.invs)){ debtInvs=j.invs; debtLoaded=true; } }).finally(()=>{ __xfDebtP=null; });
+  return __xfDebtP;
+}
+function xfLoadTrash(){
+  if(trLoaded) return Promise.resolve();
+  if(!__xfTrashP) __xfTrashP=callAct({act:'btrash'}).then(j2=>{ if(j2&&j2.ok&&Array.isArray(j2.rows)){ trRows=j2.rows; trAdmin=!!j2.admin||!!adminToken; trLoaded=true; updateTrashMark(); } }).finally(()=>{ __xfTrashP=null; });
+  return __xfTrashP;
+}
 async function bill2CrossFind(q){
   const box=document.getElementById('b2XFind'); if(!box||!q) { if(box) box.innerHTML=''; return; }
   const nq=b2Norm(q);
   try{
-    /* ลูกหนี้ (ครอบทุกใบที่ยืนยันวางบิลแล้ว — ทั้งค้างรับและเก็บแล้ว) */
-    if(!debtLoaded){ const j=await callAct({act:'bdebt'}); if(j&&j.ok&&Array.isArray(j.invs)){ debtInvs=j.invs; debtLoaded=true; } }
+    await Promise.all([xfLoadDebt(),xfLoadTrash()]);
     const inDebt=debtInvs.filter(x=>b2Norm([x.cust,x.invno,(x.conts||[]).join(' ')].join('|')).indexOf(nq)>-1);
-    /* ถังขยะ */
-    if(!trLoaded){ const j2=await callAct({act:'btrash'}); if(j2&&j2.ok&&Array.isArray(j2.rows)){ trRows=j2.rows; trAdmin=!!j2.admin||!!adminToken; trLoaded=true; updateTrashMark(); } }
     const inTrash=trRows.filter(r=>b2Norm([r.customer,r.container,r.truck,r.driver,r.invno].join('|')).indexOf(nq)>-1);
     const cur=document.getElementById('b2XFind'); if(!cur) return;   // คนกดออกไปแล้ว
+    if($("b2Q").value.trim()!==q) return;                            // พิมพ์ต่อไปแล้ว — ผลนี้เก่า ทิ้ง
     if(!inDebt.length&&!inTrash.length){ cur.innerHTML='<span style="color:var(--ink-soft)">ดูหน้าลูกหนี้และถังขยะให้แล้ว — ไม่เจอเหมือนกัน</span>'; return; }
     let h='';
     if(inDebt.length){
@@ -2490,7 +2503,7 @@ function debtPay(key){
     (async()=>{
       try{
         const j=await callAct({act:'bpay',uids:x.uids.join(','),state:full?'paid':'part',amt:amt,date:when});
-        if(j&&j.ok){ flash(full?('✓ บันทึกรับเงิน '+b3Money(amt)+' บาท — ปิดหนี้บิลนี้แล้ว'):('✓ รับบางส่วน '+b3Money(amt)+' บาท — ยังค้าง '+b3Money(x.remain-amt)+' บาท'),'ok'); await loadDebt(); }
+        if(j&&j.ok){ flash(full?('✓ บันทึกรับเงิน '+b3Money(amt)+' บาท — ปิดหนี้บิลนี้แล้ว'):('✓ รับบางส่วน '+b3Money(amt)+' บาท — ยังค้าง '+b3Money(x.remain-amt)+' บาท'),'ok'); await loadDebt(true); }
         else flash('บันทึกไม่สำเร็จ'+((j&&j.result)?': '+(ACT_ERR[j.result]||j.result):''),'err');
       }catch(e){ flash('เชื่อมต่อไม่สำเร็จ','err'); }
     })();
@@ -2507,7 +2520,7 @@ function debtDue(key){
   if(!/^\d{4}-\d{2}-\d{2}$/.test(v.trim())){ flash('รูปแบบวันที่ไม่ถูกต้อง ต้องเป็น ปปปป-ดด-วว เช่น 2026-09-15','err'); return; }
   (async()=>{
     try{ const j=await callAct({act:'bdue',uids:x.uids.join(','),due:v.trim()});
-      if(j&&j.ok){ flash('📅 แก้วันครบกำหนดเป็น '+thd(v.trim())+' แล้ว','ok'); await loadDebt(); }
+      if(j&&j.ok){ flash('📅 แก้วันครบกำหนดเป็น '+thd(v.trim())+' แล้ว','ok'); await loadDebt(true); }
       else flash('แก้ไม่สำเร็จ'+((j&&j.result)?': '+(ACT_ERR[j.result]||j.result):''),'err');
     }catch(e){ flash('เชื่อมต่อไม่สำเร็จ','err'); }
   })();
@@ -2522,7 +2535,7 @@ function debtDue(key){
 async function debtRefreshAll(){
   try{ localStorage.removeItem(DASHCACHE); }catch(e){}
   dashData=null; dashLast=0;
-  try{ await loadDebt(); }catch(e){}
+  try{ await loadDebt(true); }catch(e){}
   try{ await bill2Fresh(); if(billMode==='new') renderBill2(); }catch(e){}
 }
 /* ↩ ดึงกลับไปแก้ — บิลกลับเข้าคิววางบิลเป็น "ยังไม่พิมพ์" แล้วแก้/ลบต่อได้ตามปกติ */
@@ -2616,9 +2629,14 @@ async function loadBill2Queue(){
 async function loadBill2Meta(){
   try{ const j=await callAct({act:'bmeta'}); if(j&&j.ok){ bill2Meta={lastInv:j.lastInv||'',lastInvByCust:j.lastInvByCust||{},rates:j.rates||{}}; bill2MetaLoaded=true; b2CacheSave(); } }catch(e){}
 }
+let __bqInflight=null;   // V63.3: กันยิง bqueue ซ้ำซ้อน — จดรัวหลายใบ ตัวตรวจเบื้องหลังทุกตัวใช้ call เดียวร่วมกัน
 async function bill2Fresh(){
-  try{ const j=await callAct({act:'bqueue'}); if(b2ApplyQueue(j)) return true; }catch(e){}
-  return false;
+  if(__bqInflight) return __bqInflight;
+  __bqInflight=(async()=>{
+    try{ const j=await callAct({act:'bqueue'}); if(b2ApplyQueue(j)) return true; }catch(e){}
+    return false;
+  })();
+  try{ return await __bqInflight; } finally { __bqInflight=null; }
 }
 
 /* ---- ค้นในคิว (กรองในเครื่อง ไม่ยิงหลังบ้าน — แพทเทิร์น V55) ---- */
@@ -2741,7 +2759,8 @@ function renderBill2(){
     else if(bill2SearchOn()){
       $("b2Body").innerHTML='<div class="empty">ไม่พบในคิววางบิล'+(base.length?('<div style="color:var(--ink-soft);font-size:12px;margin-top:6px">คิวยังมี '+base.length+' ใบ — กด “✕ ล้างคำค้น” เพื่อดูทั้งหมด</div>'):'')
         +'<div id="b2XFind" style="margin-top:10px;font-size:13px">กำลังดูหน้าอื่นให้…</div></div>';
-      bill2CrossFind($("b2Q").value.trim());   // V63.2: คิวไม่เจอ ≠ ไม่มี — ไปส่องลูกหนี้/ถังขยะให้ด้วย
+      clearTimeout(window.__xfTimer);          // V63.3: หน่วง 400ms — พิมพ์รัวไม่ยิงหลังบ้านรัวตาม
+      window.__xfTimer=setTimeout(()=>bill2CrossFind($("b2Q").value.trim()),400);
     }
     else
       $("b2Body").innerHTML='<div class="empty" style="color:var(--ok)">'+(bill2Filter==='printed'?'ไม่มีใบที่รอยืนยัน':(bill2Filter==='unprinted'?'ไม่มีใบที่ยังไม่พิมพ์ 🎉':'คิววางบิลว่างแล้ว 🎉 กด “➕ จดบิลใหม่” เพื่อคีย์ใบต่อไป'))+'</div>';
@@ -2806,10 +2825,10 @@ async function bill2Set(uids,state,okMsg,invno){
 /* ให้หน้าต่างพิมพ์เรียกกลับมาประทับเลขบิลที่แก้มือแล้ว */
 async function bill2StampInv(uids,invno){
   invno=String(invno||'').trim(); if(!invno||!uids||!uids.length) return;
-  try{ await callAct({act:'bset',uids:uids.join(','),state:'inv',invno:invno}); bill2Fresh().then(()=>{ if(billMode==='new') renderBill2(); }); loadBill2Meta(); }catch(e){}
+  try{ await callAct({act:'bset',uids:uids.join(','),state:'inv',invno:invno}); bill2Fresh().then(()=>{ if(billMode==='new') renderBill2(); }); }catch(e){}   // V63.3: bqueue แถม meta มาแล้ว ไม่ต้องยิง bmeta ซ้ำ
 }
 async function bill2StampFromPrint(pairs){
-  try{ for(const p of (pairs||[])){ if(p&&p.invno&&p.uids&&p.uids.length) await callAct({act:'bset',uids:p.uids.join(','),state:'inv',invno:String(p.invno).trim()}); } bill2Fresh().then(()=>{ if(billMode==='new') renderBill2(); }); loadBill2Meta(); }catch(e){}
+  try{ for(const p of (pairs||[])){ if(p&&p.invno&&p.uids&&p.uids.length) await callAct({act:'bset',uids:p.uids.join(','),state:'inv',invno:String(p.invno).trim()}); } bill2Fresh().then(()=>{ if(billMode==='new') renderBill2(); }); }catch(e){}
 }
 window.bill2StampInv=bill2StampInv; window.bill2StampFromPrint=bill2StampFromPrint;
 
@@ -2965,12 +2984,15 @@ function zoneOf(s){
 }
 async function loadRates(force){
   if(rateLoaded&&!force) return;
-  try{ const c=localStorage.getItem(RATECACHE); if(c){ const j=JSON.parse(c); rateRows=j.rows||[]; rateZones=j.zones||{}; rateLoaded=true; } }catch(e){}
+  let ts=0;
+  try{ const c=localStorage.getItem(RATECACHE); if(c){ const j=JSON.parse(c); rateRows=j.rows||[]; rateZones=j.zones||{}; ts=j.ts||0; if(rateRows.length) rateLoaded=true; } }catch(e){}
+  // V63.3: เรทแทบไม่เปลี่ยน — แคชสดใน 1 ชม. ไม่ต้องยิงตอนเปิดเว็บ (เร็วขึ้น + ลดคิวที่ Apps Script)
+  if(!force&&rateLoaded&&Date.now()-ts<3600000) return;
   try{
     const j=await callAct({act:'rates'});
     if(j&&j.ok&&Array.isArray(j.rows)){
       rateRows=j.rows; rateZones=j.zones||{}; rateLoaded=true;
-      try{ localStorage.setItem(RATECACHE,JSON.stringify({rows:rateRows,zones:rateZones})); }catch(e){}
+      try{ localStorage.setItem(RATECACHE,JSON.stringify({rows:rateRows,zones:rateZones,ts:Date.now()})); }catch(e){}
     }
   }catch(e){}
 }
@@ -3196,7 +3218,10 @@ async function b2Chunked(act, uids, extra){
 }
 
 /* ---- ถังขยะบิล ---- */
-async function loadBTrash(){
+let trLastFetch=0;
+async function loadBTrash(force){
+  if(!force&&trLoaded&&Date.now()-trLastFetch<15000){ renderBTrash(); return; }   // V63.3: กันยิงถี่
+  trLastFetch=Date.now();
   try{
     const j=await callAct({act:'btrash'});
     if(j&&j.ok&&Array.isArray(j.rows)){ trRows=j.rows; trAdmin=!!j.admin||!!adminToken; trLoaded=true; renderBTrash(); updateTrashMark(); }
@@ -3265,7 +3290,7 @@ async function trRestore(uids){
   if(!go) return;
   const r=await b2Chunked('brestore',can.map(x=>x.uid));
   if(r.bad){ flash('กู้คืนไม่สำเร็จ — '+escHtml(ACT_ERR[r.bad]||r.bad),'err'); return; }
-  trSel={}; await loadBTrash();
+  trSel={}; await loadBTrash(true);
   try{ await bill2Fresh(); }catch(e){}
   flash('↩️ กู้คืนแล้ว '+r.done+' บิล'+(r.skip?(' · ข้าม '+r.skip+' ใบ (มีอยู่ในคิวแล้ว)'):'')+' — อยู่ในคิววางบิลแล้ว','ok');
 }
@@ -3280,12 +3305,15 @@ async function trPurge(uids){
   if(!go) return;
   const r=await b2Chunked('bpurge',rows.map(x=>x.uid));
   if(r.bad){ flash('ลบถาวรไม่สำเร็จ — '+escHtml(ACT_ERR[r.bad]||r.bad),'err'); return; }
-  trSel={}; await loadBTrash();
+  trSel={}; await loadBTrash(true);
   flash('🔥 ลบถาวรแล้ว '+r.done+' บิล','ok');
 }
 
 /* ---- ประวัติแก้ไขรวม ---- */
-async function loadHist(){
+let hsLastFetch=0;
+async function loadHist(force){
+  if(!force&&hsLoaded&&Date.now()-hsLastFetch<15000){ renderHist(); return; }   // V63.3: กันยิงถี่ (สลับติ๊ก "รวมใบงาน" = force เพราะข้อมูลคนละชุด)
+  hsLastFetch=Date.now();
   try{
     const wantJob=(adminToken&&$("hsJob").checked)?'1':'';
     const j=await callAct(wantJob?{act:'bhistall',job:'1'}:{act:'bhistall'});
@@ -3339,7 +3367,7 @@ async function bill2BulkDelete(){
   const r=await b2Chunked('bdel',can.map(x=>x.uid));
   if(r.bad){ flash('ลบไม่สำเร็จ — '+escHtml(ACT_ERR[r.bad]||r.bad),'err'); return; }
   bill2Sel={}; await bill2Fresh(); renderBill2();
-  trLoaded=false; loadBTrash();
+  trLoaded=false; loadBTrash(true);
   flash('🗑 ลบแล้ว '+r.done+' บิล'+((r.skip+skip.length)?(' · ข้าม '+(r.skip+skip.length)+' ใบ'):'')+' — อยู่ใน 🗑 ถังขยะ กู้คืนได้','ok');
 }
 
@@ -3470,7 +3498,13 @@ function b2SessAdd(uid,d){ const l=b2PendList(); l.unshift({uid:uid,d:d,ts:Date.
 function b2SessMark(uid,okSent){
   const l=b2PendList(); const i=l.findIndex(x=>x.uid===uid);
   if(i<0) return; l[i].busy=0; l[i].sent=okSent?1:0;
-  if(okSent) delete l[i].d;                    // ขึ้นชีทแล้วไม่ต้องเก็บข้อมูลเต็มไว้ในเครื่อง
+  if(okSent){
+    // V63.3: เก็บชื่อย่อไว้ก่อนลบข้อมูลเต็ม — เดิมลบทิ้งหมดแล้วรายการเหลือแค่รหัส "Bmsxbk… · -" อ่านไม่รู้เรื่อง
+    const dd=l[i].d||{};
+    if(dd.container) l[i].c=dd.container;
+    if(dd.customer) l[i].cu=dd.customer;
+    delete l[i].d;                    // ขึ้นชีทแล้วไม่ต้องเก็บข้อมูลเต็มไว้ในเครื่อง
+  }
   b2PendSave(l); renderB2Pending();
 }
 function renderB2Pending(){
@@ -3489,8 +3523,12 @@ function renderB2Pending(){
     const st=x.busy?'<span class="tag local">⟳ กำลังตรวจ…</span>'
       :(x.sent?'<span class="tag sent">✅ ขึ้นชีทแล้ว</span>'
               :'<span class="tag local">⚠️ ยังไม่ขึ้น</span> <button class="sbtn danger" onclick="b2ResendOne(\''+escAttr(x.uid)+'\')">⟳ ส่งซ้ำ</button>');
-    return '<div class="b2sess-row"><span>'+escHtml(d.container||x.uid)+' · '+escHtml(d.customer||'-')
-      +(d.total!==undefined?' · '+b2Money(d.total):'')+'</span><span>'+st+'</span></div>';
+    // หาเบอร์ตู้/ลูกค้าจากทุกที่ที่มี: ข้อมูลเต็ม → ชื่อย่อที่เก็บไว้ → คิวในเครื่อง → ค่อยตกไปเป็นรหัส
+    const q=(typeof bill2Rows!=='undefined'&&bill2Rows.find(r=>r.uid===x.uid))||{};
+    const cont=d.container||x.c||q.container||'', cust=d.customer||x.cu||q.customer||'';
+    const amt=(d.c_trans!==undefined)?b2RowTotal(d):((q.c_trans!==undefined)?b2RowTotal(q):0);
+    return '<div class="b2sess-row"><span>'+(cont?('<b>ตู้ '+escHtml(cont)+'</b>'):('<span class="mono" style="font-size:11px">'+escHtml(x.uid)+'</span>'))
+      +' · '+escHtml(cust||'-')+(amt?' · '+b2Money(amt)+' บาท':'')+'</span><span>'+st+'</span></div>';
   }).join('');
   box.innerHTML=head+rows+(list.length>15?'<div class="hint" style="margin:6px 0 0">แสดง 15 ใบล่าสุด จากทั้งหมด '+list.length+' ใบ</div>':'');
 }
@@ -3500,36 +3538,53 @@ function b2SessClear(){
   if(!bad&&!confirm('ล้างรายการที่แสดงในเครื่องนี้?\n(ข้อมูลในชีทยังอยู่ครบ)')) return;
   b2PendSave([]); renderB2Pending(); flash('ล้างรายการแล้ว','ok');
 }
-/* 🔄 ตรวจกับชีท — ถามชีททีละใบว่ามีจริงไหม (ใบที่เคยขึ้นแล้วข้าม ไม่ยิงซ้ำให้เปลืองโควตา) */
+/* 🔄 ตรวจกับชีท — V63.3: ยิง bqueue รอบเดียวเช็คได้ทุกใบ (เดิม bone ทีละใบ N+1 calls)
+   ใบที่ไม่อยู่ในคิว (อาจวางบิลไปแล้ว) ค่อยถาม bone เฉพาะตัว · "ตรวจไม่ได้" (เน็ต/ล็อกอิน) ≠ "ไม่อยู่ในชีท" ห้ามตีตรา ⚠️ มั่ว */
 async function b2VerifyAll(){
   const list=b2PendList(), todo=list.filter(x=>!x.sent);
   if(!todo.length){ flash('ทุกใบยืนยันแล้วว่าขึ้นชีทครบ ✅','ok'); return; }
   flash('กำลังตรวจ '+todo.length+' ใบกับชีท…','ok');
-  let found=0;
+  let inQ=null;
+  try{ if(await bill2Fresh()){ inQ={}; bill2Rows.forEach(r=>inQ[r.uid]=1); } }catch(e){}
+  let found=0,left=0,unsure=0;
   for(const it of todo){
-    let okv=false;
-    try{ const j=await callAct({act:'bone',uid:it.uid}); okv=!!(j&&j.ok&&j.rec); }catch(e){}
-    b2SessMark(it.uid,okv); if(okv) found++;
+    if(inQ&&inQ[it.uid]){ b2SessMark(it.uid,true); found++; continue; }
+    let okv=false,uns=(inQ===null);   // คิวก็ดึงไม่ได้ = เน็ต/ล็อกอินมีปัญหาแน่
+    if(!uns){
+      try{ const j=await callAct({act:'bone',uid:it.uid});
+        if(j&&j.ok&&j.rec) okv=true;
+        else if(!j||j.result==='auth'||j.result==='app-forbidden') uns=true;
+      }catch(e){ uns=true; }
+    }
+    if(uns){ unsure++; continue; }               // คงสถานะเดิม ไม่ตีตรา
+    b2SessMark(it.uid,okv); if(okv) found++; else left++;
   }
-  const left=todo.length-found;
-  flash(left?('ตรวจแล้ว — ขึ้นชีท '+found+' ใบ · ยังไม่ขึ้น '+left+' ใบ (กด ⟳ ส่งซ้ำได้)'):('✅ ตรวจแล้ว ขึ้นชีทครบทุกใบ'),left?'err':'ok');
-  try{ await bill2Fresh(); if(billMode==='new') renderBill2(); }catch(e){}
+  if(unsure) flash('ตรวจไม่ได้ '+unsure+' ใบ (เน็ต/ล็อกอิน) — ใบยังเก็บอยู่ในเครื่อง ลองใหม่อีกที'+(found?(' · ขึ้นชีทแล้ว '+found+' ใบ'):''),'err');
+  else flash(left?('ตรวจแล้ว — ขึ้นชีท '+found+' ใบ · ยังไม่ขึ้น '+left+' ใบ (กด ⟳ ส่งซ้ำได้)'):('✅ ตรวจแล้ว ขึ้นชีทครบทุกใบ'),left?'err':'ok');
+  if(billMode==='new') renderBill2();
 }
 async function b2ResendOne(uid){
   const list=b2PendList(), it=list.find(x=>x.uid===uid);
   if(!it||!it.d){ flash('ใบนี้ไม่มีข้อมูลเก็บไว้ในเครื่องแล้ว — กด 🔄 ตรวจกับชีทแทน','err'); return; }
   flash('กำลังส่งซ้ำ…','ok');
   try{ await b2Post(Object.assign({_bsave:1,uid:uid},it.d)); }catch(e){}
-  const okv=await b2VerifySaved(uid); b2SessMark(uid,okv);
-  flash(okv?'✓ ส่งซ้ำติดแล้ว ขึ้นชีทเรียบร้อย':'ยังส่งไม่ติด — เช็คเน็ต/ล็อกอินแล้วลองใหม่',okv?'ok':'err');
-  if(okv){ try{ await bill2Fresh(); if(billMode==='new') renderBill2(); }catch(e){} }
+  const okv=await b2VerifySaved(uid); b2SessMark(uid,okv===true);
+  flash(okv===true?'✓ ส่งซ้ำติดแล้ว ขึ้นชีทเรียบร้อย':(okv===null?'ตรวจไม่ได้ (เน็ต/ล็อกอิน) — ใบยังเก็บอยู่ในเครื่อง กด 🔄 ตรวจกับชีทอีกที':'ยังส่งไม่ติด — เช็คเน็ต/ล็อกอินแล้วลองใหม่'),okv===true?'ok':'err');
+  if(okv===true&&billMode==='new') renderBill2();
 }
+/* คืน true=อยู่ในชีท · false=ไม่อยู่ · null=ตรวจไม่ได้ (เน็ต/ล็อกอิน — อย่าตีตราว่าหาย)
+   V63.3: ใช้ bqueue (มี in-flight dedupe) แทน bone — จดรัว 10 ใบ ตัวตรวจทุกตัวแชร์ call เดียว ไม่ใช่ 30-40 calls */
 async function b2VerifySaved(uid){
+  let unsure=false;
   for(const wait of [3500,4500]){
     await new Promise(r=>setTimeout(r,wait));
-    try{ const j=await callAct({act:'bone',uid:uid}); if(j&&j.ok&&j.rec) return true; }catch(e){}
+    unsure=false;
+    try{
+      if(await bill2Fresh()){ if(bill2Rows.some(r=>r.uid===uid)) return true; }
+      else unsure=true;
+    }catch(e){ unsure=true; }
   }
-  return false;
+  return unsure?null:false;
 }
 function b2Post(body){
   const url=endpoint();
@@ -3542,20 +3597,22 @@ async function b2ResendAll(){
   let left=0;
   for(const it of todo){
     try{ await b2Post(Object.assign({_bsave:1,uid:it.uid},it.d)); }catch(e){}
-    const okv=await b2VerifySaved(it.uid); b2SessMark(it.uid,okv); if(!okv) left++;
+    const okv=await b2VerifySaved(it.uid); b2SessMark(it.uid,okv===true); if(okv!==true) left++;
   }
   if(left) flash('ยังส่งไม่ติด '+left+' บิล — เช็คเน็ต/ล็อกอินแล้วลองใหม่','err');
-  else { flash('✓ ส่งซ้ำติดครบทุกใบแล้ว','ok'); try{ await bill2Fresh(); if(billMode==='new') renderBill2(); }catch(e){} }
+  else { flash('✓ ส่งซ้ำติดครบทุกใบแล้ว','ok'); if(billMode==='new') renderBill2(); }
 }
 /* ตรวจเบื้องหลังว่าบิลติดชีทจริง (แบบเดียวกับ autoVerify ของหน้าจด) — ไม่บล็อกปุ่ม ไม่ต้องรอ
    ติด → แจ้งเงียบๆ + รีเฟรชคิว · ไม่ติด → เข้าคิวส่งซ้ำในเครื่อง (ส่งซ้ำปลอดภัย เพราะหลังบ้านกัน uid ซ้ำ) */
 function b2VerifyInBackground(uid,d){
   (async()=>{
     const okv=await b2VerifySaved(uid);
-    b2SessMark(uid,okv);
-    if(okv){
+    b2SessMark(uid,okv===true);
+    if(okv===true){
       flash('✓ บิลตู้ '+(d.container||'')+' ขึ้นชีทแล้ว','ok');
-      try{ await bill2Fresh(); if(billMode==='new'&&bill2Filter!=='recent') renderBill2(); }catch(e){}
+      if(billMode==='new'&&bill2Filter!=='recent') renderBill2();   // bill2Fresh ทำไปแล้วใน b2VerifySaved
+    } else if(okv===null){
+      flash('ตรวจไม่ได้ตอนนี้ (เน็ต/ล็อกอิน) — ตู้ '+(d.container||uid)+' เก็บไว้ในเครื่องแล้ว กด 🔄 ตรวจกับชีทอีกที','err');
     } else {
       flash('⚠️ ตู้ '+(d.container||uid)+' — ยังไม่เห็นในชีท เก็บไว้ในเครื่องแล้ว (กด “⟳ ส่งซ้ำ” ในรายการด้านล่างได้ตลอด)','err');
     }
@@ -3590,7 +3647,7 @@ async function bill2Save(){
     if(expired||!url.startsWith('http')){
       b2SessAdd(uid,d); b2SessMark(uid,false);   // ส่งไม่ได้แน่ๆ → เข้ารายการรอส่งซ้ำทันที
       flash(expired?'⚠️ ล็อกอินหมดอายุ — เก็บบิลไว้ในเครื่องแล้ว ล็อกอินใหม่แล้วกด “⟳ ส่งซ้ำทั้งหมด”':'เก็บไว้ในเครื่องแล้ว (ยังไม่ต่อชีท)','err');
-      bill2FormClear(true); return;
+      bill2FormClear(false); $("b2_date").value=todayLocal(); return;
     }
     // เตือนเบา: ตู้นี้มีอยู่ในคิวแล้ว (เช็คจากข้อมูลในเครื่อง — ตัวจริงหลังบ้านเช็คย้อน 45 วันอีกชั้น)
     // ---- ยิงแล้วไม่รอ (แบบเดียวกับหน้าจด V51): เคลียร์ฟอร์มทันที จดใบต่อไปได้เลย ----
@@ -3598,8 +3655,8 @@ async function bill2Save(){
     const dupQ=bill2Rows.some(r=>b2Norm(r.container)===b2Norm(d.container));
     try{ b2Post(Object.assign({_bsave:1,uid:uid},d)); }catch(e){}
     flash('บันทึกบิลแล้ว ✓ จดใบต่อไปได้เลย — ระบบส่งขึ้นชีทให้เอง'+(dupQ?' · ⚠️ ตู้นี้มีบิลอยู่ในคิวแล้ว เช็คว่าไม่จดซ้ำ':''),'ok');
-    bill2FormClear(true); // คงลูกค้า/วันที่/เรทไว้ คีย์ใบต่อไปของลูกค้าเดิมได้เลย
-    $("b2_container").focus();
+    bill2FormClear(false); $("b2_date").value=todayLocal();   // V63.3: เจ้าของขอ 17 ส.ค. — บันทึกแล้วฟอร์มว่างทั้งใบ พร้อมจดใบใหม่
+    $("b2_customer").focus();
     hold=true; setTimeout(()=>{ btn.disabled=false; },700); // กันกดรัวได้ใบซ้ำ — จังหวะเดียวกับหน้าจด
     b2SessAdd(uid,d);            // ขึ้นรายการ "บิลที่จดจากเครื่องนี้" ทันที (สถานะ ⟳ กำลังตรวจ)
     b2VerifyInBackground(uid,d);
@@ -3656,7 +3713,23 @@ function downloadCsv(){
   a.download='ใบงานรถหัวลาก_'+new Date().toISOString().slice(0,10)+'.csv'; a.click();
 }
 
-function flash(t,type){ const m=$("msg"); m.textContent=t; m.className='msg '+type; setTimeout(()=>{if(m.textContent===t)m.textContent='';},4000); }
+function flash(t,type){
+  const m=$("msg"); m.textContent=t; m.className='msg '+type; setTimeout(()=>{if(m.textContent===t)m.textContent='';},4000);
+  // V63.3: บนหน้าเต็มจอ (วางบิล/แดชบอร์ด/เงินคนขับ) #msg ถูกซ่อนด้วย body.bill-on ฯลฯ
+  // → ทุก feedback (ตรวจกับชีท/ส่งซ้ำ/บันทึก) เงียบสนิท ต้องมี toast ลอยของตัวเอง
+  const cl=document.body.classList;
+  if(cl.contains('bill-on')||cl.contains('dash-on')||cl.contains('pay-on')){
+    let t2=document.getElementById('msg2');
+    if(!t2){ t2=document.createElement('div'); t2.id='msg2';
+      t2.style.cssText='position:fixed;left:50%;transform:translateX(-50%);bottom:22px;z-index:9500;max-width:92vw;padding:12px 20px;border-radius:11px;font-size:13.5px;line-height:1.6;text-align:center;box-shadow:0 4px 18px rgba(0,0,0,.28);display:none';
+      document.body.appendChild(t2); }
+    t2.textContent=t;
+    t2.style.background=(type==='err')?'var(--warn)':'var(--total-bg)';
+    t2.style.color=(type==='err')?'#fff':'var(--total-fg)';
+    t2.style.display='block';
+    clearTimeout(t2.__tm); t2.__tm=setTimeout(()=>{ t2.style.display='none'; },4000);
+  }
+}
 function escHtml(s){return String(s||'').replace(/[<>&]/g,c=>({'<':'&lt;','>':'&gt;','&':'&amp;'}[c]));}
 function escAttr(s){return String(s||'').replace(/"/g,'&quot;');}
 
@@ -4325,7 +4398,9 @@ document.querySelectorAll('#dPeriod button').forEach(b=>b.addEventListener('clic
 document.querySelectorAll('.views button').forEach(b=>b.addEventListener('click',()=>{ dashView=b.dataset.v; renderDash(); }));
 dashPageSync();
 payPageSync();
-loadRates();                                    // โหลดตารางเรทไว้ล่วงหน้า (มีแคชในเครื่อง เปิดมาใช้ได้ทันที)
+loadRates();
+/* V63.3: ใบที่ค้าง "⟳ กำลังตรวจ" ถาวร (ปิดแท็บก่อนตัวตรวจเบื้องหลังทำงานจบ) → ปลดล็อกเป็น "ยังไม่ขึ้น" ให้ส่งซ้ำ/ตรวจได้ */
+try{ const _l=b2PendList(); if(_l.some(x=>x.busy)){ _l.forEach(x=>{ if(x.busy){ x.busy=0; x.sent=0; } }); b2PendSave(_l); } }catch(e){}                                    // โหลดตารางเรทไว้ล่วงหน้า (มีแคชในเครื่อง เปิดมาใช้ได้ทันที)
 $("goBill").addEventListener('click',()=>{ location.hash='bill'; });
 $("bpBack").addEventListener('click',()=>{ location.hash=''; });
 $("bpReload").addEventListener('click',()=>{ // V57: รีเฟรชตามโหมดที่เปิดอยู่
@@ -4369,11 +4444,11 @@ $("bmHist").addEventListener('click',()=>{ billMode='hist'; billModeSync(); });
 $("bmOld").addEventListener('click',()=>{ billMode='old'; billModeSync(); });
 /* V60: ถังขยะ + ประวัติแก้ไขรวม */
 $("trSearch").addEventListener('input',renderBTrash);
-$("trReload").addEventListener('click',()=>{ trSel={}; loadBTrash(); });
+$("trReload").addEventListener('click',()=>{ trSel={}; loadBTrash(true); });
 $("trSelAll").addEventListener('change',()=>{ const rows=trShown(); if($("trSelAll").checked) rows.forEach(r=>trSel[r.uid]=1); else rows.forEach(r=>delete trSel[r.uid]); renderBTrash(); });
 $("hsSearch").addEventListener('input',renderHist);
-$("hsReload").addEventListener('click',loadHist);
-$("hsJob").addEventListener('change',loadHist);
+$("hsReload").addEventListener('click',()=>loadHist(true));
+$("hsJob").addEventListener('change',()=>loadHist(true));
 document.querySelectorAll('#hsFilter .hf2').forEach(b=>b.addEventListener('click',()=>{ hsFilter=b.dataset.h; renderHist(); }));
 document.querySelectorAll('#b3Filter .fb').forEach(f=>f.addEventListener('click',()=>{ debtFilter=f.dataset.f; renderDebt(); }));
 $("b3Q").addEventListener('input',e=>{ debtQ=e.target.value.trim(); renderDebt(); });
@@ -5385,6 +5460,7 @@ recalc();
   function boot(){
     if(sessionOk()){
       inner.innerHTML='<div class="auth-emoji" style="font-size:30px">⏳</div><div class="co">กำลังเข้าสู่ระบบ…</div>';
+      try{ if(window.fetchMaster){ window.__mfStarted=1; fetchMaster(); } }catch(e){}   // V63.3: ขนานกับ verifyauth — เร็วขึ้น 1-3 วิ ทุกการเปิด
       checkStatus();
       return;
     }
