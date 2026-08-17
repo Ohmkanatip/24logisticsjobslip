@@ -1064,9 +1064,12 @@
         <div class="field"><label>ป้ายมุมขวาบนของบิล <span style="color:var(--ink-soft);font-weight:400">(ไม่ใส่ก็ได้)</span></label><input id="b2_tag" placeholder="เช่น XIANGJIA" autocomplete="off"></div>
       </div>
       <div class="three">
-        <div class="field"><label>ลานรับตู้ (CY)</label><input id="b2_yardIn" list="dl_yardIn" placeholder="เช่น LCB" autocomplete="off"><div class="combo-tools" id="b2ct_yardIn"></div></div>
-        <div class="field"><label>สถานที่ส่ง/บรรจุ (LOAD)</label><input id="b2_loadPlace" list="dl_b2load" placeholder="เลือกลูกค้าก่อน แล้วรายการจากตารางเรทจะขึ้นให้เลือก" autocomplete="off"><datalist id="dl_b2load"></datalist><div class="combo-tools" id="b2ct_loadPlace"></div></div>
-        <div class="field"><label>ลานคืนตู้ (Return)</label><input id="b2_yardOut" list="dl_yardOut" placeholder="เช่น WGD" autocomplete="off"><div class="combo-tools" id="b2ct_yardOut"></div></div>
+        <!-- V63.5 (เจ้าของขอ 17 ส.ค.): ลานรับ → ลานคืน → สถานที่โหลด — กรอกลานครบก่อน
+             รายการแนะนำของช่องโหลด (กรองจากเส้นทางลานรับ+ลานคืน) จะตรงเส้นทางพอดีตอนมาถึงช่องนี้
+             ⚠️ เฉพาะลำดับช่องในฟอร์ม — บนใบวางบิลที่พิมพ์ยังเรียง CY | LOAD | Return ตามบิลจริง -->
+        <div class="field"><label>ลานรับตู้ (CY)</label><input id="b2_yardIn" list="dl_yardIn" placeholder="เช่น LCB / แหลมฉบัง" autocomplete="off"><div class="combo-tools" id="b2ct_yardIn"></div></div>
+        <div class="field"><label>ลานคืนตู้ (Return)</label><input id="b2_yardOut" list="dl_yardOut" placeholder="เช่น WGD / ลาดกระบัง" autocomplete="off"><div class="combo-tools" id="b2ct_yardOut"></div></div>
+        <div class="field"><label>สถานที่ส่ง/บรรจุ (LOAD)</label><input id="b2_loadPlace" list="dl_b2load" placeholder="กรอกลูกค้า+ลานก่อน แล้วรายการที่ตรงเส้นทางจะขึ้นให้เลือก" autocomplete="off"><datalist id="dl_b2load"></datalist><div class="combo-tools" id="b2ct_loadPlace"></div></div>
       </div>
       <div class="col-title">เงินที่เรียกเก็บลูกค้า (คีย์จากใบเสร็จตัวจริง — ไม่เกี่ยวกับเงินเบิกคนขับ)</div>
       <div class="cost-row"><span class="no">1</span><span class="nm">ค่าขนส่ง <span style="display:block;color:var(--ink-soft);font-size:11.5px">เรทตามลูกค้า/เส้นทาง — ระบบจำให้จากบิลก่อนๆ</span></span><input id="b2_trans" inputmode="decimal" placeholder="0" autocomplete="off"></div>
