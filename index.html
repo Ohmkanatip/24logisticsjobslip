@@ -577,9 +577,11 @@
 </script>
 <script src="https://accounts.google.com/gsi/client" async></script>
 <style>
-#authGate{position:fixed;inset:0;z-index:9999;background:transparent;display:flex;align-items:center;justify-content:center;padding:20px}
+#authGate{position:fixed;inset:0;z-index:9999;background:var(--bg);display:flex;align-items:center;justify-content:center;padding:20px}
+#authGate::before{content:"";position:absolute;inset:0;background:linear-gradient(160deg,#0d1220,#141a2c 60%,#1a2338);z-index:0}
+#authGate>*{position:relative;z-index:1}
 #authGate.hidden{display:none}
-.auth-box{max-width:400px;width:100%;text-align:center;background:rgba(20,26,44,.46);backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);border:1px solid rgba(255,255,255,.35);border-radius:24px;padding:30px 26px;color:#fff;box-shadow:0 4px 18px rgba(0,0,0,.28)}
+.auth-box{max-width:400px;width:100%;text-align:center;background:#1c2438;border:1px solid rgba(255,255,255,.14);border-radius:24px;padding:30px 26px;color:#fff;box-shadow:0 8px 30px rgba(0,0,0,.5)}
 .auth-box img.logo{height:92px;margin:0 auto 16px;filter:drop-shadow(0 4px 10px rgba(20,30,50,.3));background:rgba(255,255,255,.92);border-radius:16px;padding:10px}
 .auth-box h2{margin:0 0 4px;font-family:'Taviraj','Sarabun',serif;font-weight:500;font-size:22px;letter-spacing:-.01em;color:#fff}
 .auth-box .co{color:rgba(255,255,255,.9);font-size:13px;line-height:1.6}
@@ -1172,67 +1174,8 @@
 /* ============================================================
    ค่าเริ่มต้น (defaults) — จะถูกรวมกับรายการที่ผู้ใช้เพิ่มเอง
    ============================================================ */
-const DEFAULT_TRUCKS = [
-  { plate:"73-1099",  driver:"สุรสิทธิ์ อุกประโคน",        trailer:"" },
-  { plate:"74-3526",  driver:"ศราวุธ ทามี",                trailer:"" },
-  { plate:"700-9667", driver:"ขจรชัย สรสิทธิ์",            trailer:"" },
-  { plate:"74-8780",  driver:"จักกรี นิลพาทย์",            trailer:"" },
-  { plate:"69-8424",  driver:"ณรงค์ฤทธิ์ จุนทาทูม",        trailer:"" },
-  { plate:"74-3420",  driver:"จันที นามสุขา",              trailer:"" },
-  { plate:"74-0328",  driver:"จิรพันธ์ พวงเพชร (โจ)",      trailer:"" },
-  { plate:"73-5012",  driver:"ชินกร อิงกลาง",              trailer:"" },
-  { plate:"74-1178",  driver:"จิรวัฒน์ เสียงเลิศ",         trailer:"" },
-  { plate:"69-8433",  driver:"ประเสริฐ จรรยาเอก",          trailer:"" },
-  { plate:"71-7376",  driver:"ปรีชา ประทุมชาติ",           trailer:"" },
-  { plate:"74-4770",  driver:"",                            trailer:"" },
-  { plate:"69-8437",  driver:"ทองสุข แข็งกล้า",            trailer:"" },
-  { plate:"73-5011",  driver:"สุชิน ดิษฐผล",               trailer:"" },
-  { plate:"74-1443",  driver:"ดวงจันทร์ นิระพันธ์",        trailer:"" },
-  { plate:"74-1448",  driver:"เด่น สุนา",                  trailer:"" },
-  { plate:"74-4769",  driver:"อาวุธ โชคคูณ",               trailer:"" },
-  { plate:"63-3201",  driver:"จิรวัฒน์ พาณิช",             trailer:"" },
-  { plate:"74-0327",  driver:"ชานนท์ มณีโชติ",             trailer:"" },
-  { plate:"73-8932",  driver:"ราชวัฒน์ รัตนะประทุม",       trailer:"" },
-  { plate:"69-8440",  driver:"",                            trailer:"" },
-  { plate:"67-3929",  driver:"อดิศร ปุยทอง",               trailer:"" },
-  { plate:"74-3525",  driver:"ธวัชชัย เรือนทอง",           trailer:"" },
-  { plate:"73-4658",  driver:"ประชุม ปาละพันธ์",           trailer:"" },
-  { plate:"72-7079",  driver:"ประภัทร หลังแก้ว",           trailer:"" },
-  { plate:"74-8781",  driver:"ประสาร อัญญะโพธิ์",          trailer:"" },
-  { plate:"74-1179",  driver:"",                            trailer:"" },
-  { plate:"74-1445",  driver:"ทินกร พลทะยาน",              trailer:"" },
-  { plate:"74-1449",  driver:"ปัญญา ยางธิสาร",             trailer:"" },
-  { plate:"74-1446",  driver:"มนตรี ดอนนอก",               trailer:"" },
-  { plate:"73-0967",  driver:"เมธาสิทธิ์ ประหยัด",         trailer:"" },
-  { plate:"74-3421",  driver:"ลำพูน เพียแก้ว",             trailer:"" },
-  { plate:"74-3524",  driver:"วสันต์ ไสนวน",               trailer:"" },
-  { plate:"74-1447",  driver:"วิชัย ไกรวิเศษ",             trailer:"" },
-  { plate:"74-3420",  driver:"วิชา ศรีสุยงค์",             trailer:"" },
-  { plate:"74-3527",  driver:"วิเชษฐ์ เหลืองอ่อน",         trailer:"" },
-  { plate:"74-3205",  driver:"ทะนงค์ศักดิ์ โลหะศาสตร์",    trailer:"" },
-  { plate:"73-8933",  driver:"ชำนาญ หินปรีชา",             trailer:"" },
-  { plate:"74-9514",  driver:"สนม หว่านผล",                trailer:"" },
-  { plate:"73-1871",  driver:"ชัยสิทธิ์ รวมรัมย์",         trailer:"" },
-  { plate:"72-9575",  driver:"สมศักดิ์ คูณภาค",            trailer:"" },
-  { plate:"74-9512",  driver:"สมหมาย ทามาศ",               trailer:"" },
-  { plate:"72-7611",  driver:"จิรวัฒน์ พวงเพชร (เจ)",      trailer:"" },
-  { plate:"74-9511",  driver:"นที จิตรสุข",                trailer:"" },
-  { plate:"69-8427",  driver:"สมพงษ์ รอดจีน",              trailer:"" },
-  { plate:"74-3522",  driver:"อภิสิทธิ์ ละอองทอง",         trailer:"" },
-  { plate:"74-3523",  driver:"อรุณ บุดดา",                 trailer:"" },
-  { plate:"73-5009",  driver:"อำนาจ คุ้มคำ",               trailer:"" },
-  { plate:"69-8424",  driver:"ชำนาญ หินปรีชา",             trailer:"" },
-];
-const DEFAULT_TRAILERS = [
-  "74-7613 สป.","73-5998 สป.","74-0316 สป.","74-1505 สป.","74-1583 สป.","74-3531 สป.","74-3586 สป.","74-3594 สป.","74-9549 สป.","73-1101 สป.","73-5229 สป.","60-5065 กทม.",
-  "72-7612 สป.","73-6001 สป.","74-0319 สป.","74-1465 สป.","74-1508 สป.","74-3532 สป.","74-3587 สป.","74-3595 สป.","74-9533 สป.","73-1872 สป.","73-5230 สป.","60-5066 กทม.",
-  "72-9576 สป.","73-6002 สป.","74-0249 สป.","74-1453 สป.","74-1509 สป.","74-3534 สป.","74-3588 สป.","74-3596 สป.","74-9501 สป.","73-1873 สป.","73-9209 สป.","60-5067 กทม.",
-  "72-9849 สป.","73-6972 สป.","74-1450 สป.","74-1454 สป.","74-1510 สป.","74-3536 สป.","74-3589 สป.","74-3597 สป.","74-9534 สป.","73-0968 สป.","74-9513 สป.","63-5699 กทม.",
-  "73-7311 สป.","73-6973 สป.","74-1582 สป.","74-1455 สป.","74-1512 สป.","74-3537 สป.","74-3590 สป.","74-5428 สป.","74-8784 สป.","73-4659 สป.","74-9515 สป.","63-5697 กทม.",
-  "73-5232 สป.","74-0248 สป.","74-1464 สป.","74-1506 สป.","74-3528 สป.","74-3838 สป.","74-3591 สป.","74-5957 สป.","74-9250 สป. (หางสั้น)","73-4660 สป.","72-8930 สป. (หางพื้น)","63-7955 กทม.",
-  "73-5231 สป.","74-0317 สป.","74-1451 สป.","74-1539 สป.","74-3929 สป.","74-3539 สป.","74-3592 สป.","74-8995 สป.","74-9248 สป. (หางสั้น)","73-4661 สป.","60-5063 กทม.","63-7957 กทม.",
-  "73-5997 สป.","74-0318 สป.","74-1452 สป.","74-1507 สป.","74-3530 สป.","74-3585 สป.","74-3593 สป.","74-9162 สป.","74-0372 สป.","73-5010 สป.","60-5064 กทม.",
-];
+const DEFAULT_TRUCKS = []; // V63.6: ข้อมูลจริงย้ายไปแท็บ master ในชีท (โหลดผ่าน fetchMaster หลังล็อกอิน) — ไม่ฝังในไฟล์ที่อยู่บน public repo
+const DEFAULT_TRAILERS = []; // V63.6: ข้อมูลจริงย้ายไปแท็บ master ในชีท (โหลดผ่าน fetchMaster หลังล็อกอิน) — ไม่ฝังในไฟล์ที่อยู่บน public repo
 const DEFAULT_LISTS = {
   driver:   [...new Set(DEFAULT_TRUCKS.map(t=>t.driver).filter(Boolean))],
   trailer:  [...DEFAULT_TRAILERS],
@@ -1266,12 +1209,7 @@ const COMPANY = {
   cheque:'โปรดสั่งจ่ายเช็คขีดคร่อมในนาม บริษัท ยี่สิบสี่ โลจิสติกส์ จำกัด and crossed "A/C PAYEE ONLY"'
 };
 /* สมุดที่อยู่ลูกค้าเริ่มต้น (แก้/เพิ่มได้ในหน้าใบวางบิล) */
-const DEFAULT_CUSTBOOK = {
-  "Harmony International Supply Chain Co., Ltd.":{
-    addr:"195/13 12th floor, Room B, Lake Ratchada Office Complex (Building 2), Ratchadaphisek Road, Khlong Toei, Khlong Toei, Bangkok 10110",
-    tax:"0 1055 62121 89 1"
-  }
-};
+const DEFAULT_CUSTBOOK = {}; // V63.6: ที่อยู่/เลขภาษีลูกค้าย้ายไปชีท (custBook) โหลดหลังล็อกอิน
 
 /* ============================================================
    STORAGE (localStorage + fallback หน่วยความจำ)
@@ -4123,7 +4061,7 @@ function updateAdminUI(){
   ['btnAudit','btnEditLog'].forEach(id=>{ const b=$(id); if(b) b.style.display=vis; }); // เครื่องมือตรวจสอบ = แอดมินเท่านั้น
   const gp=$("goPay"); if(gp) gp.style.display=adminToken?'flex':'none';   // V63: เงินคนขับ = ยอดค่าแรง เห็นเฉพาะแอดมิน
 }
-function setAdmin(t){ adminToken=t; try{ t?localStorage.setItem('jobform_admin',t):localStorage.removeItem('jobform_admin'); }catch(e){} updateAdminUI(); }
+function setAdmin(t){ adminToken=t; try{ t?localStorage.setItem('jobform_admin',t):localStorage.removeItem('jobform_admin'); }catch(e){} /* V63.6: อย่าเรียกตอนโหลด — ไม่งั้นเครื่องที่แอดมินเคยใช้ โชว์เมนูแอดมินก่อนล็อกอิน · enterApp เรียกให้เอง */ }
 async function tryAdmin(t){
   const url=endpoint(); if(!url.startsWith('http')){ flash('ตั้ง Sheet URL ก่อน','err'); return; }
   try{
@@ -5309,7 +5247,7 @@ document.addEventListener('keydown',e=>{ if((e.ctrlKey||e.metaKey)&&e.key==='Ent
 /* อุ่นแคชโลโก้ตอนว่าง — หน้าต่างพิมพ์บิลจะได้ดึงจากแคช ไม่ต้องรอเน็ตตอนกดพิมพ์ */
 (function(){ const go=()=>{ try{ new Image().src=APP_LOGO; }catch(e){} };
   if(window.requestIdleCallback) requestIdleCallback(go,{timeout:3000}); else setTimeout(go,1500); })();
-renderSession(); // แสดงรายการที่บันทึกไว้ (backup ในเครื่อง) คงอยู่ข้ามการรีเฟรช
+// V63.6: ไม่วาดรายการที่มีข้อมูลจริง (ลูกค้า/ยอดเงิน) ก่อนล็อกอินสำเร็จ — enterApp จะเรียกให้เอง
 recalc();
 </script>
 <script>
@@ -5395,6 +5333,8 @@ recalc();
 
   function enterApp(){
     if(gate) gate.classList.add('hidden');
+    try{ if(window.renderSession) renderSession(); }catch(e){}     // V63.6: วาดรายการที่จดหลังยืนยันตัวตนแล้วเท่านั้น
+    try{ if(window.updateAdminUI) updateAdminUI(); }catch(e){}
     try{
       var name=(window.__me&&window.__me.name)||'';
       if(name){ try{ enteredUser=name; }catch(e){} try{ localStorage.setItem('jobform_user',name); }catch(e){} if(window.updateUserUI) updateUserUI(); }
@@ -5428,7 +5368,17 @@ recalc();
     try{ if(window.google&&google.accounts&&google.accounts.id) google.accounts.id.disableAutoSelect(); }catch(e){}
     window.idToken=''; window.__me=null;
     try{ setSession('',0); }catch(e){}   // ทิ้งบัตรผ่านของเครื่องนี้ด้วย
-    try{ localStorage.removeItem('jobform_user'); }catch(e){}
+    // V63.6: ล้างแคชข้อมูลธุรกิจในเครื่องด้วย (เดิมเหลือบิล/ใบงาน/เรท/แดชบอร์ด — เครื่องหลุดมือเปิด DevTools อ่านได้)
+    ['jobform_user','jobform_admin','jobform_b2cache','jobform_dashcache','jobform_rates','jobform_v3','jobform_billmode']
+      .forEach(k=>{ try{ localStorage.removeItem(k); }catch(e){} });
+    // jobform_log = ตาข่ายกันข้อมูลหาย (กติกาข้อ 5) — ลบเฉพาะเมื่อไม่มีใบค้างส่ง ไม่งั้นเตือนก่อน
+    try{
+      const pend=(JSON.parse(localStorage.getItem('jobform_log')||'[]')).filter(x=>x&&!x.sent).length
+               +(JSON.parse(localStorage.getItem('jobform_b2pending')||'[]')).filter(x=>x&&!x.sent).length;
+      if(!pend || confirm('ยังมี '+pend+' ใบที่ยังไม่ขึ้นชีท — ออกจากระบบแล้วจะส่งซ้ำจากเครื่องนี้ไม่ได้\n(ข้อมูลที่ขึ้นชีทไปแล้วไม่หาย)\n\nยืนยันออกจากระบบ?')){
+        localStorage.removeItem('jobform_log'); localStorage.removeItem('jobform_b2pending');
+      } else { return; }   // ยกเลิก logout ไว้ให้ส่งซ้ำก่อน
+    }catch(e){}
     location.reload();
   }
 
