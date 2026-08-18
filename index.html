@@ -7,7 +7,11 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="preconnect" href="https://script.google.com">
-<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600&family=Sarabun:wght@400;600;700&family=Taviraj:wght@500&display=swap" rel="stylesheet">
+<link rel="preconnect" href="https://accounts.google.com" crossorigin>
+<!-- V63.7: โหลดฟอนต์แบบไม่บล็อกหน้าจอ — หน้าล็อกอินขึ้นทันทีด้วยฟอนต์ระบบ แล้วสลับเมื่อฟอนต์มาถึง (มี display=swap + fallback อยู่แล้ว) -->
+<link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600&family=Sarabun:wght@400;600;700&family=Taviraj:wght@500&display=swap" onload="this.onload=null;this.rel='stylesheet'">
+<noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600&family=Sarabun:wght@400;600;700&family=Taviraj:wght@500&display=swap"></noscript>
+<link rel="preload" as="image" href="logo.png">   <!-- V63.7: โลโก้หน้าล็อกอินขึ้นทันที -->
 <style>
   /* โทน "Editorial" อบอุ่น — นั่งทำงานยาวๆ สบายตา · ฟ้า signal เป็นสีเน้นเดียว · ปุ่มหลักทึบเข้ม */
   :root{
@@ -4363,7 +4367,7 @@ document.querySelectorAll('#dPeriod button').forEach(b=>b.addEventListener('clic
 document.querySelectorAll('.views button').forEach(b=>b.addEventListener('click',()=>{ dashView=b.dataset.v; renderDash(); }));
 dashPageSync();
 payPageSync();
-loadRates();
+(window.requestIdleCallback||window.setTimeout)(()=>{ try{ loadRates(); }catch(e){} }, 2500);   // V63.7: เลื่อนไปยิงตอนว่าง ไม่แย่งเน็ตกับล็อกอินตอนเปิดหน้า (เรทไม่ได้ใช้ตอนเปิด)
 /* V63.3: ใบที่ค้าง "⟳ กำลังตรวจ" ถาวร (ปิดแท็บก่อนตัวตรวจเบื้องหลังทำงานจบ) → ปลดล็อกเป็น "ยังไม่ขึ้น" ให้ส่งซ้ำ/ตรวจได้ */
 try{ const _l=b2PendList(); if(_l.some(x=>x.busy)){ _l.forEach(x=>{ if(x.busy){ x.busy=0; x.sent=0; } }); b2PendSave(_l); } }catch(e){}                                    // โหลดตารางเรทไว้ล่วงหน้า (มีแคชในเครื่อง เปิดมาใช้ได้ทันที)
 $("goBill").addEventListener('click',()=>{ location.hash='bill'; });
