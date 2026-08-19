@@ -4367,7 +4367,7 @@ document.querySelectorAll('#dPeriod button').forEach(b=>b.addEventListener('clic
 document.querySelectorAll('.views button').forEach(b=>b.addEventListener('click',()=>{ dashView=b.dataset.v; renderDash(); }));
 dashPageSync();
 payPageSync();
-(window.requestIdleCallback||window.setTimeout)(()=>{ try{ loadRates(); }catch(e){} }, 2500);   // V63.7: เลื่อนไปยิงตอนว่าง ไม่แย่งเน็ตกับล็อกอินตอนเปิดหน้า (เรทไม่ได้ใช้ตอนเปิด)
+setTimeout(()=>{ try{ loadRates(); }catch(e){} }, 2500);   // V63.7: เลื่อนโหลดเรท 2.5 วิ ไม่แย่งเน็ตกับล็อกอิน · ⚠️ ห้ามใช้ requestIdleCallback ส่งเลขเป็น arg ที่ 2 (ต้องเป็น {timeout:N}) — Chrome ใหม่ throw แล้วโค้ดผูกปุ่มทั้งหมดข้างล่างตายทั้งหน้า (เหตุการณ์ 19 ส.ค. 2026)
 /* V63.3: ใบที่ค้าง "⟳ กำลังตรวจ" ถาวร (ปิดแท็บก่อนตัวตรวจเบื้องหลังทำงานจบ) → ปลดล็อกเป็น "ยังไม่ขึ้น" ให้ส่งซ้ำ/ตรวจได้ */
 try{ const _l=b2PendList(); if(_l.some(x=>x.busy)){ _l.forEach(x=>{ if(x.busy){ x.busy=0; x.sent=0; } }); b2PendSave(_l); } }catch(e){}                                    // โหลดตารางเรทไว้ล่วงหน้า (มีแคชในเครื่อง เปิดมาใช้ได้ทันที)
 $("goBill").addEventListener('click',()=>{ location.hash='bill'; });
