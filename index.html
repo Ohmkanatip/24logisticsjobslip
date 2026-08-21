@@ -831,6 +831,7 @@
         </div>
         <div class="total net"><span class="lbl">ค่าที่ต้องโอน (รวมเบิก − สำรองจ่าย)</span><span class="val mono" id="netVal">0</span></div>
         <p class="hint" style="margin:8px 2px 0">* สำรองจ่าย/ค่าที่ต้องโอน ใช้ภายใน ไม่แสดงในใบเบิก PDF</p>
+        <div class="field" style="margin:14px 0 0"><label>Note (หมายเหตุ)</label><input id="f_note" placeholder="หมายเหตุของใบงานนี้ — เว้นว่างได้" autocomplete="off"></div><!-- V63.9: ลงชีทคอลัมน์ 'หมายเหตุ' ติดหลังค่าที่ต้องโอน -->
       </div>
     </div>
 
@@ -1154,8 +1155,8 @@
       <button class="btn btn-ghost" id="btnHistory">ดูประวัติล่าสุด</button>
       <button class="btn btn-primary" id="btnOpenCont" title="ตู้ที่ยังไม่คืน แยกค้าง/ครบวันนี้/พรุ่งนี้">🚩 ตู้ค้าง / ยังไม่คืน</button>
       <button class="btn btn-ghost" id="btnTrash">🗑 งานที่ลบแล้ว</button>
-      <button class="btn btn-primary" id="btnSummary" title="สรุปยอดวันนี้ ส่งเข้า LINE ให้พ่อ">📤 สรุปยอดวันนี้ → LINE</button>
-      <button class="btn btn-primary" id="btnMonth" title="สรุปทั้งเดือน — ดูในเว็บได้ไม่จำกัด ไม่ยิงไลน์ · มีปุ่มส่งเข้าอีเมลแยก">📅 สรุปรายเดือน</button>
+      <button class="btn btn-primary" id="btnSummary" title="สรุปยอดวันนี้ ส่งเข้าอีเมลให้พ่อ">📤 สรุปยอดวันนี้ → อีเมล</button>
+      <button class="btn btn-primary" id="btnMonth" title="สรุปทั้งเดือน — ดูในเว็บได้ไม่จำกัด ไม่ส่งอัตโนมัติ · มีปุ่มส่งเข้าอีเมลแยก">📅 สรุปรายเดือน</button>
       <button class="btn btn-ghost" id="btnAudit" title="ตรวจเบอร์ตู้ผิดมาตรฐาน / ตู้ซ้ำ / ยอดสูงผิดปกติ" style="display:none">🔍 ตรวจสอบความผิดปกติ</button>
       <button class="btn btn-ghost" id="btnDups" style="display:none;border-color:var(--warn);color:var(--warn)" title="ดูเฉพาะกลุ่มตู้ซ้ำ — กดรวมงานเป็นรายกลุ่ม ปลอดภัยไม่ติ๊กข้ามกลุ่ม">⚠️ ตู้ซ้ำ (0)</button>
       <button class="btn btn-ghost" id="btnVwait" style="display:none" title="ดูเฉพาะใบที่ยังไม่มีคนตรวจเทียบใบจริง">⚪ ยังไม่ตรวจ (0)</button>
@@ -1625,7 +1626,7 @@ function collect(){
     loadPlace:$("f_loadPlace").value,mark:$("f_mark").value,
     driver2:$("f_driver2").value,truck2:$("f_truck2").value,trailer2:$("f_trailer2").value,
     c_pier:num("c_pier"),c_lift:num("c_lift"),c_swap:num("c_swap"),c_recv:num("c_recv"),c_return:num("c_return"),
-    c_toll:num("c_toll"),c_mflow:num("c_mflow"),c_maint:num("c_maint"),c_other:num("c_other"),otherNote:$("f_otherNote").value,
+    c_toll:num("c_toll"),c_mflow:num("c_mflow"),c_maint:num("c_maint"),c_other:num("c_other"),otherNote:$("f_otherNote").value,note:$("f_note").value.trim(),
     maint:selectedMaint.slice().join(', '),
     advance:num("f_advance"),
     total:recalc(),
@@ -1654,7 +1655,11 @@ function tokenLeftSec(){ // วินาทีที่เหลือ · null =
 const TOKEN_MIN_LEFT=120; // เหลือน้อยกว่านี้ (วินาที) = ถือว่าใช้ไม่ได้แล้ว ไม่ต้องเสียเวลายิง
 function tokenExpired(){
   if(sessionOk()) return false;   // มีบัตรผ่าน 30 วันที่ยังใช้ได้ → ไม่ต้องพึ่ง token ของ Google
-  const l=tokenLeftSec(); return l!==null && l<TOKEN_MIN_LEFT;
+  const l=tokenLeftSec();
+  // V63.8.1: ไม่มีทั้งบัตรและ token (l===null) = ส่งไป server ก็โดนปฏิเสธแน่ ต้องถือว่าหมดอายุ
+  // บทเรียน 19 ส.ค. 2026: เดิมคืน false → ใบถูกยิงมือเปล่าแบบ no-cors แล้วขึ้นเขียว "บันทึกแล้ว" ทั้งที่ไม่เข้าชีท
+  if(l===null) return true;
+  return l<TOKEN_MIN_LEFT;
 }
 
 async function save(){
@@ -1741,14 +1746,14 @@ function sendInBackground(url,d){
   setTimeout(()=>done(false),30000);
 }
 function resetJobFields(){
-  ['f_container','f_loadPlace','f_mark','f_otherNote','f_trailer',
+  ['f_container','f_loadPlace','f_mark','f_otherNote','f_note','f_trailer',
    'f_dateIn','f_dateOut','f_driver2','f_truck2','f_trailer2','f_dropoff','f_dropoffAt'].forEach(id=>$(id).value='');
   COSTS.forEach(c=>$(c.key).value=''); $("f_advance").value=''; selectedMaint=[]; renderMaintChips();
   $("f_status").value=STATUS_OPTIONS[0];
   $("f_time").value=now2(); recalc(); $("f_container").focus();
 }
 function clearAll(){
-  ['f_container','f_loadPlace','f_mark','f_otherNote','f_trailer',
+  ['f_container','f_loadPlace','f_mark','f_otherNote','f_note','f_trailer',
    'f_dateIn','f_dateOut','f_driver2','f_truck2','f_trailer2','f_dropoff','f_dropoffAt'].forEach(id=>$(id).value='');
   ['f_truck','f_driver','f_customer','f_size','f_yardIn','f_yardOut'].forEach(id=>$(id).value='');
   COSTS.forEach(c=>$(c.key).value=''); $("f_advance").value=''; selectedMaint=[]; renderMaintChips();
@@ -1773,7 +1778,13 @@ async function existsInSheet(uid){ // true=มีในชีท / false=ยั�
     const j=await r.json();
     // เซิร์ฟเวอร์ปฏิเสธเพราะล็อกอินหมดอายุ/ไม่มีสิทธิ์ = "เช็คไม่ได้" ไม่ใช่ "ไม่มีในชีท"
     // (ถ้าไม่แยกตรงนี้ ตอน token หมดอายุจะเตือนผิดว่าใบหายทั้งที่อยู่ในชีทครบ)
-    if(j&&j.ok===false&&(j.result==='auth'||j.result==='app-forbidden')) return null;
+    if(j&&j.ok===false&&(j.result==='auth'||j.result==='app-forbidden')){
+      // V63.8.1: โดน auth ปฏิเสธซ้ำ = ล็อกอินมีปัญหาจริง ต้องบอกผู้ใช้ อย่ากลืนเงียบ (บทเรียน 19 ส.ค. 2026:
+      // ทุกชั้นเงียบพร้อมกัน ใบไม่เข้าชีทแต่ไม่มีอะไรเตือนเลย) — เตือนตอนครั้งที่ 2 กันเตือนหลอกจากเน็ตแกว่งครั้งเดียว
+      window.__authFailN=(window.__authFailN||0)+1;
+      if(window.__authFailN===2) flash('⚠️ ระบบปฏิเสธการล็อกอินซ้ำๆ — ใบที่จดอาจไม่ขึ้นชีท ให้รีเฟรชหน้าเว็บ ล็อกอินใหม่ แล้วกด "🔄 ตรวจกับชีท"','err');
+      return null;
+    }
     return !!(j&&j.ok&&j.rec);
   }catch(e){ return null; }
 }
@@ -3165,7 +3176,7 @@ function printPay(){
 
 /* ============================================================
    V60 — ถังขยะบิล (ดู/กู้คืน/ลบถาวร) + ประวัติแก้ไขรวม + ลบทีเดียวหลายใบ
-   ทั้งหมดอ่านอย่างเดียวจากชีท ไม่ยิง LINE/อีเมล
+   ทั้งหมดอ่านอย่างเดียวจากชีท ไม่ยิงแจ้งเตือน
    ============================================================ */
 let trRows=[], trSel={}, trLoaded=false, trAdmin=false;
 let hsRows=[], hsFilter='all', hsLoaded=false;
@@ -3671,8 +3682,8 @@ function setupCombo2(key,inputId){
 
 function downloadCsv(){
   if(!session.length){ flash("ยังไม่มีรายการให้ดาวน์โหลด",'err'); return; }
-  const cols=["date","time","type","customer","container","driver","truck","trailer","c_pier","c_lift","c_swap","c_recv","c_return","c_toll","c_mflow","c_maint","maint","c_other","total","advance","net","driver2","truck2","trailer2","dateIn","dropoff","dropoffAt","dateOut","status","returned","size","yardIn","yardOut","loadPlace","mark","otherNote","savedAt","enteredBy","uid"];
-  const head=["วันที่","เวลา","ประเภทงาน","ลูกค้า","เบอร์ตู้","คนขับ","ทะเบียนหัว","ทะเบียนหาง","ค่าผ่านท่า","ค่ายกตู้","ฝาก/ถ่าย/สลับ","ค่ารับตู้","ค่าคืนตู้","ค่าทางด่วน","M-FLOW","ซ่อมบำรุง","รายการซ่อมบำรุง","อื่นๆ","รวมเบิก","สำรองจ่าย","ค่าที่ต้องโอน","คนรับตู้ต่อ-ชื่อ","คนรับตู้ต่อ-หัว","คนรับตู้ต่อ-หาง","วันรับตู้","จุด Drop off","วันเวลา Drop off","วันคืนตู้","สถานะตู้","คืนตู้แล้ว","ขนาดตู้","ลานรับ","ลานคืน","สถานที่เปิด/บรรจุ","MARK","หมายเหตุอื่นๆ","บันทึกเมื่อ","ผู้กรอก","ID"];
+  const cols=["date","time","type","customer","container","driver","truck","trailer","c_pier","c_lift","c_swap","c_recv","c_return","c_toll","c_mflow","c_maint","maint","c_other","total","advance","net","note","driver2","truck2","trailer2","dateIn","dropoff","dropoffAt","dateOut","status","returned","size","yardIn","yardOut","loadPlace","mark","otherNote","savedAt","enteredBy","uid"];
+  const head=["วันที่","เวลา","ประเภทงาน","ลูกค้า","เบอร์ตู้","คนขับ","ทะเบียนหัว","ทะเบียนหาง","ค่าผ่านท่า","ค่ายกตู้","ฝาก/ถ่าย/สลับ","ค่ารับตู้","ค่าคืนตู้","ค่าทางด่วน","M-FLOW","ซ่อมบำรุง","รายการซ่อมบำรุง","อื่นๆ","รวมเบิก","สำรองจ่าย","ค่าที่ต้องโอน","หมายเหตุ","คนรับตู้ต่อ-ชื่อ","คนรับตู้ต่อ-หัว","คนรับตู้ต่อ-หาง","วันรับตู้","จุด Drop off","วันเวลา Drop off","วันคืนตู้","สถานะตู้","คืนตู้แล้ว","ขนาดตู้","ลานรับ","ลานคืน","สถานที่เปิด/บรรจุ","MARK","หมายเหตุอื่นๆ","บันทึกเมื่อ","ผู้กรอก","ID"];
   const q=v=>'"'+String(v??'').replace(/"/g,'""')+'"';
   const lines=[head.map(q).join(',')].concat(session.map(d=>cols.map(c=>q(d[c])).join(',')));
   const blob=new Blob(["\uFEFF"+lines.join('\r\n')],{type:'text/csv;charset=utf-8'});
@@ -3704,7 +3715,7 @@ function escAttr(s){return String(s||'').replace(/"/g,'&quot;');}
    ตรวจสอบความปลอดภัย/ทุจริต — ชั้น 1 เบอร์ตู้ (ISO 6346) · ชั้น 2 ซ้ำ · ชั้น 3 ยอดผิดปกติ
    ============================================================ */
 // เกณฑ์ยอดผิดปกติ (ปรับได้): outHard = เกินเท่านี้ไฮไลต์ทันที · outMult/outFloor = แบบเทียบค่ากลาง (median)
-// ⚠ ถ้าปรับ outHard ให้ปรับ AUDIT_HARD ในไฟล์ apps-script.gs ให้ตรงกันด้วย (ใช้ตอนแจ้ง LINE)
+// ⚠ ถ้าปรับ outHard ให้ปรับ AUDIT_HARD ในไฟล์ apps-script.gs ให้ตรงกันด้วย (ใช้ตอนแจ้งอีเมล)
 const AUDIT_CFG = { outHard:10000, outMult:3, outFloor:3000 };
 const normCont=s=>String(s||'').toUpperCase().replace(/[^A-Z0-9]/g,'');
 /* เลขตรวจสอบตู้คอนเทนเนอร์ตามมาตรฐาน ISO 6346 (4 ตัวอักษร + 6 ตัวเลข + เลขตรวจ 1 หลัก) */
@@ -3717,7 +3728,7 @@ function contValid(raw){
   return {ok: chk===+s[10], reason:'checkdigit', calc:chk, norm:s};
 }
 function median(arr){ if(!arr.length) return 0; const a=arr.slice().sort((x,y)=>x-y); const m=a.length>>1; return a.length%2?a[m]:(a[m-1]+a[m])/2; }
-/* หมายเหตุ: การตรวจเบอร์ตู้ผิด/ซ้ำ ไม่แสดงให้พนักงานเห็น — ฝั่ง Apps Script จะส่งแจ้งเตือนเข้า LINE เจ้าของแทน
+/* หมายเหตุ: การตรวจเบอร์ตู้ผิด/ซ้ำ ไม่แสดงให้พนักงานเห็น — ฝั่ง Apps Script จะส่งแจ้งเตือนเข้าอีเมลเจ้าของแทน
    ส่วนแอดมินเห็น ⚠ ในผลค้นหา และใช้ปุ่ม "ตรวจสอบความผิดปกติ" ได้ */
 
 /* ============================================================
@@ -4107,7 +4118,7 @@ function loadIntoForm(rec){
   sv("f_loadPlace",rec.loadPlace); sv("f_mark",rec.mark);
   sv("f_driver2",rec.driver2); sv("f_truck2",rec.truck2); sv("f_trailer2",rec.trailer2);
   COSTS.forEach(c=>$(c.key).value=(Number(rec[c.key])>0)?rec[c.key]:'');
-  sv("f_otherNote",rec.otherNote); $("f_advance").value=(Number(rec.advance)>0)?rec.advance:'';
+  sv("f_otherNote",rec.otherNote); sv("f_note",rec.note); $("f_advance").value=(Number(rec.advance)>0)?rec.advance:'';
   selectedMaint=rec.maint?String(rec.maint).split(',').map(s=>s.trim()).filter(Boolean):[]; renderMaintChips();
   recalc();
 }
@@ -4156,7 +4167,7 @@ async function unreturnJob(uid,container){
     else flash('ยกเลิกไม่สำเร็จ: '+(ACT_ERR[j.result]||j.result),'err');
   }catch(e){ flash('ยกเลิกไม่สำเร็จ — เช็ก Sheet URL / deploy','err'); }
 }
-/* ---- สรุปยอดวันนี้ → ส่งเข้า LINE ให้พ่อ (กดปุ่มเมื่อไหร่ก็ได้) ---- */
+/* ---- สรุปยอดวันนี้ → ส่งเข้าอีเมลให้พ่อ (กดปุ่มเมื่อไหร่ก็ได้ · V63.8 ตัด LINE เหลืออีเมล) ---- */
 async function sendSummary(){
   const url=endpoint(); if(!url.startsWith('http')){ flash('ยังไม่ได้ตั้ง Sheet URL','err'); return; }
   flash('กำลังสรุปยอดวันนี้…','ok');
@@ -4164,17 +4175,17 @@ async function sendSummary(){
     const j=await callAct({act:'summary'});
     if(j.ok){
       if(j.n>0){
-        const note=j.pushed?'✅ ส่งเข้า LINE ให้พ่อแล้ว':'⚠️ ยังไม่ได้ตั้งค่า LINE ในสคริปต์ — ยังไม่ส่ง (ตั้ง LINE_TOKEN/LINE_TO)';
+        const note=j.pushed?'✅ ส่งเข้าอีเมลให้พ่อแล้ว':'⚠️ ยังไม่ได้ตั้งอีเมลผู้รับในสคริปต์ — ยังไม่ส่ง (ตั้ง MAIL_TO)';
         alert(j.text+'\n\n'+note);
-        flash(j.pushed?'ส่งสรุปเข้า LINE แล้ว ✓':'สรุปแล้ว แต่ยังไม่ได้ตั้ง LINE','ok');
+        flash(j.pushed?'ส่งสรุปเข้าอีเมลแล้ว ✓':'สรุปแล้ว แต่ยังไม่ได้ตั้งอีเมล','ok');
       }else{
         alert(j.text); flash('วันนี้ยังไม่มีงานบันทึก','err');
       }
     } else flash('สรุปไม่สำเร็จ: '+(ACT_ERR[j.result]||j.result),'err');
   }catch(e){ flash('สรุปไม่สำเร็จ — เช็ก Sheet URL / deploy เวอร์ชันล่าสุด','err'); }
 }
-/* ---- สรุปรายเดือน : ดูในเว็บได้ไม่จำกัด (ไม่ยิงไลน์/เมล) · มีปุ่มส่งเข้าอีเมลแยก ----
-   ทำไมไม่ส่งเข้า LINE: ข้อความยาว 40+ บรรทัด และไลน์ฟรีเหลือแค่ ~75 ครั้ง/เดือน */
+/* ---- สรุปรายเดือน : ดูในเว็บได้ไม่จำกัด (ไม่ส่งอัตโนมัติ) · มีปุ่มส่งเข้าอีเมลแยก ----
+   ส่งเข้าอีเมลเมื่อกดปุ่มเท่านั้น (V63.8 ตัด LINE เหลืออีเมล) */
 const MON_TH=['มกราคม','กุมภาพันธ์','มีนาคม','เมษายน','พฤษภาคม','มิถุนายน','กรกฎาคม','สิงหาคม','กันยายน','ตุลาคม','พฤศจิกายน','ธันวาคม'];
 function monLabel(ym){ const p=String(ym||'').split('-'); return (MON_TH[(+p[1]||1)-1]||('เดือน '+p[1]))+' '+p[0]; }
 let monText='', monYm='';
@@ -4226,7 +4237,7 @@ async function sendMonthMail(){
   const old=b.textContent; b.disabled=true; b.textContent='กำลังส่ง…';
   try{
     const j=await callAct({act:'monthsummary',ym:monYm,send:'1'});
-    if(j&&j.ok&&j.sent){ flash('ส่งสรุป '+monLabel(monYm)+' เข้าอีเมลแล้ว ✓ (ไม่ได้ยิงไลน์)','ok'); b.textContent='✓ ส่งแล้ว'; setTimeout(()=>{b.textContent=old;b.disabled=false;},2500); return; }
+    if(j&&j.ok&&j.sent){ flash('ส่งสรุป '+monLabel(monYm)+' เข้าอีเมลแล้ว ✓','ok'); b.textContent='✓ ส่งแล้ว'; setTimeout(()=>{b.textContent=old;b.disabled=false;},2500); return; }
     flash(j&&j.ok?'เดือนนี้ยังไม่มีใบงาน — ไม่ได้ส่ง':'ส่งไม่สำเร็จ'+((j&&j.result)?': '+(ACT_ERR[j.result]||j.result):''),'err');
   }catch(e){ flash('ส่งไม่สำเร็จ — เช็ก Sheet URL / deploy เวอร์ชันล่าสุด','err'); }
   b.textContent=old; b.disabled=false;
@@ -4268,7 +4279,7 @@ function renderOpenContainers(d){
   if(!total){ $("searchBody").innerHTML='<div class="session-head" style="border-top:1px solid var(--line)"><h3 style="font-size:14px">🚩 ตู้ค้าง / ยังไม่คืน</h3></div><div class="empty" style="color:var(--ok)">✓ คืนตู้ครบทุกใบแล้ว</div>'; return; }
   $("searchBody").innerHTML=`<div class="session-head" style="border-top:1px solid var(--line)">
       <h3 style="font-size:14px">🚩 ตู้ที่ยังไม่คืน ${total} ตู้ · 🔴 ค้าง ${late.length} · 🟠 ครบวันนี้ ${today.length} · 🟡 พรุ่งนี้ ${tmr.length}</h3>
-      <button class="btn btn-ghost" id="openPush" style="padding:6px 12px;font-size:12.5px">📤 ส่งเข้า LINE</button></div>
+      <button class="btn btn-ghost" id="openPush" style="padding:6px 12px;font-size:12.5px">📤 ส่งเข้าอีเมล</button></div>
     <div style="overflow-x:auto"><table>
       <thead><tr><th>เบอร์ตู้</th><th>ลูกค้า</th><th>หัว</th><th>คนขับ</th><th>ครบกำหนดคืน</th><th></th></tr></thead>
       <tbody>
@@ -4279,7 +4290,7 @@ function renderOpenContainers(d){
       </tbody></table></div>`;
   $("searchBody").querySelectorAll('.btnRet2').forEach(b=>b.onclick=()=>markReturned(b.dataset.uid,b.dataset.c,b));
   const pb=$("openPush"); if(pb) pb.onclick=async()=>{
-    try{ const j=await callAct({act:'open',push:'1'}); flash(j.ok?'ส่งรายการตู้ค้างเข้า LINE แล้ว ✓':'ส่งไม่สำเร็จ','ok'); }
+    try{ const j=await callAct({act:'open',push:'1'}); flash(j.ok?'ส่งรายการตู้ค้างเข้าอีเมลแล้ว ✓':'ส่งไม่สำเร็จ','ok'); }
     catch(e){ flash('ส่งไม่สำเร็จ','err'); }
   };
 }
@@ -5286,7 +5297,7 @@ recalc();
   function showPending(email){
     inner.innerHTML='<div class="auth-emoji">✋</div><h2>รอเจ้าของอนุมัติ</h2>'
       +'<div class="auth-pill">'+(email||'')+'</div>'
-      +'<div class="co">ส่งคำขอเข้าใช้งานแล้ว · ระบบแจ้งเตือนเจ้าของทาง LINE อัตโนมัติ<br>เมื่ออนุมัติแล้ว กดปุ่มด้านล่างเพื่อเข้าใช้งาน</div><br>'
+      +'<div class="co">ส่งคำขอเข้าใช้งานแล้ว · ระบบแจ้งเตือนเจ้าของทางอีเมลอัตโนมัติ<br>เมื่ออนุมัติแล้ว กดปุ่มด้านล่างเพื่อเข้าใช้งาน</div><br>'
       +'<button class="auth-link" id="reload">🔄 ลองเข้าใหม่</button><br>'
       +'<button class="auth-link" id="logout2" style="color:var(--ink-soft,#888)">ออกจากระบบ</button>';
     document.getElementById('reload').onclick=function(){ location.reload(); };
@@ -5335,7 +5346,9 @@ recalc();
       }
       else if(j&&j.status==='pending'){ setSession('',0); showPending((window.__me&&window.__me.email)||j.email||''); }
       else if(j&&j.status==='disabled'){ setSession('',0); showBlocked('บัญชีนี้ถูกปิดสิทธิ์การใช้งาน'); }
-      else { setSession('',0); if(window.idToken) showBlocked(); else showLogin(); } // บัตรหมดอายุ/ถูกเพิกถอน → กลับไปล็อกอิน Google ใหม่
+      else if(j&&(j.status==='invalid'||j.status==='sess-expired')){ setSession('',0); if(window.idToken) showBlocked(); else showLogin(); } // คำตัดสิน auth จริง → ทิ้งบัตร ล็อกอินใหม่
+      else if(j&&j.result==='rate-limit'){ if(sessionOk()) enterApp(); else showLogin(); } // V63.8.1: server แน่นชั่วคราว — "ห้ามลบบัตร" (บทเรียน 19 ส.ค. 2026: ลบบัตรเพราะ error ชั่วคราว = ทุกเครื่องเด้งล็อกอินพร้อมกัน)
+      else { if(sessionOk()) enterApp(); else if(window.idToken) showBlocked(); else showLogin(); } // คำตอบไม่รู้จัก/เพี้ยน → อย่าเพิ่งทิ้งบัตร (เซิร์ฟเวอร์ยังกันทุก request อยู่แล้ว)
     }catch(e){ enterApp(); } // endpoint มีปัญหา → ปล่อยเข้า (เซิร์ฟเวอร์ยังกันอยู่)
   }
 
@@ -5379,14 +5392,10 @@ recalc();
     // V63.6: ล้างแคชข้อมูลธุรกิจในเครื่องด้วย (เดิมเหลือบิล/ใบงาน/เรท/แดชบอร์ด — เครื่องหลุดมือเปิด DevTools อ่านได้)
     ['jobform_user','jobform_admin','jobform_b2cache','jobform_dashcache','jobform_rates','jobform_v3','jobform_billmode']
       .forEach(k=>{ try{ localStorage.removeItem(k); }catch(e){} });
-    // jobform_log = ตาข่ายกันข้อมูลหาย (กติกาข้อ 5) — ลบเฉพาะเมื่อไม่มีใบค้างส่ง ไม่งั้นเตือนก่อน
-    try{
-      const pend=(JSON.parse(localStorage.getItem('jobform_log')||'[]')).filter(x=>x&&!x.sent).length
-               +(JSON.parse(localStorage.getItem('jobform_b2pending')||'[]')).filter(x=>x&&!x.sent).length;
-      if(!pend || confirm('ยังมี '+pend+' ใบที่ยังไม่ขึ้นชีท — ออกจากระบบแล้วจะส่งซ้ำจากเครื่องนี้ไม่ได้\n(ข้อมูลที่ขึ้นชีทไปแล้วไม่หาย)\n\nยืนยันออกจากระบบ?')){
-        localStorage.removeItem('jobform_log'); localStorage.removeItem('jobform_b2pending');
-      } else { return; }   // ยกเลิก logout ไว้ให้ส่งซ้ำก่อน
-    }catch(e){}
+    // jobform_log / b2pending = ตาข่ายกันข้อมูลหาย (กติกาข้อ 5) — V63.8.1: "ไม่ลบตอน logout อีกต่อไป"
+    // บทเรียน 19 ส.ค. 2026: ป้าย "ส่งแล้ว" อาจเป็นป้ายหลอก (POST no-cors อ่านคำตอบไม่ได้ — server ปฏิเสธก็ยังติ๊ก sent)
+    // เดิมเช็คแค่ใบที่ "ไม่มีป้าย sent" แล้วลบทิ้งเงียบ → ใบจริงที่ไม่เข้าชีทเคยเกือบหายถาวร
+    // รายการเป็นของคนเครื่องนี้จดเอง ล็อกอินกลับมาก็เห็น/ตรวจกับชีท/ส่งซ้ำได้ต่อ
     location.reload();
   }
 
