@@ -1746,11 +1746,15 @@ function sendInBackground(url,d){
   setTimeout(()=>done(false),30000);
 }
 function resetJobFields(){
+  // V63.9.1 (เจ้าของขอ 22 ส.ค. 2026): บันทึกแล้วล้าง "ทั้งใบ" รวมข้อมูลข้างบน (หัว/คนขับ/ลูกค้า/ขนาด/ลาน)
+  // ให้พร้อมจดงานใหม่ทันที — เลิกพฤติกรรมเดิมที่คงชุดบนไว้สำหรับคีย์ชุด
   ['f_container','f_loadPlace','f_mark','f_otherNote','f_note','f_trailer',
    'f_dateIn','f_dateOut','f_driver2','f_truck2','f_trailer2','f_dropoff','f_dropoffAt'].forEach(id=>$(id).value='');
+  ['f_truck','f_driver','f_customer','f_size','f_yardIn','f_yardOut'].forEach(id=>$(id).value='');
   COSTS.forEach(c=>$(c.key).value=''); $("f_advance").value=''; selectedMaint=[]; renderMaintChips();
   $("f_status").value=STATUS_OPTIONS[0];
-  $("f_time").value=now2(); recalc(); $("f_container").focus();
+  $("f_date").value=todayLocal();   // วันที่กลับเป็นวันนี้ กันจดข้ามคืนแล้ววันเก่าค้าง
+  $("f_time").value=now2(); recalc(); $("f_truck").focus();   // เคอร์เซอร์กลับช่องแรก (ทะเบียนหัว)
 }
 function clearAll(){
   ['f_container','f_loadPlace','f_mark','f_otherNote','f_note','f_trailer',
