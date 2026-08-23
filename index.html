@@ -694,6 +694,7 @@
   .rqcard .rf .k{font-size:11px;color:var(--ink-soft);display:block}
   .rqcard .rf .v{display:block;word-break:break-word;line-height:1.5}
   .rqcard .rroute{font-weight:700;font-size:14.5px}
+  .rqcard.done{border-left-color:var(--line-strong);opacity:.72}
   .rqcard .ract{display:flex;gap:7px;padding:9px 13px;background:var(--paper);border-top:1px solid var(--line);flex-wrap:wrap}
 </style>
 <script>
@@ -1230,7 +1231,14 @@
           </div>
         </div>
       </div>
-      <div class="dcard"><div class="dcard-h"><h3>คนขับที่ควรได้งานก่อน</h3><span class="note">เรียงจากภาระงานสะสมน้อย → มาก</span></div>
+      <div class="dcard"><div class="dcard-h"><h3>เลือกคนขับ</h3><span class="note">เรียงจากภาระงานสะสมน้อย → มาก · พิมพ์ชื่อเพื่อค้นได้</span></div>
+        <div style="padding:10px 13px 0">
+          <input id="dpDrvQ" placeholder="🔍 พิมพ์ชื่อคนขับ หรือ ทะเบียนรถ" autocomplete="off">
+          <div class="row2" style="margin-top:7px">
+            <span class="qchip" id="dpDrvCount">—</span>
+            <button type="button" class="btn btn-ghost bsm" id="dpDrvClear" style="display:none">✕ ล้างคำค้น</button>
+          </div>
+        </div>
         <div class="dcard-b" id="dpDrvList"><div class="empty">กำลังโหลด…</div></div>
       </div>
       <div class="dcard" id="ovBox" style="display:none;border-color:#e0a020">
@@ -1274,7 +1282,14 @@
     <div class="bp-title">📥 ใบขอราคา (จากเว็บบริษัท)</div>
     <button class="btn btn-ghost" id="rqReload">🔄</button>
   </div>
-  <div class="bp-inner"><div id="rqList"><div class="empty">กำลังโหลด…</div></div></div>
+  <div class="bp-inner">
+    <div class="row2" style="margin:0 14px 11px">
+      <button type="button" class="btn bsm rqf on" data-rqf="open">รอดำเนินการ <span class="b" id="rqcOpen">0</span></button>
+      <button type="button" class="btn btn-ghost bsm rqf" data-rqf="all">ทั้งหมด <span class="b" id="rqcAll">0</span></button>
+      <input id="rqSearch" placeholder="🔍 ค้นบริษัท / เส้นทาง / ผู้ติดต่อ" style="max-width:280px" autocomplete="off">
+    </div>
+    <div id="rqList"><div class="empty">กำลังโหลด…</div></div>
+  </div>
   </div>
 
   <!-- ══ V65: ตั้งค่าต้นทุน & ราคาพื้น (แอดมิน) ══ -->
@@ -6065,21 +6080,37 @@ async function loadDrivers() {
     qState.drv = j.rows || [];
     qState.rankTop = (qState.drv[0] || {}).name || '';
     if (!qState.drv.length) { box.innerHTML = '<div class="empty">ยังไม่มีรายชื่อคนขับ — Run setupDriverSheet ในหลังบ้านก่อน</div>'; return; }
-    box.innerHTML = qState.drv.map((d, i) =>
-      '<div class="drow' + (i === 0 ? ' pick' : '') + '" data-drv="' + esc0(d.name) + '">'
-      + '<div class="rk">' + (i + 1) + '</div><div class="di"><div class="dn">' + esc0(d.name)
-      + (i === 0 ? ' <span class="qchip g">แนะนำ</span>' : '')
-      + (d.tag ? ' <span class="qchip">🤖 ' + esc0(d.tag) + ' ' + d.tagN + ' ครั้ง</span>' : '') + '</div>'
-      + '<div class="dw">' + esc0(d.plate || '-') + ' · ภาระสะสม ' + qMoney(d.load) + ' บาท · ' + d.trips + ' เที่ยว</div></div>'
-      + '<div class="ds">คะแนน ' + d.score + '</div></div>').join('');
-    qState.pick = qState.drv[0].name;
-    box.querySelectorAll('.drow').forEach(el => el.onclick = () => {
-      box.querySelectorAll('.drow').forEach(x => x.classList.remove('pick'));
-      el.classList.add('pick'); qState.pick = el.dataset.drv;
-      $("ovBox").style.display = (qState.pick === qState.rankTop) ? 'none' : 'block';
-      qTripAuto();
-    });
+    if (!qState.pick) qState.pick = qState.rankTop;    // ตั้งต้นที่คนแนะนำ แต่ไม่ทับที่ผู้ใช้เลือกไว้
+    renderDrivers();
   } catch (e) { box.innerHTML = '<div class="empty">โหลดรายชื่อคนขับไม่ได้</div>'; }
+}
+/* วาดรายชื่อคนขับ — โชว์ครบทุกคน กรองด้วยคำค้น (ชื่อ/ทะเบียน) · คนที่เลือกไว้โชว์เสมอแม้ค้นไม่ตรง */
+function renderDrivers() {
+  const box = $("dpDrvList"), q = ($("dpDrvQ").value || '').trim().toLowerCase();
+  const all = qState.drv || [];
+  const hit = d => !q || (d.name + ' ' + (d.plate || '')).toLowerCase().indexOf(q) > -1;
+  const rows = all.filter(d => hit(d) || d.name === qState.pick);
+  $("dpDrvCount").textContent = q ? ('เจอ ' + rows.length + ' คน จากทั้งหมด ' + all.length)
+                                  : ('คนขับทั้งหมด ' + all.length + ' คน');
+  $("dpDrvClear").style.display = q ? '' : 'none';
+  if (!rows.length) {
+    box.innerHTML = '<div class="empty">ไม่พบคนขับชื่อ “' + esc0($("dpDrvQ").value) + '”'
+      + '<div style="font-size:12.5px;color:var(--ink-soft);margin-top:6px">คนขับใหม่ต้องเพิ่มในแท็บ “คนขับ” ในชีทก่อน</div></div>';
+    return;
+  }
+  box.innerHTML = rows.map(d =>
+    '<div class="drow' + (d.name === qState.pick ? ' pick' : '') + '" data-drv="' + esc0(d.name) + '">'
+    + '<div class="rk">' + d.rank + '</div><div class="di"><div class="dn">' + esc0(d.name)
+    + (d.name === qState.rankTop ? ' <span class="qchip g">แนะนำ</span>' : '')
+    + (d.tag ? ' <span class="qchip">🤖 ' + esc0(d.tag) + ' ' + d.tagN + ' ครั้ง</span>' : '') + '</div>'
+    + '<div class="dw">' + esc0(d.plate || '-') + ' · ภาระสะสม ' + qMoney(d.load) + ' บาท · ' + d.trips + ' เที่ยว</div></div>'
+    + '<div class="ds">คะแนน ' + d.score + '</div></div>').join('');
+  box.querySelectorAll('.drow').forEach(el => el.onclick = () => {
+    box.querySelectorAll('.drow').forEach(x => x.classList.remove('pick'));
+    el.classList.add('pick'); qState.pick = el.dataset.drv;
+    $("ovBox").style.display = (qState.pick === qState.rankTop) ? 'none' : 'block';
+    qTripAuto();
+  });
 }
 function esc0(s) { return String(s == null ? '' : s).replace(/[<>&"]/g, c => ({ '<': '&lt;', '>': '&gt;', '&': '&amp;', '"': '&quot;' }[c])); }
 /* ค่าเที่ยว: ดึงจากตารางเรทในชีท (ใช้ตัวเดิมของหน้าจดบิล) */
@@ -6132,27 +6163,54 @@ function rqWhen(v){
   const m=/^(\d{4})-(\d{2})-(\d{2})[T ](\d{2}):(\d{2})/.exec(t);
   return m ? ((+m[3])+'/'+(+m[2])+'/'+String(+m[1]+543).slice(-2)+' '+m[4]+':'+m[5]+' น.') : t;
 }
+let rqRows = [], rqFilter = 'open';
 async function loadRfq() {
   const box = $("rqList"); box.innerHTML = '<div class="empty">กำลังโหลด…</div>';
   try {
-    const j = await callAct({ act: 'rfqlist' });
+    const j = await callAct({ act: 'rfqlist', all: 1 });   // ดึงมาทั้งหมด แล้วกรองในเครื่อง
     if (!j || !j.ok) { box.innerHTML = '<div class="empty">' + qActErr(j) + '</div>'; return; }
-    if (!j.rows || !j.rows.length) { box.innerHTML = '<div class="empty">ยังไม่มีคำขอจากลูกค้า</div>'; return; }
-    box.innerHTML = j.rows.map(r => {
-      const f = (k, v) => v ? '<div class="rf"><span class="k">' + k + '</span><span class="v">' + esc0(v) + '</span></div>' : '';
-      return '<div class="rqcard">'
-        + '<div class="rh"><div class="rco">' + esc0(r.company || '-')
-        + ' <span class="qchip">' + esc0(r.status || 'ใหม่') + '</span>'
-        + '<div class="rct">' + [r.contact, r.phone, r.email].filter(Boolean).map(esc0).join(' · ') + '</div></div>'
-        + '<div class="rty">' + esc0(r.jobType || '-') + '<small>' + esc0(r.size || '') + '</small></div></div>'
-        + '<div class="rgrid">'
-        + '<div class="rf" style="grid-column:1/-1"><span class="k">🛣 เส้นทาง</span>'
-        + '<span class="v rroute">' + esc0(r.origin || '-') + ' → ' + esc0(r.dest || '-') + '</span></div>'
-        + f('📅 วันที่ต้องการ', r.jobDate) + f('📦 สินค้า', r.cargo) + f('🔢 จำนวน', r.qty)
-        + f('📝 หมายเหตุลูกค้า', r.note) + f('⏱ ส่งคำขอเมื่อ', rqWhen(r.at))
-        + '</div>'
-        + '<div class="ract"><button class="btn bsm rqGo" data-r=\'' + esc0(JSON.stringify(r)) + '\'>🧮 ตีราคา →</button></div></div>';
-    }).join('');
+    rqRows = j.rows || [];
+    renderRfq();
+  } catch (e) { box.innerHTML = '<div class="empty">โหลดไม่ได้</div>'; }
+}
+const RQ_OPEN = st => !st || st === 'ใหม่' || st === 'กำลังตีราคา';
+function renderRfq() {
+  const box = $("rqList"), q = ($("rqSearch").value || '').trim().toLowerCase();
+  const nOpen = rqRows.filter(r => RQ_OPEN(r.status)).length;
+  $("rqcOpen").textContent = nOpen; $("rqcAll").textContent = rqRows.length;
+  ['nvRfqCnt', 'nvRfqCnt2'].forEach(id => { const e = $(id); if (e) { e.textContent = nOpen; e.style.display = nOpen ? '' : 'none'; } });
+  let rows = rqFilter === 'open' ? rqRows.filter(r => RQ_OPEN(r.status)) : rqRows;
+  if (q) rows = rows.filter(r => [r.company, r.contact, r.origin, r.dest, r.phone, r.email]
+    .some(v => String(v || '').toLowerCase().indexOf(q) > -1));
+  if (!rows.length) {
+    box.innerHTML = '<div class="empty">' + (q ? 'ไม่พบคำขอที่ค้นหา'
+      : (rqFilter === 'open' ? 'ไม่มีคำขอที่รอดำเนินการ' : 'ยังไม่มีคำขอจากลูกค้า')) + '</div>';
+    return;
+  }
+  box.innerHTML = rows.map(r => {
+    const f = (k, v) => v ? '<div class="rf"><span class="k">' + k + '</span><span class="v">' + esc0(v) + '</span></div>' : '';
+    const open = RQ_OPEN(r.status);
+    return '<div class="rqcard' + (open ? '' : ' done') + '">'
+      + '<div class="rh"><div class="rco">' + esc0(r.company || '-')
+      + ' <span class="qchip' + (open ? '' : ' g') + '">' + esc0(r.status || 'ใหม่') + '</span>'
+      + (r.owner ? ' <span class="qchip">โดย ' + esc0(r.owner) + '</span>' : '')
+      + '<div class="rct">' + [r.contact, r.phone, r.email].filter(Boolean).map(esc0).join(' · ') + '</div></div>'
+      + '<div class="rty">' + esc0(r.jobType || '-') + '<small>' + esc0(r.size || '') + '</small></div></div>'
+      + '<div class="rgrid">'
+      + '<div class="rf" style="grid-column:1/-1"><span class="k">🛣 เส้นทาง</span>'
+      + '<span class="v rroute">' + esc0(r.origin || '-') + ' → ' + esc0(r.dest || '-') + '</span></div>'
+      + f('📅 วันที่ต้องการ', r.jobDate) + f('📦 สินค้า', r.cargo) + f('🔢 จำนวน', r.qty)
+      + f('📝 หมายเหตุลูกค้า', r.note) + f('⏱ ส่งคำขอเมื่อ', rqWhen(r.at))
+      + '</div>'
+      + '<div class="ract"><button class="btn bsm rqGo" data-r=\'' + esc0(JSON.stringify(r)) + '\'>🧮 ตีราคา →</button>'
+      + (open
+          ? '<button class="btn btn-ghost bsm rqDrop" data-row="' + r.row + '" data-at="' + esc0(r.at) + '" data-co="' + esc0(r.company) + '" style="color:var(--warn)">🗑 ไม่เอา / ทดสอบ</button>'
+          : '<button class="btn btn-ghost bsm rqBack2" data-row="' + r.row + '" data-at="' + esc0(r.at) + '">↩ เอากลับมา</button>')
+      + '</div></div>';
+  }).join('');
+  box.querySelectorAll('.rqDrop').forEach(b => b.onclick = () => rqSetState(b, 'ไม่เอา/ทดสอบ',
+    'ปิดคำขอนี้?\n' + b.dataset.co + '\n\nคำขอจะหายจากรายการ “รอดำเนินการ”\nข้อมูลยังอยู่ในชีทเหมือนเดิม ไม่ได้ลบทิ้ง'));
+  box.querySelectorAll('.rqBack2').forEach(b => b.onclick = () => rqSetState(b, 'ใหม่', ''));
     box.querySelectorAll('.rqGo').forEach(b => b.onclick = () => {
       let r = {}; try { r = JSON.parse(b.dataset.r); } catch (e) {}
       location.hash = 'quote';
@@ -6164,7 +6222,6 @@ async function loadRfq() {
         qKmLookup();
       }, 60);
     });
-  } catch (e) { box.innerHTML = '<div class="empty">โหลดไม่ได้</div>'; }
 }
 
 /* ---------- ตั้งค่าต้นทุน ---------- */
@@ -6228,6 +6285,26 @@ $("qpBack").addEventListener('click', () => { location.hash = ''; });
 $("rqBack").addEventListener('click', () => { location.hash = ''; });
 $("cgBack").addEventListener('click', () => { location.hash = 'quote'; });
 $("qpCfg").addEventListener('click', () => { location.hash = 'pcfg'; });
+
+async function rqSetState(btn, state, ask) {
+  if (ask && !confirm(ask)) return;
+  btn.disabled = true;
+  try {
+    const j = await callAct({ act: 'rfqstate', row: btn.dataset.row, at: btn.dataset.at, state: state });
+    const res = String((j && (j.result || j)) || '');
+    if (/rfqstate-ok/.test(res)) { flash(state === 'ใหม่' ? '↩ เอากลับเข้ารายการแล้ว' : '🗑 ปิดคำขอแล้ว', 'ok'); loadRfq(); }
+    else if (/rfq-moved/.test(res)) { flash('แถวในชีทขยับ — กดรีเฟรชแล้วลองใหม่', 'err'); loadRfq(); }
+    else if (/unknown-act/.test(res)) flash('⏳ หลังบ้านยังไม่อัปเดต — วาง .gs ตัวใหม่แล้ว Deploy New version ก่อน', 'err');
+    else flash(qActErr(j), 'err');
+  } catch (e) { flash('ทำรายการไม่สำเร็จ', 'err'); }
+  btn.disabled = false;
+}
+document.querySelectorAll('.rqf').forEach(b => b.addEventListener('click', () => {
+  rqFilter = b.dataset.rqf;
+  document.querySelectorAll('.rqf').forEach(x => { x.classList.toggle('on', x === b); x.classList.toggle('btn-ghost', x !== b); });
+  renderRfq();
+}));
+$("rqSearch").addEventListener('input', renderRfq);
 $("rqReload").addEventListener('click', loadRfq);
 $("cgSave").addEventListener('click', saveCfg);
 document.querySelectorAll('.qstep').forEach(b => b.addEventListener('click', () => qStep(+b.dataset.qs)));
@@ -6261,6 +6338,8 @@ $("qPrint").addEventListener('click', () => {
     + ($("qtDoc").innerHTML) + '<script>setTimeout(function(){window.print()},400)<\/script>');
   w.document.close();
 });
+$("dpDrvQ").addEventListener('input', () => { if (qState.drv && qState.drv.length) renderDrivers(); });
+$("dpDrvClear").addEventListener('click', () => { $("dpDrvQ").value = ''; renderDrivers(); $("dpDrvQ").focus(); });
 $("dGo").addEventListener('click', qDoDispatch);
 document.querySelectorAll('#ovTags .ovtag').forEach(b => b.addEventListener('click', () => b.classList.toggle('on')));
 ['d_load', 'd_yardIn', 'd_yardOut'].forEach(id => { const e = $(id); if (e) e.addEventListener('change', qTripAuto); });
