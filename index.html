@@ -6244,7 +6244,7 @@ function renderRfq() {
 
 /* ---------- ตั้งค่าต้นทุน ---------- */
 const CFG_GROUP = [
-  ['น้ำมัน', ['fe10', 'fe6', 'feQuote', 'oilBase', 'oilType']],
+  ['น้ำมัน', ['fe10', 'fe6', 'feQuote', 'oilBase']],   // เลิกใช้ B20 แล้ว (23 ส.ค. 2026) จึงไม่มีสวิตช์ชนิดน้ำมัน
   ['คนขับ & รถ (ต่อเที่ยว)', ['tripPay', 'perDiem', 'wearPerKm']],
   ['ค่าคงที่รายปี', ['insVeh', 'insCargo', 'reg', 'tax', 'office', 'tripsPerYear']],
   ['ตู้พิเศษ', ['rfPerTrip', 'rfPerDay', 'tankPerTrip', 'tankPerDay']],
@@ -6253,7 +6253,7 @@ const CFG_GROUP = [
   ['ใบเสนอราคา', ['quoteTerms']],
 ];
 const CFG_LABEL = { fe10: '10 ล้อ กินน้ำมัน (กม./ลิตร)', fe6: '6 ล้อ กินน้ำมัน (กม./ลิตร)',
-  feQuote: 'อัตราที่ใช้ตีราคา (กม./ลิตร)', oilBase: 'ดีเซลฐานของเรตมาตรฐาน', oilType: 'รถเติมดีเซลชนิดไหน (B7/B20)',
+  feQuote: 'อัตราที่ใช้ตีราคา (กม./ลิตร)', oilBase: 'ดีเซลฐานของเรตมาตรฐาน',
   tripPay: 'ค่าเที่ยวคนขับ (บาท/งาน)', perDiem: 'เบี้ยเลี้ยง (บาท/วัน)', wearPerKm: 'ค่าสึกหรอ (บาท/กม.)',
   insVeh: 'ประกันรถ/ปี', insCargo: 'ประกันสินค้า/ปี', reg: 'ต่อทะเบียน/ปี', tax: 'ภาษี + พ.ร.บ./ปี',
   office: 'ค่างวดรถ + GPS + ออฟฟิศ/ปี', tripsPerYear: 'วิ่งกี่เที่ยว/ปี (ต่อคัน)',
