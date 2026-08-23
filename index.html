@@ -560,6 +560,81 @@
   .b3card.done .b3amt{color:var(--ok)}
   #b3QInfo:empty{display:none}
   #b3QInfo{align-self:center;font-size:12.5px;font-weight:700;color:var(--accent);background:var(--accent-soft);border:1px solid var(--accent);border-radius:20px;padding:5px 11px}
+
+  /* ══ V65: ตีราคา / ใบเสนอราคา / จ่ายงาน / ใบขอราคา / ตั้งค่าต้นทุน ══ */
+  #qtPage,#rfqPage,#cfgPage{display:none}
+  body.qt-on .wrap>*:not(#qtPage){display:none!important}
+  body.rfq-on .wrap>*:not(#rfqPage){display:none!important}
+  body.cfg-on .wrap>*:not(#cfgPage){display:none!important}
+  .qsteps{display:flex;gap:7px;flex-wrap:wrap;margin:0 0 14px}
+  .qstep{font:inherit;font-size:13px;padding:7px 13px;border-radius:99px;border:1.5px solid var(--line-strong);background:var(--panel);color:var(--ink);cursor:pointer}
+  .qstep.on{background:var(--primary);color:var(--primary-fg);border-color:var(--primary);font-weight:600}
+  .qstep.done{border-color:var(--ok);color:var(--ok)}
+  .qsec{display:none}.qsec.on{display:block}
+  .q2{display:grid;grid-template-columns:1fr 1fr;gap:10px 16px}
+  .q3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px 16px}
+  .qchip{display:inline-block;font-size:11px;padding:1px 8px;border-radius:99px;background:var(--accent-soft);color:var(--accent);border:1px solid var(--accent)}
+  .qchip.w{background:rgba(176,68,47,.1);color:var(--warn);border-color:var(--warn)}
+  .qchip.g{background:rgba(47,122,82,.12);color:var(--ok);border-color:var(--ok)}
+  .qlock{font-size:10.5px;padding:1px 7px;border-radius:99px;background:rgba(176,68,47,.1);color:var(--warn);border:1px solid var(--warn)}
+  .pbx{border:1.5px solid var(--line);border-radius:12px;padding:11px 13px;background:var(--panel)}
+  .pbx .l{font-size:11.5px;color:var(--ink-soft)}
+  .pbx .v{font-size:21px;font-weight:700;font-variant-numeric:tabular-nums;margin-top:2px}
+  .pbx .s{font-size:11px;color:var(--ink-soft);margin-top:2px;line-height:1.4}
+  .pbx.t{border-color:var(--accent);background:var(--accent-soft)} .pbx.t .v{color:var(--accent)}
+  .pbx.s2{border-color:var(--ok);background:rgba(47,122,82,.07)} .pbx.s2 .v{color:var(--ok)}
+  .pbx.f{border-color:#e0a020;background:rgba(240,192,64,.09)}
+  .offerbar{display:flex;align-items:center;gap:14px;flex-wrap:wrap;border:2px solid var(--ok);border-radius:12px;padding:11px 14px;margin:12px 0 0;background:var(--panel)}
+  .offerbar .l2{font-size:13px;font-weight:600}
+  .offerbar .s2b{font-size:11.5px;color:var(--ink-soft)}
+  .offerin{flex:0 0 180px;font-size:24px;font-weight:700;text-align:right;border:0;border-bottom:2px solid var(--ok);background:transparent;color:var(--ink);padding:0;font-variant-numeric:tabular-nums}
+  .offerin:focus{outline:none;background:var(--field-focus)}
+  .qmark{margin:11px 0 0;padding:9px 13px;border-radius:10px;font-size:13.5px;font-weight:600;border:1px solid var(--line-strong);background:var(--field);color:var(--ink-soft)}
+  .qmark.ok{background:rgba(47,122,82,.1);border-color:var(--ok);color:var(--ok)}
+  .qmark.low{background:rgba(240,192,64,.12);border-color:#e0a020;color:#8a6100}
+  .qmark.loss{background:rgba(176,68,47,.12);border-color:var(--warn);color:var(--warn)}
+  .qcost{margin:11px 0 0;border:1px dashed var(--line-strong);border-radius:10px;padding:9px 12px;background:var(--field)}
+  .qcost summary{cursor:pointer;font-size:13px;font-weight:600;color:var(--ink-soft)}
+  .qcost .cr{display:flex;justify-content:space-between;font-size:13px;padding:3px 0;border-bottom:1px dotted var(--line)}
+  .qcost .cr:last-child{border:0;font-weight:700;color:var(--ink)}
+  .qck{display:flex;align-items:center;gap:6px;font-size:13px;color:var(--ink)}
+  .qck input{width:auto}
+  .row2{display:flex;gap:9px;flex-wrap:wrap;align-items:center}
+  .bsm{font-size:12.5px;padding:6px 12px;border-radius:8px}
+  .btn-ok{background:var(--ok);border-color:var(--ok);color:#fff}
+  .drow{display:flex;align-items:center;gap:11px;padding:10px 12px;border:1px solid var(--line);border-radius:11px;margin:0 0 8px;background:var(--panel);flex-wrap:wrap;cursor:pointer}
+  .drow.pick{border-color:var(--ok);border-width:1.5px;background:rgba(47,122,82,.07)}
+  .drow .rk{flex:0 0 28px;height:28px;border-radius:50%;background:var(--primary);color:var(--primary-fg);display:flex;align-items:center;justify-content:center;font-weight:700;font-size:13px}
+  .drow.pick .rk{background:var(--ok)}
+  .drow .di{flex:1 1 200px;min-width:0}
+  .drow .dn{font-weight:600;font-size:14.5px}
+  .drow .dw{font-size:12.5px;color:var(--ink-soft);margin-top:1px}
+  .drow .ds{font-size:12.5px;color:var(--ink-soft);text-align:right;font-variant-numeric:tabular-nums}
+  .ovtag.on{background:var(--ok);border-color:var(--ok);color:#fff}
+  .tpsave{border:1.5px solid var(--accent);background:var(--accent-soft);border-radius:11px;padding:11px 13px;margin-top:8px}
+  /* ใบเสนอราคา (เอกสารพิมพ์) */
+  .qtdoc{background:#fff;color:#222;border:1px solid #ddd;border-radius:10px;padding:26px 28px;max-width:760px;margin:0 auto;font-size:13.5px;box-shadow:var(--shadow)}
+  .qtdoc .qh{display:flex;justify-content:space-between;gap:16px;border-bottom:2px solid #0b1633;padding-bottom:12px;margin-bottom:14px;flex-wrap:wrap}
+  .qtdoc .qco{font-weight:700;font-size:15px;color:#0b1633}
+  .qtdoc .qm{text-align:right;font-size:12.5px;color:#555}
+  .qtdoc h3{font-size:20px;margin:0;letter-spacing:.04em;color:#0b1633}
+  .qtdoc table{width:100%;border-collapse:collapse;margin:12px 0}
+  .qtdoc th{background:#0b1633;color:#fff;font-size:12.5px;padding:8px 10px;text-align:left;font-weight:600}
+  .qtdoc td{border-bottom:1px solid #eee;padding:9px 10px}
+  .qtdoc .n{text-align:right;font-variant-numeric:tabular-nums}
+  .qtdoc .sm{display:flex;justify-content:flex-end;margin-top:8px}
+  .qtdoc .sb{min-width:270px}
+  .qtdoc .sr{display:flex;justify-content:space-between;padding:5px 10px}
+  .qtdoc .sr.tt{background:#0b1633;color:#fff;font-weight:700;border-radius:6px;font-size:15px;margin-top:4px}
+  .qtdoc .cond{margin-top:16px;font-size:12px;color:#555;line-height:1.75;border-top:1px dashed #ccc;padding-top:12px}
+  .qtdoc .sg{display:flex;justify-content:space-between;gap:30px;margin-top:26px;font-size:12.5px;color:#444;text-align:center;flex-wrap:wrap}
+  .qtdoc .sg div{flex:1 1 200px;border-top:1px dotted #999;padding-top:6px}
+  .cgrow{display:grid;grid-template-columns:1fr 150px 90px;gap:10px;align-items:center;padding:7px 0;border-bottom:1px dotted var(--line)}
+  .cgrow .ck{font-size:13px}
+  .cgrow .cd{font-size:11.5px;color:var(--ink-soft)}
+  .cgrow input{font-size:14px;text-align:right}
+  @media(max-width:760px){.q2,.q3{grid-template-columns:1fr}.offerin{flex:1 1 auto;text-align:left}
+    .cgrow{grid-template-columns:1fr 110px;gap:6px}.cgrow .cu{display:none}}
 </style>
 <script>
   /* ตั้งธีมก่อน render กันหน้าจอกระพริบ */
@@ -718,6 +793,16 @@
   <!-- V63: หน้าเงินคนขับ — แอดมินเท่านั้น (JS เปิดให้เมื่อเป็นแอดมิน) -->
   <div class="gobill" id="goPay" role="button" tabindex="0" style="border-color:var(--ok);display:none">
     <div><b>🧑‍✈️ เงินคนขับ (ค่าเที่ยว)</b><div class="gb-sub">รวมค่าเที่ยวรายคน · แจกแจงรายเที่ยว · พิมพ์ไปจ่ายเงินได้ — ลิงก์ท้าย #pay</div></div>
+    <div class="gb-arrow">→</div>
+  </div>
+
+  <!-- V65: ตีราคา/จ่ายงาน + ใบขอราคา — ซ่อนไว้ก่อน เปิดด้วย ?v65=1 -->
+  <div class="gobill" id="goQuote" role="button" tabindex="0" style="border-color:var(--signal);display:none">
+    <div><b>🧮 ตีราคา &amp; จ่ายงาน</b><div class="gb-sub">คิดราคา → ออกใบเสนอราคา → จ่ายงานคนขับ → สร้างร่างบิล จบในหน้าเดียว — ลิงก์ท้าย #quote</div></div>
+    <div class="gb-arrow">→</div>
+  </div>
+  <div class="gobill" id="goRfq" role="button" tabindex="0" style="border-color:var(--signal);display:none">
+    <div><b>📥 ใบขอราคาจากลูกค้า</b><div class="gb-sub">คำขอที่ลูกค้ากรอกจากเว็บบริษัท — กดตีราคาต่อได้เลย — ลิงก์ท้าย #rfq</div></div>
     <div class="gb-arrow">→</div>
   </div>
 
@@ -956,6 +1041,171 @@
       ระบบรู้แล้วว่า <b>เก็บลูกค้าได้เท่าไหร่</b> และ <b>จ่ายคนขับไปเท่าไหร่</b> — เหลือจับคู่รายเที่ยว<br>
       <span style="font-size:12px">(ยังขาดค่าเที่ยวคนขับ + ค่าน้ำมัน จึงจะได้กำไรจริง)</span>
     </div>
+  </div>
+  </div>
+
+
+  <!-- ══ V65: ตีราคา → ใบเสนอราคา → จ่ายงาน (หน้าเดียว 3 ขั้น) ══ -->
+  <div id="qtPage">
+  <div class="bp-top">
+    <button class="btn btn-ghost" id="qpBack">← กลับหน้าจด</button>
+    <div class="bp-title">🧮 ตีราคา &amp; จ่ายงาน</div>
+    <button class="btn btn-ghost" id="qpCfg" title="ตั้งค่าต้นทุน &amp; ราคาพื้น (แอดมิน)">⚙️</button>
+  </div>
+  <div class="bp-inner">
+    <div class="qsteps" id="qSteps">
+      <button class="qstep on" data-qs="1">1 · ตีราคา</button>
+      <button class="qstep" data-qs="2">2 · ใบเสนอราคา</button>
+      <button class="qstep" data-qs="3">3 · จ่ายงาน</button>
+    </div>
+
+    <!-- ขั้น 1 : ตีราคา -->
+    <div class="qsec on" id="qs1">
+      <div class="dcard"><div class="dcard-h"><h3>งานที่จะตีราคา</h3><span class="note" id="qFromRfq"></span></div>
+        <div class="dcard-b">
+          <div class="q3">
+            <div class="field"><label>ลูกค้า</label><input id="q_cust" list="dl_cust" autocomplete="off"></div>
+            <div class="field"><label>ต้นทาง</label><input id="q_from" autocomplete="off"></div>
+            <div class="field"><label>ปลายทาง</label><input id="q_to" autocomplete="off"></div>
+          </div>
+          <div class="q3">
+            <div class="field"><label>ระยะทางไป–กลับ (กม.) <span class="qchip" id="q_kmTag">—</span></label><input id="q_km" inputmode="numeric"></div>
+            <div class="field"><label>กม.วิ่งเปล่า</label><input id="q_dead" inputmode="numeric" value="0"></div>
+            <div class="field"><label>ประเภทรถ</label><select id="q_truck"><option value="10">10 ล้อ (หัวลาก)</option><option value="6">6 ล้อ</option></select></div>
+          </div>
+          <div class="q3">
+            <div class="field"><label>ชนิดตู้</label><select id="q_cargo"><option value="dry">ตู้แห้ง</option><option value="reefer">ตู้เย็น</option><option value="tank">ตู้แทงค์</option></select></div>
+            <div class="field"><label>จำนวนวันงาน</label><input id="q_days" inputmode="numeric" value="1"></div>
+            <div class="field"><label>ค่าทางด่วน</label><input id="q_toll" inputmode="numeric" value="0"></div>
+          </div>
+          <div class="q3">
+            <div class="field"><label>ขนาดตู้</label><input id="q_size" list="dl_size" autocomplete="off"></div>
+            <div class="field"><label>ประเภทงาน</label><select id="q_jtype"><option>Import (ขาเข้า)</option><option>Export (ขาออก)</option><option>ในประเทศ / เหมาคัน</option><option>ข้ามแดน CLMV</option></select></div>
+            <div class="field"><label>ดีเซลวันนี้ <span class="qchip" id="q_oilTag">อัตโนมัติ</span></label><input id="q_oil" inputmode="decimal" placeholder="ระบบดึงให้"></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="dcard"><div class="dcard-h"><h3>ราคา</h3><span class="note">① เรตมาตรฐาน · ② ต้นทุน+กำไร · ③ ห้ามต่ำกว่า</span></div>
+        <div class="dcard-b">
+          <div class="q3">
+            <div class="pbx t"><div class="l">① ตามอัตราส่วนระยะทาง</div><div class="v" id="pxTarget">—</div><div class="s" id="pxTargetWhy"></div></div>
+            <div class="pbx s2" id="pxSuggBox"><div class="l">② ตามต้นทุน + กำไร <span class="qlock">แอดมิน</span></div><div class="v" id="pxSugg">—</div><div class="s" id="pxSuggWhy"></div></div>
+            <div class="pbx f" id="pxFloorBox"><div class="l">③ ห้ามต่ำกว่า <span class="qlock">แอดมิน</span></div><div class="v" id="pxFloor">—</div><div class="s" id="pxFloorWhy"></div></div>
+          </div>
+          <div class="offerbar">
+            <div style="flex:1 1 210px"><div class="l2">💰 ราคาที่จะเสนอลูกค้าจริง</div><div class="s2b">พิมพ์ได้อิสระ — ระบบเช็คให้ว่ากำไรพอไหม</div></div>
+            <input id="q_offer" inputmode="numeric" class="offerin">
+            <div class="row2"><button class="btn btn-ghost bsm" id="qUse1">ใช้ ①</button><button class="btn btn-ghost bsm" id="qUse2">ใช้ ②</button></div>
+          </div>
+          <div class="qmark" id="qMark">กรอกระยะทางแล้วราคาจะขึ้นเอง</div>
+          <details class="qcost" id="qCostBox" style="display:none"><summary>🔒 ดูต้นทุน (แอดมินเท่านั้น)</summary><div id="qCostList"></div></details>
+        </div>
+      </div>
+      <div class="row2"><button class="btn btn-primary" id="qGo2">📄 ออกใบเสนอราคา →</button></div>
+    </div>
+
+    <!-- ขั้น 2 : ใบเสนอราคา -->
+    <div class="qsec" id="qs2">
+      <div class="dcard" style="border-color:var(--accent)"><div class="dcard-h"><h3>✏️ ปรับตรงนี้ได้เลย — เอกสารเปลี่ยนตามทันที</h3></div>
+        <div class="dcard-b">
+          <div class="q3">
+            <div class="field"><label>ระยะทาง (กม.)</label><input id="qd_km" inputmode="numeric"></div>
+            <div class="field"><label>ราคา/เที่ยว</label><input id="qd_price" inputmode="numeric"></div>
+            <div class="field"><label>จำนวนเที่ยว</label><input id="qd_qty" inputmode="numeric" value="1"></div>
+          </div>
+          <div class="q3">
+            <div class="field"><label>ผู้ติดต่อ</label><input id="qd_contact"></div>
+            <div class="field"><label>เบอร์ / อีเมล</label><input id="qd_phone"></div>
+            <div class="field"><label>ยืนราคา (วัน)</label><input id="qd_valid" inputmode="numeric" value="30"></div>
+          </div>
+          <div class="row2" style="margin-top:6px">
+            <label class="qck"><input type="checkbox" id="qd_vat" checked> รวม VAT 7%</label>
+            <label class="qck"><input type="checkbox" id="qd_wht" checked> หัก ณ ที่จ่าย 1%</label>
+          </div>
+        </div>
+      </div>
+      <div class="row2" style="margin:0 0 12px">
+        <button class="btn btn-primary" id="qPrint">🖨 พิมพ์ / บันทึก PDF</button>
+        <button class="btn btn-ok" id="qAgree">✅ ลูกค้าตกลง → จ่ายงาน</button>
+        <button class="btn btn-ghost" id="qBack1">← แก้ราคา</button>
+      </div>
+      <div id="qtDoc"></div>
+    </div>
+
+    <!-- ขั้น 3 : จ่ายงาน -->
+    <div class="qsec" id="qs3">
+      <div class="dcard"><div class="dcard-h"><h3>งานที่จะจ่าย</h3><span class="note" id="qJobSum"></span></div>
+        <div class="dcard-b">
+          <div class="q3">
+            <div class="field"><label>ลานรับตู้</label><input id="d_yardIn" list="dl_yardIn" autocomplete="off"></div>
+            <div class="field"><label>ลานคืนตู้</label><input id="d_yardOut" list="dl_yardOut" autocomplete="off"></div>
+            <div class="field"><label>สถานที่โหลด / เปิดตู้</label><input id="d_load" list="dl_loadPlace" autocomplete="off"></div>
+          </div>
+          <div class="q3">
+            <div class="field"><label>วันที่วิ่งงาน</label><input type="date" id="d_date"></div>
+            <div class="field"><label>เบอร์ตู้ (มีแล้วใส่เลย · ไม่มีเว้นไว้)</label><input id="d_cont" class="mono"></div>
+            <div class="field"><label>ทะเบียนรถ</label><input id="d_truck" list="dl_truck" class="mono" autocomplete="off"></div>
+          </div>
+        </div>
+      </div>
+      <div class="dcard"><div class="dcard-h"><h3>คนขับที่ควรได้งานก่อน</h3><span class="note">เรียงจากภาระงานสะสมน้อย → มาก</span></div>
+        <div class="dcard-b" id="dpDrvList"><div class="empty">กำลังโหลด…</div></div>
+      </div>
+      <div class="dcard" id="ovBox" style="display:none;border-color:#e0a020">
+        <div class="dcard-h"><h3>⚠️ เปลี่ยนจากคนที่ระบบแนะนำ — บอกเหตุผลด้วย</h3></div>
+        <div class="dcard-b">
+          <div class="note" style="margin:0 0 8px">ระบบจำไว้ ครั้งหน้าเจองานแบบเดียวกันจะแนะนำคนนี้ให้เอง</div>
+          <div class="row2" id="ovTags">
+            <button class="btn btn-ghost bsm ovtag">ลูกค้าขอคนเดิม</button>
+            <button class="btn btn-ghost bsm ovtag">ชำนาญเส้นทางนี้</button>
+            <button class="btn btn-ghost bsm ovtag">ขับตู้เย็นได้</button>
+            <button class="btn btn-ghost bsm ovtag">อยู่ใกล้จุดรับตู้</button>
+            <button class="btn btn-ghost bsm ovtag">คนที่แนะนำลาหยุด</button>
+          </div>
+          <div class="field" style="margin:10px 0 0"><label>เหตุผลเพิ่มเติม</label><input id="ovText" placeholder="พิมพ์เองได้ เว้นว่างถ้าเลือกป้ายแล้ว"></div>
+        </div>
+      </div>
+      <div class="dcard"><div class="dcard-b">
+        <div class="q2">
+          <div class="field"><label>ค่าเที่ยวที่คนขับได้ <span class="qchip" id="d_tpTag">—</span></label><input id="d_trip" inputmode="numeric"></div>
+          <div class="field"><label>ราคาที่เก็บลูกค้า (ค่าขนส่ง)</label><input id="d_trans" inputmode="numeric"></div>
+        </div>
+        <div id="d_tpSave" style="display:none" class="tpsave">
+          <div><b>🆕 พื้นที่นี้ยังไม่มีในตารางเรท — บันทึกเก็บไว้เลยไหม?</b>
+            <div class="note">ลงในแท็บ “เรทค่าเที่ยว” เดิม คอลัมน์เดียวกัน · ต้องมีสถานที่โหลด ระบบถึงจะรู้ว่าเรทของเส้นทางไหน</div></div>
+          <div class="row2" style="margin-top:8px"><button class="btn bsm" id="d_tpOk">💾 บันทึกเข้าตารางเรท</button><button class="btn btn-ghost bsm" id="d_tpNo">ไม่บันทึก</button></div>
+        </div>
+      </div></div>
+      <div class="row2">
+        <button class="btn btn-ok" id="dGo">🚚 จ่ายงาน → สร้างร่างบิล</button>
+        <button class="btn btn-ghost" id="qBack2">← กลับ</button>
+      </div>
+      <p class="note">จ่ายงานแล้วระบบสร้าง <b>ร่างบิล</b> รอไว้ · ร่างยังไม่นับเป็นรายได้/ลูกหนี้/ค่าเที่ยว จนกว่าจะยืนยันในหน้าวางบิล</p>
+    </div>
+  </div>
+  </div>
+
+  <!-- ══ V65: ใบขอราคาจากเว็บบริษัท ══ -->
+  <div id="rfqPage">
+  <div class="bp-top">
+    <button class="btn btn-ghost" id="rqBack">← กลับหน้าจด</button>
+    <div class="bp-title">📥 ใบขอราคา (จากเว็บบริษัท)</div>
+    <button class="btn btn-ghost" id="rqReload">🔄</button>
+  </div>
+  <div class="bp-inner"><div id="rqList"><div class="empty">กำลังโหลด…</div></div></div>
+  </div>
+
+  <!-- ══ V65: ตั้งค่าต้นทุน & ราคาพื้น (แอดมิน) ══ -->
+  <div id="cfgPage">
+  <div class="bp-top">
+    <button class="btn btn-ghost" id="cgBack">← กลับ</button>
+    <div class="bp-title">⚙️ ตั้งค่าต้นทุน &amp; ราคาพื้น</div>
+    <button class="btn btn-primary" id="cgSave">💾 บันทึก</button>
+  </div>
+  <div class="bp-inner">
+    <p class="note" style="margin:0 0 12px">แก้แล้ว<b>ราคาทุกใบที่ตีต่อจากนี้เปลี่ยนตามทันที</b> · เก็บในชีทแท็บ “ตั้งค่าราคา” — แก้ในเว็บหรือในชีทก็ได้ ตรงกันเสมอ</p>
+    <div id="cgList"><div class="empty">กำลังโหลด…</div></div>
   </div>
   </div>
 
@@ -3700,7 +3950,9 @@ function flash(t,type){
   // V63.3: บนหน้าเต็มจอ (วางบิล/แดชบอร์ด/เงินคนขับ) #msg ถูกซ่อนด้วย body.bill-on ฯลฯ
   // → ทุก feedback (ตรวจกับชีท/ส่งซ้ำ/บันทึก) เงียบสนิท ต้องมี toast ลอยของตัวเอง
   const cl=document.body.classList;
-  if(cl.contains('bill-on')||cl.contains('dash-on')||cl.contains('pay-on')){
+  // V65: หน้าตีราคา/ใบขอราคา/ตั้งค่าต้นทุน ก็เป็นหน้าเต็มจอ ต้องใช้ toast เหมือนกัน
+  if(cl.contains('bill-on')||cl.contains('dash-on')||cl.contains('pay-on')
+     ||cl.contains('qt-on')||cl.contains('rfq-on')||cl.contains('cfg-on')){
     let t2=document.getElementById('msg2');
     if(!t2){ t2=document.createElement('div'); t2.id='msg2';
       t2.style.cssText='position:fixed;left:50%;transform:translateX(-50%);bottom:22px;z-index:9500;max-width:92vw;padding:12px 20px;border-radius:11px;font-size:13.5px;line-height:1.6;text-align:center;box-shadow:0 4px 18px rgba(0,0,0,.28);display:none';
@@ -5467,6 +5719,418 @@ recalc();
   if(document.readyState!=='loading') boot();
   else document.addEventListener('DOMContentLoaded',boot);
 })();
+
+/* ══════════════════════════════════════════════════════════════════════
+   V65 (เว็บ) — ตีราคา → ใบเสนอราคา → จ่ายงาน → ร่างบิล
+   ⚠️ ไม่มีสูตรราคา/ตัวเลขต้นทุนในไฟล์นี้เด็ดขาด (repo เป็น public)
+      ทุกการคิดราคาถามหลังบ้าน act=qprice แล้วเอาผลมาแสดงเท่านั้น
+   ⚠️ ตอนนี้ "ซ่อนไว้ก่อน" — การ์ดทางเข้าโผล่เมื่อเปิดสวิตช์ (ดู V65_ON)
+   ══════════════════════════════════════════════════════════════════════ */
+const V65_ON = (function () {                      // เปิดใช้เมื่อ: ?v65=1 (ครั้งเดียวแล้วจำ) หรือเคยเปิดไว้
+  try {
+    if (/[?&]v65=1/.test(location.search)) { localStorage.setItem('jobform_v65', '1'); }
+    if (/[?&]v65=0/.test(location.search)) { localStorage.removeItem('jobform_v65'); }
+    return localStorage.getItem('jobform_v65') === '1';
+  } catch (e) { return false; }
+})();
+const qMoney = n => (Math.round(Number(n) || 0)).toLocaleString('th-TH');
+let qState = { px: {}, drv: [], pick: null, rankTop: '', qtNo: '', cfg: null };
+
+/* ---------- สลับหน้า ---------- */
+function qtPageSync() {
+  const on = (location.hash === '#quote');
+  document.body.classList.toggle('qt-on', on);
+  const el = $("qtPage"); if (el) el.style.display = on ? 'block' : 'none';
+  if (on) {
+    // ⚙️ ตั้งค่าต้นทุน = แอดมินเท่านั้น (หลังบ้านกันอยู่แล้ว — ซ่อนปุ่มด้วยจะได้ไม่กดแล้วเจอ "เฉพาะแอดมิน")
+    const cg = $("qpCfg"); if (cg) cg.style.display = adminToken ? '' : 'none';
+    qStep(1); qOilInit();
+  }
+}
+function rfqPageSync() {
+  const on = (location.hash === '#rfq');
+  document.body.classList.toggle('rfq-on', on);
+  const el = $("rfqPage"); if (el) el.style.display = on ? 'block' : 'none';
+  if (on) loadRfq();
+}
+function cfgPageSync() {
+  const on = (location.hash === '#pcfg');
+  if (on && !adminToken) {                    // กันเดินเข้าตรงๆ ด้วยลิงก์ #pcfg
+    location.hash = 'quote'; flash('ตั้งค่าต้นทุน & ราคาพื้น — แอดมินเท่านั้น', 'err'); return;
+  }
+  document.body.classList.toggle('cfg-on', on);
+  const el = $("cfgPage"); if (el) el.style.display = on ? 'block' : 'none';
+  if (on) loadCfg();
+}
+function qStep(n) {
+  [1, 2, 3].forEach(i => {
+    const s = document.querySelector('.qstep[data-qs="' + i + '"]'), c = $("qs" + i);
+    if (s) { s.classList.toggle('on', i === n); s.classList.toggle('done', i < n); }
+    if (c) c.classList.toggle('on', i === n);
+  });
+  if (n === 2) qtRender();
+  if (n === 3) qDispatchInit();
+  window.scrollTo(0, 0);
+}
+
+/* ---------- ขั้น 1: ตีราคา (คิดที่หลังบ้าน) ---------- */
+let qPriceTimer = 0, qPriceBusy = false;
+function qAskPrice() {
+  clearTimeout(qPriceTimer);
+  qPriceTimer = setTimeout(async () => {
+    const km = +($("q_km").value || '').replace(/,/g, '') || 0;
+    if (!km) { $("qMark").className = 'qmark'; $("qMark").textContent = 'กรอกระยะทางแล้วราคาจะขึ้นเอง'; return; }
+    if (qPriceBusy) return; qPriceBusy = true;
+    try {
+      const j = await callAct({ act: 'qprice', km: km,
+        dead: +($("q_dead").value || 0) || 0, days: +($("q_days").value || 1) || 1,
+        toll: +($("q_toll").value || 0) || 0, truck: $("q_truck").value, cargo: $("q_cargo").value,
+        oil: ($("q_oil").value || ''), offer: +(($("q_offer").value || '').replace(/,/g, '')) || 0 });
+      if (!j || !j.ok) { $("qMark").className = 'qmark loss'; $("qMark").textContent = qActErr(j); return; }
+      qState.px = j;
+      $("pxTarget").textContent = qMoney(j.target);
+      $("pxTargetWhy").textContent = 'เรตมาตรฐาน ' + qMoney(j.oneWay) + ' กม.ขาเดียว · ดีเซล ' + (j.oil || '-');
+      const admin = (j.cost !== undefined);
+      $("pxSuggBox").style.display = admin ? '' : 'none';
+      $("pxFloorBox").style.display = admin ? '' : 'none';
+      $("qCostBox").style.display = admin ? '' : 'none';
+      $("qUse2").style.display = admin ? '' : 'none';
+      if (admin) {
+        $("pxSugg").textContent = qMoney(j.sugg); $("pxFloor").textContent = qMoney(j.floor);
+        $("pxSuggWhy").textContent = 'ต้นทุน ' + qMoney(j.cost) + ' + กำไรเป้า';
+        $("pxFloorWhy").textContent = 'ต้นทุน ' + qMoney(j.cost) + ' + กำไรขั้นต่ำ';
+        const b = j.breakdown || {};
+        $("qCostList").innerHTML =
+          [['น้ำมัน', b.fuel], ['เงินคนขับที่ได้จริง', b.driverPay], ['ค่าสึกหรอ', b.wear],
+           ['ค่าคงที่เฉลี่ย/เที่ยว', b.fixPer], ['ทางด่วน', b.toll], ['ค่าตู้พิเศษ', b.cargoAdd],
+           ['รวมต้นทุนจริง', j.cost]]
+          .filter(x => x[1] !== undefined)
+          .map(x => '<div class="cr"><span>' + x[0] + '</span><span>' + qMoney(x[1]) + '</span></div>').join('');
+      }
+      const m = $("qMark"), off = +(($("q_offer").value || '').replace(/,/g, '')) || 0;
+      if (!off) { m.className = 'qmark'; m.textContent = 'ใส่ราคาที่จะเสนอ แล้วระบบจะเช็คกำไรให้'; }
+      else if (j.mark === 'loss') { m.className = 'qmark loss'; m.textContent = '⛔ ขาดทุน — ต่ำกว่าต้นทุนจริง' + (j.profit !== undefined ? ' ' + qMoney(-j.profit) + ' บาท' : ''); }
+      else if (j.mark === 'low') { m.className = 'qmark low'; m.textContent = '⚠️ ต่ำกว่าราคาพื้น — จ่ายงานได้แต่ต้องยืนยัน'; }
+      else { m.className = 'qmark ok'; m.textContent = '✅ กำไรผ่านเกณฑ์' + (j.profit !== undefined ? ' — เหลือ ' + qMoney(j.profit) + ' บาท (' + j.profitPct + '%)' : ''); }
+    } catch (e) { } finally { qPriceBusy = false; }
+  }, 350);
+}
+async function qKmLookup() {
+  const f = ($("q_from").value || '').trim(), t = ($("q_to").value || '').trim();
+  if (!f || !t) return;
+  const tag = $("q_kmTag"); tag.className = 'qchip'; tag.textContent = 'กำลังหา…';
+  try {
+    const j = await callAct({ act: 'km', from: f, to: t });
+    if (j && j.ok && j.km) {
+      if (!($("q_km").value || '').trim()) { $("q_km").value = j.km; qAskPrice(); }
+      tag.className = 'qchip g'; tag.textContent = j.src === 'จำได้' ? '🔵 จำได้จากเส้นนี้' : '🗺 จากแผนที่ · แก้ได้';
+    } else { tag.className = 'qchip w'; tag.textContent = '🆕 เส้นใหม่ — กรอกเอง แล้วระบบจำให้'; }
+  } catch (e) { tag.textContent = ''; }
+}
+async function qKmRemember() {
+  const f = ($("q_from").value || '').trim(), t = ($("q_to").value || '').trim();
+  const km = +($("q_km").value || 0) || 0;
+  if (!f || !t || !km) return;
+  try { await callAct({ act: 'kmset', from: f, to: t, km: km });
+    const tag = $("q_kmTag"); tag.className = 'qchip g'; tag.textContent = '💾 จำค่านี้แล้ว'; } catch (e) {}
+}
+async function qOilInit() {
+  if ($("q_oil").value) return;
+  try { const j = await callAct({ act: 'qprice', km: 1 }); if (j && j.ok && j.oil) { $("q_oil").value = j.oil; $("q_oilTag").textContent = 'ดึงอัตโนมัติ'; } } catch (e) {}
+}
+
+/* ---------- ขั้น 2: ใบเสนอราคา ---------- */
+function qtRender() {
+  const km = +($("qd_km").value || 0) || 0, price = +(($("qd_price").value || '').replace(/,/g, '')) || 0;
+  const qty = Math.max(1, +($("qd_qty").value || 1) || 1);
+  const vat = $("qd_vat").checked, wht = $("qd_wht").checked;
+  const sub = price * qty, v = vat ? sub * .07 : 0, w = wht ? sub * .01 : 0;
+  const d = new Date(); const until = new Date(); until.setDate(until.getDate() + (+($("qd_valid").value || 30) || 30));
+  const TH = ['ม.ค.','ก.พ.','มี.ค.','เม.ย.','พ.ค.','มิ.ย.','ก.ค.','ส.ค.','ก.ย.','ต.ค.','พ.ย.','ธ.ค.'];
+  const thd = x => x.getDate() + ' ' + TH[x.getMonth()] + ' ' + (x.getFullYear() + 543);
+  const esc = s => String(s == null ? '' : s).replace(/[<>&]/g, c => ({ '<': '&lt;', '>': '&gt;', '&': '&amp;' }[c]));
+  const m2 = n => n.toLocaleString('th-TH', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  $("qtDoc").innerHTML = '<div class="qtdoc" id="qtPaper">'
+    + '<div class="qh"><div style="display:flex;gap:14px;align-items:flex-start">'
+    + '<img src="' + APP_LOGO + '" alt="24 Logistics" style="width:96px;height:auto;flex:0 0 96px">'
+    + '<div><div class="qco">24 LOGISTICS CO., LTD.</div><div style="font-size:12px;color:#555;line-height:1.6">'
+    + '59/60 หมู่ 16 ถ.ศรีนครินทร์ ต.บางแก้ว<br>อ.บางพลี จ.สมุทรปราการ 10540<br>โทร 094-878-9335</div></div></div>'
+    + '<div class="qm"><h3>ใบเสนอราคา</h3><div>QUOTATION</div><div style="margin-top:8px">'
+    + (qState.qtNo ? 'เลขที่ <b>' + esc(qState.qtNo) + '</b><br>' : '')
+    + 'วันที่ ' + thd(d) + '<br>ยืนราคาถึง ' + thd(until) + '</div></div></div>'
+    + '<div style="font-size:13px"><b>เรียน</b> ' + esc($("q_cust").value || '-')
+    + ($("qd_contact").value ? ' (' + esc($("qd_contact").value) + ')' : '')
+    + '<br><span style="color:#555">ตามที่ท่านสอบถามค่าบริการขนส่งตู้คอนเทนเนอร์ บริษัทฯ ขอเสนอราคาดังนี้</span></div>'
+    + '<table><thead><tr><th style="width:34px">#</th><th>รายการ</th><th style="width:82px" class="n">จำนวน</th>'
+    + '<th style="width:104px" class="n">ราคา/หน่วย</th><th style="width:110px" class="n">รวม (บาท)</th></tr></thead><tbody>'
+    + '<tr><td>1</td><td>ค่าขนส่งตู้คอนเทนเนอร์ ' + esc($("q_size").value || '')
+    + '<br><span style="color:#666;font-size:12px">' + esc($("q_from").value || '') + ' → ' + esc($("q_to").value || '')
+    + (km ? ' (ระยะทาง ' + qMoney(km) + ' กม. ไป-กลับ)' : '') + '</span></td>'
+    + '<td class="n">' + qty + ' เที่ยว</td><td class="n">' + qMoney(price) + '</td><td class="n">' + qMoney(sub) + '</td></tr>'
+    + '</tbody></table><div class="sm"><div class="sb">'
+    + '<div class="sr"><span>รวมเป็นเงิน</span><span>' + m2(sub) + '</span></div>'
+    + (vat ? '<div class="sr"><span>ภาษีมูลค่าเพิ่ม 7%</span><span>' + m2(v) + '</span></div>' : '')
+    + (wht ? '<div class="sr"><span>หัก ณ ที่จ่าย 1%</span><span>-' + m2(w) + '</span></div>' : '')
+    + '<div class="sr tt"><span>ยอดชำระสุทธิ</span><span>' + m2(sub + v - w) + '</span></div></div></div>'
+    + '<div class="cond"><b>เงื่อนไข</b><br>• ราคานี้รวมค่าน้ำมัน ค่าทางด่วน และค่าแรงคนขับแล้ว<br>'
+    + '• ราคาอ้างอิงดีเซล ' + ($("q_oil").value || '-') + ' บาท/ลิตร — หากราคาน้ำมันเปลี่ยนเกิน 2 บาท/ลิตร ขอสงวนสิทธิ์ปรับราคา<br>'
+    + '• ค่าจอดรอเกิน 3 ชั่วโมง คิดเพิ่มชั่วโมงละ 300 บาท<br>• เครดิต 30 วันนับจากวันวางบิล</div>'
+    + '<div class="sg"><div>ผู้เสนอราคา<br><span style="color:#888">24 Logistics</span></div>'
+    + '<div>ผู้อนุมัติ / ลูกค้า<br><span style="color:#888">วันที่ ......................</span></div></div></div>';
+}
+async function qtSaveDoc() {
+  const uid = 'Q' + Date.now().toString(36) + Math.random().toString(36).slice(2, 5);
+  const body = { _qtsave: true, uid: uid, customer: $("q_cust").value, contact: $("qd_contact").value,
+    phone: $("qd_phone").value, origin: $("q_from").value, dest: $("q_to").value,
+    km: +($("qd_km").value || 0) || 0, size: $("q_size").value, jobType: $("q_jtype").value,
+    price: +(($("qd_price").value || '').replace(/,/g, '')) || 0, qty: +($("qd_qty").value || 1) || 1,
+    vat: $("qd_vat").checked, wht: $("qd_wht").checked, valid: +($("qd_valid").value || 30) || 30 };
+  try { await postAct(body); } catch (e) {}
+  try {   // อ่านเลขที่ล่าสุดกลับมาโชว์บนเอกสาร (POST no-cors อ่านผลไม่ได้)
+    const j = await callAct({ act: 'qtlist' });
+    if (j && j.ok && j.rows && j.rows.length) {
+      const mine = j.rows.filter(r => r.uid === uid)[0];
+      if (mine) { qState.qtNo = mine['เลขที่']; qtRender(); }
+    }
+  } catch (e) {}
+}
+
+/* ---------- ขั้น 3: จ่ายงาน ---------- */
+async function qDispatchInit() {
+  $("qJobSum").textContent = [$("q_cust").value, $("q_size").value,
+    ($("q_from").value || '') + ' → ' + ($("q_to").value || '')].filter(Boolean).join(' · ');
+  if (!$("d_date").value) $("d_date").value = todayLocal();
+  if (!$("d_trans").value) $("d_trans").value = ($("q_offer").value || '').replace(/,/g, '');
+  await loadDrivers();
+  qTripAuto();
+}
+async function loadDrivers() {
+  const box = $("dpDrvList");   // ⚠️ ห้ามใช้ชื่อ drvList — ชนกับรายชื่อคนขับในแดชบอร์ด (บทเรียน V59/V60)
+  try {
+    const j = await callAct({ act: 'drrank', customer: $("q_cust").value,
+      route: ($("q_from").value || '') + '-' + ($("q_to").value || '') });
+    if (!j || !j.ok) { box.innerHTML = '<div class="empty">' + qActErr(j) + '</div>'; return; }
+    qState.drv = j.rows || [];
+    qState.rankTop = (qState.drv[0] || {}).name || '';
+    if (!qState.drv.length) { box.innerHTML = '<div class="empty">ยังไม่มีรายชื่อคนขับ — Run setupDriverSheet ในหลังบ้านก่อน</div>'; return; }
+    box.innerHTML = qState.drv.map((d, i) =>
+      '<div class="drow' + (i === 0 ? ' pick' : '') + '" data-drv="' + esc0(d.name) + '">'
+      + '<div class="rk">' + (i + 1) + '</div><div class="di"><div class="dn">' + esc0(d.name)
+      + (i === 0 ? ' <span class="qchip g">แนะนำ</span>' : '')
+      + (d.tag ? ' <span class="qchip">🤖 ' + esc0(d.tag) + ' ' + d.tagN + ' ครั้ง</span>' : '') + '</div>'
+      + '<div class="dw">' + esc0(d.plate || '-') + ' · ภาระสะสม ' + qMoney(d.load) + ' บาท · ' + d.trips + ' เที่ยว</div></div>'
+      + '<div class="ds">คะแนน ' + d.score + '</div></div>').join('');
+    qState.pick = qState.drv[0].name;
+    box.querySelectorAll('.drow').forEach(el => el.onclick = () => {
+      box.querySelectorAll('.drow').forEach(x => x.classList.remove('pick'));
+      el.classList.add('pick'); qState.pick = el.dataset.drv;
+      $("ovBox").style.display = (qState.pick === qState.rankTop) ? 'none' : 'block';
+      qTripAuto();
+    });
+  } catch (e) { box.innerHTML = '<div class="empty">โหลดรายชื่อคนขับไม่ได้</div>'; }
+}
+function esc0(s) { return String(s == null ? '' : s).replace(/[<>&"]/g, c => ({ '<': '&lt;', '>': '&gt;', '&': '&amp;', '"': '&quot;' }[c])); }
+/* ค่าเที่ยว: ดึงจากตารางเรทในชีท (ใช้ตัวเดิมของหน้าจดบิล) */
+function qTripAuto() {
+  const tag = $("d_tpTag");
+  try {
+    // ใช้ตัวหาเรทตัวเดียวกับหน้าจดบิล (findRates/ratePrice ของ V63) — ไม่เขียนสูตรซ้ำ
+    if (typeof findRates !== 'function' || typeof rateRows === 'undefined' || !rateRows.length) {
+      tag.className = 'qchip'; tag.textContent = 'ยังไม่มีตารางเรท — กรอกเอง'; return;
+    }
+    const rec = { customer: $("q_cust").value, loadPlace: $("d_load").value,
+      yardIn: $("d_yardIn").value, yardOut: $("d_yardOut").value, size: $("q_size").value };
+    const hits = (findRates(rec) || {}).rows || [];
+    if (hits.length === 1) {
+      $("d_trip").value = ratePrice(hits[0], rec.size);
+      tag.className = 'qchip g'; tag.textContent = '✅ ดึงจากแท็บเรทค่าเที่ยว';
+      $("d_tpSave").style.display = 'none';
+    } else if (hits.length > 1) {
+      tag.className = 'qchip'; tag.textContent = 'เจอ ' + hits.length + ' เรท — เลือกเองในหน้าจดบิล';
+    } else { tag.className = 'qchip w'; tag.textContent = '🆕 พื้นที่ใหม่ — กรอกเอง'; }
+  } catch (e) { tag.className = 'qchip'; tag.textContent = 'กรอกเอง'; }
+}
+async function qDoDispatch() {
+  const btn = $("dGo"); if (btn.disabled) return;
+  if (!$("q_cust").value.trim()) { flash('ยังไม่ได้ใส่ลูกค้า', 'err'); return; }
+  if (!qState.pick) { flash('เลือกคนขับก่อน', 'err'); return; }
+  let reason = '';
+  if (qState.pick !== qState.rankTop) {
+    const tags = [...document.querySelectorAll('#ovTags .ovtag.on')].map(b => b.textContent.trim());
+    reason = tags.concat(($("ovText").value || '').trim() ? [$("ovText").value.trim()] : []).join(' · ');
+    if (!reason) { flash('เปลี่ยนคนขับต้องบอกเหตุผลด้วย', 'err'); $("ovText").focus(); return; }
+  }
+  btn.disabled = true; btn.textContent = 'กำลังจ่ายงาน…';
+  const uid = 'B' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+  const body = { _drsave: true, uid: uid, date: $("d_date").value, customer: $("q_cust").value,
+    container: $("d_cont").value, size: $("q_size").value, truck: $("d_truck").value, driver: qState.pick,
+    yardIn: $("d_yardIn").value, loadPlace: $("d_load").value, yardOut: $("d_yardOut").value,
+    c_trans: +(($("d_trans").value || '').replace(/,/g, '')) || 0,
+    tripPay: +(($("d_trip").value || '').replace(/,/g, '')) || 0,
+    route: ($("q_from").value || '') + '-' + ($("q_to").value || ''), reason: reason };
+  try { await postAct(body); } catch (e) {}
+  flash('✅ จ่ายงานแล้ว — สร้างร่างบิลรอไว้ (ไปยืนยันที่หน้าวางบิล โหมด 🗂 ร่าง)', 'ok');
+  btn.disabled = false; btn.textContent = '🚚 จ่ายงาน → สร้างร่างบิล';
+  setTimeout(() => { location.hash = 'bill'; try { b3Mode('draft'); } catch (e) {} }, 900);
+}
+
+/* ---------- ใบขอราคา ---------- */
+async function loadRfq() {
+  const box = $("rqList"); box.innerHTML = '<div class="empty">กำลังโหลด…</div>';
+  try {
+    const j = await callAct({ act: 'rfqlist' });
+    if (!j || !j.ok) { box.innerHTML = '<div class="empty">' + qActErr(j) + '</div>'; return; }
+    if (!j.rows || !j.rows.length) { box.innerHTML = '<div class="empty">ยังไม่มีคำขอจากลูกค้า</div>'; return; }
+    box.innerHTML = j.rows.map(r =>
+      '<div class="b3card"><div class="b3head"><div><div class="b3cust">' + esc0(r.company || '-')
+      + ' <span class="qchip">' + esc0(r.status || 'ใหม่') + '</span></div>'
+      + '<div class="b3sub">' + esc0(r.contact || '') + ' · ' + esc0(r.phone || '') + ' · ' + esc0(r.email || '') + '</div></div>'
+      + '<div class="b3amt" style="font-size:14px">' + esc0(r.jobType || '') + '<small>' + esc0(r.size || '') + '</small></div></div>'
+      + '<div class="b3row"><span>🛣 <b>' + esc0(r.origin || '') + ' → ' + esc0(r.dest || '') + '</b></span>'
+      + (r.jobDate ? '<span>📅 ' + esc0(r.jobDate) + '</span>' : '')
+      + (r.cargo ? '<span>📦 ' + esc0(r.cargo) + '</span>' : '')
+      + '<span>⏱ ' + esc0(r.at || '') + '</span></div>'
+      + (r.note ? '<div class="b3row"><span>📝 ' + esc0(r.note) + '</span></div>' : '')
+      + '<div class="b3act"><button class="btn bsm rqGo" data-r=\'' + esc0(JSON.stringify(r)) + '\'>🧮 ตีราคา →</button></div></div>').join('');
+    box.querySelectorAll('.rqGo').forEach(b => b.onclick = () => {
+      let r = {}; try { r = JSON.parse(b.dataset.r); } catch (e) {}
+      location.hash = 'quote';
+      setTimeout(() => {
+        $("q_cust").value = r.company || ''; $("q_from").value = r.origin || ''; $("q_to").value = r.dest || '';
+        $("q_size").value = r.size || ''; if (r.jobType) $("q_jtype").value = r.jobType;
+        $("qd_contact").value = r.contact || ''; $("qd_phone").value = r.phone || r.email || '';
+        $("qFromRfq").textContent = '📥 ดึงจากใบขอราคาของ ' + (r.company || '');
+        qKmLookup();
+      }, 60);
+    });
+  } catch (e) { box.innerHTML = '<div class="empty">โหลดไม่ได้</div>'; }
+}
+
+/* ---------- ตั้งค่าต้นทุน ---------- */
+const CFG_GROUP = [
+  ['น้ำมัน', ['fe10', 'fe6', 'feQuote', 'oilBase', 'oilType']],
+  ['คนขับ & รถ (ต่อเที่ยว)', ['tripPay', 'perDiem', 'wearPerKm']],
+  ['ค่าคงที่รายปี', ['insVeh', 'insCargo', 'reg', 'tax', 'office', 'tripsPerYear']],
+  ['ตู้พิเศษ', ['rfPerTrip', 'rfPerDay', 'tankPerTrip', 'tankPerDay']],
+  ['เกณฑ์ราคาพื้น (กันขาดทุน)', ['minProfit', 'profitPct', 'roundTo']],
+  ['เรตมาตรฐานตามระยะทาง', ['ratePoints']],
+];
+const CFG_LABEL = { fe10: '10 ล้อ กินน้ำมัน (กม./ลิตร)', fe6: '6 ล้อ กินน้ำมัน (กม./ลิตร)',
+  feQuote: 'อัตราที่ใช้ตีราคา (กม./ลิตร)', oilBase: 'ดีเซลฐานของเรตมาตรฐาน', oilType: 'รถเติมดีเซลชนิดไหน (B7/B20)',
+  tripPay: 'ค่าเที่ยวคนขับ (บาท/งาน)', perDiem: 'เบี้ยเลี้ยง (บาท/วัน)', wearPerKm: 'ค่าสึกหรอ (บาท/กม.)',
+  insVeh: 'ประกันรถ/ปี', insCargo: 'ประกันสินค้า/ปี', reg: 'ต่อทะเบียน/ปี', tax: 'ภาษี + พ.ร.บ./ปี',
+  office: 'ค่างวดรถ + GPS + ออฟฟิศ/ปี', tripsPerYear: 'วิ่งกี่เที่ยว/ปี (ต่อคัน)',
+  rfPerTrip: 'ตู้เย็น — บวก/เที่ยว', rfPerDay: 'ตู้เย็น — น้ำมันตู้/วัน',
+  tankPerTrip: 'ตู้แทงค์ — ค่าล้าง/เที่ยว', tankPerDay: 'ตู้แทงค์ — บวก/วัน',
+  minProfit: 'กำไรขั้นต่ำ (บาท/เที่ยว)', profitPct: 'หรือ % ของต้นทุน (เอาที่มากกว่า)', roundTo: 'ปัดราคาขึ้นทีละ (บาท)',
+  ratePoints: 'จุดอ้างอิง กม.:บาท (คั่นด้วยจุลภาค)' };
+const CFG_TODO = { wearPerKm: 1, tax: 1, office: 1, rfPerTrip: 1, rfPerDay: 1, tankPerTrip: 1, tankPerDay: 1 };
+async function loadCfg() {
+  const box = $("cgList"); box.innerHTML = '<div class="empty">กำลังโหลด…</div>';
+  try {
+    const j = await callAct({ act: 'pricecfg' });
+    if (!j || !j.ok) { box.innerHTML = '<div class="empty">' + qActErr(j) + '</div>'; return; }
+    qState.cfg = j.cfg || {};
+    box.innerHTML = CFG_GROUP.map(g =>
+      '<div class="dcard"><div class="dcard-h"><h3>' + g[0] + '</h3></div><div class="dcard-b">'
+      + g[1].map(k => '<div class="cgrow"><div><div class="ck">' + (CFG_LABEL[k] || k)
+        + (CFG_TODO[k] ? ' <span class="qchip w">ต้องเติม</span>' : '') + '</div>'
+        + '<div class="cd">' + k + '</div></div>'
+        + '<input class="cgin" data-k="' + k + '" value="' + esc0(qState.cfg[k]) + '">'
+        + '<div class="cu"></div></div>').join('')
+      + '</div></div>').join('');
+  } catch (e) { box.innerHTML = '<div class="empty">โหลดไม่ได้</div>'; }
+}
+async function saveCfg() {
+  const kv = {};
+  document.querySelectorAll('#cgList .cgin').forEach(i => { kv[i.dataset.k] = i.value.trim(); });
+  const btn = $("cgSave"); btn.disabled = true; btn.textContent = 'กำลังบันทึก…';
+  try {
+    const j = await callAct({ act: 'pricecfgsave', cfg: JSON.stringify(kv) });
+    flash(j && j.ok ? '💾 บันทึกแล้ว — ราคาที่ตีต่อจากนี้ใช้ค่าใหม่' : qActErr(j), j && j.ok ? 'ok' : 'err');
+  } catch (e) { flash('บันทึกไม่สำเร็จ', 'err'); }
+  btn.disabled = false; btn.textContent = '💾 บันทึก';
+}
+function qActErr(j) {
+  const r = (j && j.result) || '';
+  if (/admin-only/.test(r)) return '🔒 หน้านี้เปิดได้เฉพาะแอดมิน';
+  if (/unknown-act/.test(r)) return '⏳ หลังบ้านยังไม่อัปเดต — รอเจ้าของวาง .gs ตัวใหม่';
+  if (/auth/.test(r)) return '⚠️ ล็อกอินมีปัญหา ลองรีเฟรชหน้า';
+  return 'ดึงข้อมูลไม่ได้' + (r ? ' (' + r + ')' : '');
+}
+
+/* ---------- ผูกปุ่ม ---------- */
+window.addEventListener('hashchange', qtPageSync);
+window.addEventListener('hashchange', rfqPageSync);
+window.addEventListener('hashchange', cfgPageSync);
+$("qpBack").addEventListener('click', () => { location.hash = ''; });
+$("rqBack").addEventListener('click', () => { location.hash = ''; });
+$("cgBack").addEventListener('click', () => { location.hash = 'quote'; });
+$("qpCfg").addEventListener('click', () => { location.hash = 'pcfg'; });
+$("rqReload").addEventListener('click', loadRfq);
+$("cgSave").addEventListener('click', saveCfg);
+document.querySelectorAll('.qstep').forEach(b => b.addEventListener('click', () => qStep(+b.dataset.qs)));
+['q_km', 'q_dead', 'q_days', 'q_toll', 'q_truck', 'q_cargo', 'q_oil', 'q_offer'].forEach(id => {
+  const e = $(id); if (e) e.addEventListener('input', qAskPrice);
+});
+['q_from', 'q_to'].forEach(id => { const e = $(id); if (e) e.addEventListener('change', qKmLookup); });
+$("q_km").addEventListener('change', qKmRemember);
+$("qUse1").addEventListener('click', () => { $("q_offer").value = qState.px.target || ''; qAskPrice(); });
+$("qUse2").addEventListener('click', () => { $("q_offer").value = qState.px.sugg || ''; qAskPrice(); });
+$("qGo2").addEventListener('click', () => {
+  $("qd_km").value = $("q_km").value; $("qd_price").value = ($("q_offer").value || '').replace(/,/g, '');
+  qState.qtNo = ''; qStep(2); qtSaveDoc();
+});
+['qd_km', 'qd_price', 'qd_qty', 'qd_valid', 'qd_contact', 'qd_phone'].forEach(id => {
+  const e = $(id); if (e) e.addEventListener('input', qtRender);
+});
+['qd_vat', 'qd_wht'].forEach(id => { const e = $(id); if (e) e.addEventListener('change', qtRender); });
+$("qBack1").addEventListener('click', () => qStep(1));
+$("qBack2").addEventListener('click', () => qStep(2));
+$("qAgree").addEventListener('click', async () => {
+  if (qState.qtNo) { try { await callAct({ act: 'qtstate', no: qState.qtNo, state: 'ลูกค้าตกลง' }); } catch (e) {} }
+  qStep(3);
+});
+$("qPrint").addEventListener('click', () => {
+  const w = window.open('', '_blank');   // เปิดหน้าต่างตอนคลิกก่อน await (กติกาป๊อปอัป V52)
+  if (!w) { flash('เบราว์เซอร์บล็อกหน้าต่างพิมพ์ — อนุญาตป๊อปอัปก่อน', 'err'); return; }
+  const css = [...document.querySelectorAll('style')].map(s => s.textContent).join('\n');
+  w.document.write('<!doctype html><meta charset="utf-8"><title>ใบเสนอราคา</title><style>' + css
+    + 'body{background:#fff;margin:0;padding:18px;font-family:Sarabun,system-ui,sans-serif}</style>'
+    + ($("qtDoc").innerHTML) + '<script>setTimeout(function(){window.print()},400)<\/script>');
+  w.document.close();
+});
+$("dGo").addEventListener('click', qDoDispatch);
+document.querySelectorAll('#ovTags .ovtag').forEach(b => b.addEventListener('click', () => b.classList.toggle('on')));
+['d_load', 'd_yardIn', 'd_yardOut'].forEach(id => { const e = $(id); if (e) e.addEventListener('change', qTripAuto); });
+$("d_trip").addEventListener('input', () => {
+  const t = $("d_tpTag");
+  if (t.className.indexOf('g') > -1) { t.className = 'qchip w'; t.textContent = '✏️ แก้เอง'; }
+  $("d_tpSave").style.display = 'block';
+});
+$("d_tpNo").addEventListener('click', () => { $("d_tpSave").style.display = 'none'; });
+$("d_tpOk").addEventListener('click', async () => {
+  if (!($("d_load").value || '').trim()) { flash('ต้องใส่สถานที่โหลดก่อน ระบบถึงจะรู้ว่าเรทนี้ของเส้นทางไหน', 'err'); $("d_load").focus(); return; }
+  try {
+    await callAct({ act: 'rateadd', cust: $("q_cust").value, load: $("d_load").value,
+      yardIn: $("d_yardIn").value, yardOut: $("d_yardOut").value, size: $("q_size").value,
+      pay: (($("d_trip").value || '').replace(/,/g, '')) });
+    flash('💾 เพิ่มลงแท็บเรทค่าเที่ยวแล้ว — ครั้งหน้าเส้นนี้เติมให้เอง', 'ok');
+    $("d_tpSave").style.display = 'none';
+  } catch (e) { flash('บันทึกไม่สำเร็จ', 'err'); }
+});
+/* การ์ดทางเข้า 2 ใบ — โผล่เมื่อเปิดสวิตช์ ?v65=1 เท่านั้น (ระหว่างนี้พี่ชาย/คนวางบิลยังไม่เห็น) */
+function v65Cards() {
+  ['goQuote', 'goRfq'].forEach(id => { const e = $(id); if (e) e.style.display = V65_ON ? 'flex' : 'none'; });
+}
+$("goQuote").addEventListener('click', () => { location.hash = 'quote'; });
+$("goRfq").addEventListener('click', () => { location.hash = 'rfq'; });
+['goQuote', 'goRfq'].forEach(id => $(id).addEventListener('keydown', e => {
+  if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); $(id).click(); }
+}));
+v65Cards();
+qtPageSync(); rfqPageSync(); cfgPageSync();
+
 </script>
 </body>
 </html>
