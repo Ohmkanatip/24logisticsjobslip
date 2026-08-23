@@ -650,6 +650,8 @@
   .nvmenu{position:absolute;top:calc(100% + 6px);left:0;min-width:288px;background:var(--panel);
     border:1px solid var(--line-strong);border-radius:13px;box-shadow:0 12px 34px rgba(0,0,0,.35);
     padding:6px;z-index:60;display:none}
+  /* สะพานล่องหนปิดช่องว่าง 6px ใต้ปุ่ม — ไม่มีตัวนี้ เมาส์เลื่อนจากปุ่มลงมาจะหลุด hover แล้วเมนูปิดก่อนกดทัน */
+  .nvmenu::before{content:"";position:absolute;left:0;right:0;top:-10px;height:10px}
   .nv.open .nvmenu{display:block}
   .nvi{display:flex;gap:10px;align-items:flex-start;padding:9px 11px;border-radius:9px;cursor:pointer;
     color:var(--ink);line-height:1.4;text-decoration:none}
@@ -4407,6 +4409,8 @@ function updateAdminUI(){
   // V63.6 (เจ้าของเคาะ 17 ส.ค.): แดชบอร์ดภาพรวมเงิน = แอดมินเท่านั้น · หน้าเงินคนขับ = ทุกคนที่ล็อกอิน
   const gd=$("goDash"); if(gd) gd.style.display=adminToken?'flex':'none';
   const gp=$("goPay"); if(gp) gp.style.display='flex';
+  // V66: เมนูตีราคา/ใบขอราคา — แอดมินเห็นเสมอ (v65Cards อยู่คนละ script block ต้องกันไว้)
+  try{ if(typeof v65Cards==='function') v65Cards(); }catch(e){}
 }
 function setAdmin(t){ adminToken=t; try{ t?localStorage.setItem('jobform_admin',t):localStorage.removeItem('jobform_admin'); }catch(e){} /* V63.6: อย่าเรียกตอนโหลด — ไม่งั้นเครื่องที่แอดมินเคยใช้ โชว์เมนูแอดมินก่อนล็อกอิน · enterApp เรียกให้เอง */ }
 async function tryAdmin(t){
@@ -6278,8 +6282,10 @@ function b3Mode(m) { billMode = m; billModeSync(); }   // ให้หน้า�
   navs.forEach(n => {
     const top = n.querySelector('.nvtop');
     if (hoverOk) {
-      n.addEventListener('mouseenter', () => { closeAll(n); n.classList.add('open'); });
-      n.addEventListener('mouseleave', () => n.classList.remove('open'));
+      let t = 0;
+      n.addEventListener('mouseenter', () => { clearTimeout(t); closeAll(n); n.classList.add('open'); });
+      // หน่วง 260ms ก่อนปิด — เมาส์เลื่อนออกนอกกรอบนิดเดียวระหว่างจะไปกด เมนูจะไม่หนีหาย
+      n.addEventListener('mouseleave', () => { clearTimeout(t); t = setTimeout(() => n.classList.remove('open'), 260); });
     }
     top.addEventListener('click', e => {
       e.stopPropagation();
@@ -6332,8 +6338,10 @@ navActive();
 
 /* การ์ดทางเข้า 2 ใบ — โผล่เมื่อเปิดสวิตช์ ?v65=1 เท่านั้น (ระหว่างนี้พี่ชาย/คนวางบิลยังไม่เห็น) */
 function v65Cards() {
-  const w = $("nvQuoteWrap"); if (w) w.style.display = V65_ON ? '' : 'none';
-  ['goQuote', 'goRfq'].forEach(id => { const e = $(id); if (e) e.style.display = V65_ON ? 'flex' : 'none'; });
+  // เจ้าของ (แอดมิน) เห็นเสมอ — พนักงานต้องเปิดสวิตช์ ?v65=1 ก่อน (ยังไม่เปิดให้ใช้ทั่วไป)
+  const on = V65_ON || !!adminToken;
+  const w = $("nvQuoteWrap"); if (w) w.style.display = on ? '' : 'none';
+  ['goQuote', 'goRfq'].forEach(id => { const e = $(id); if (e) e.style.display = on ? 'flex' : 'none'; });
 }
 $("goQuote").addEventListener('click', () => { location.hash = 'quote'; });
 $("goRfq").addEventListener('click', () => { location.hash = 'rfq'; });
