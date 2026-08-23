@@ -629,12 +629,19 @@
   .qtdoc .sr{display:flex;justify-content:space-between;padding:5px 10px}
   .qtdoc .sr.tt{background:#0b1633;color:#fff;font-weight:700;border-radius:6px;font-size:15px;margin-top:4px}
   .qtdoc .cond{margin-top:16px;font-size:12px;color:#555;line-height:1.75;border-top:1px dashed #ccc;padding-top:12px}
-  .qtdoc .sg{display:flex;justify-content:space-between;gap:30px;margin-top:26px;font-size:12.5px;color:#444;text-align:center;flex-wrap:wrap}
-  .qtdoc .sg div{flex:1 1 200px;border-top:1px dotted #999;padding-top:6px}
+  .qtdoc .cond .ct{margin-top:4px}
+  .qtdoc .sg{display:flex;justify-content:space-between;gap:36px;margin-top:44px;font-size:12.5px;color:#444;text-align:center;flex-wrap:wrap}
+  .qtdoc .sg>div{flex:1 1 220px;border-top:1px dotted #999;padding-top:10px}
+  .qtdoc .sgt{font-weight:600;color:#333}
+  .qtdoc .sgl{color:#888;margin-top:26px}     /* เว้นที่ให้เซ็นชื่อจริง */
+  .qtdoc .sgd{color:#888;margin-top:14px}     /* วันที่ต้องห่างจากชื่อ ไม่งั้นทับกันตอนพิมพ์ */
   .cgrow{display:grid;grid-template-columns:1fr 150px 90px;gap:10px;align-items:center;padding:7px 0;border-bottom:1px dotted var(--line)}
   .cgrow .ck{font-size:13px}
   .cgrow .cd{font-size:11.5px;color:var(--ink-soft)}
   .cgrow input{font-size:14px;text-align:right}
+  .cgrow:has(.cgbig){grid-template-columns:1fr}
+  .cgbig{grid-column:1/-1;width:100%;font:inherit;font-size:13.5px;line-height:1.6;text-align:left;
+    padding:9px 11px;border:1px solid var(--line-strong);border-radius:9px;background:var(--field);color:var(--ink);resize:vertical}
   @media(max-width:760px){.q2,.q3{grid-template-columns:1fr}.offerin{flex:1 1 auto;text-align:left}
     .cgrow{grid-template-columns:1fr 110px;gap:6px}.cgrow .cu{display:none}}
 
@@ -6007,6 +6014,15 @@ async function qOilInit() {
 }
 
 /* ---------- ขั้น 2: ใบเสนอราคา ---------- */
+/* เงื่อนไขท้ายใบเสนอราคา — มาจากแท็บ "ตั้งค่าราคา" คีย์ quoteTerms (เจ้าของแก้เองได้ในหน้า #pcfg)
+   ค่าสำรองใช้เมื่อหลังบ้านยังไม่อัปเดตเท่านั้น */
+const QT_TERMS_FALLBACK = ['ราคานี้รวมค่าน้ำมัน ค่าทางด่วน และค่าแรงคนขับแล้ว',
+  'ค่าจอดรอเกิน 4 ชั่วโมง คิดเพิ่มชั่วโมงละ 300 บาท', 'เครดิต 30 วันนับจากวันวางบิล'];
+function qtTerms() {
+  const t = String((qState.px && qState.px.terms) || '').trim();
+  if (!t) return QT_TERMS_FALLBACK;
+  return t.split(/\r?\n/).map(x => x.replace(/^[•\-\s]+/, '').trim()).filter(Boolean);
+}
 function qtRender() {
   const km = +($("qd_km").value || 0) || 0, price = +(($("qd_price").value || '').replace(/,/g, '')) || 0;
   const qty = Math.max(1, +($("qd_qty").value || 1) || 1);
@@ -6039,11 +6055,13 @@ function qtRender() {
     + (vat ? '<div class="sr"><span>ภาษีมูลค่าเพิ่ม 7%</span><span>' + m2(v) + '</span></div>' : '')
     + (wht ? '<div class="sr"><span>หัก ณ ที่จ่าย 1%</span><span>-' + m2(w) + '</span></div>' : '')
     + '<div class="sr tt"><span>ยอดชำระสุทธิ</span><span>' + m2(sub + v - w) + '</span></div></div></div>'
-    + '<div class="cond"><b>เงื่อนไข</b><br>• ราคานี้รวมค่าน้ำมัน ค่าทางด่วน และค่าแรงคนขับแล้ว<br>'
-    + '• ราคาอ้างอิงดีเซล ' + ($("q_oil").value || '-') + ' บาท/ลิตร — หากราคาน้ำมันเปลี่ยนเกิน 2 บาท/ลิตร ขอสงวนสิทธิ์ปรับราคา<br>'
-    + '• ค่าจอดรอเกิน 3 ชั่วโมง คิดเพิ่มชั่วโมงละ 300 บาท<br>• เครดิต 30 วันนับจากวันวางบิล</div>'
-    + '<div class="sg"><div>ผู้เสนอราคา<br><span style="color:#888">24 Logistics</span></div>'
-    + '<div>ผู้อนุมัติ / ลูกค้า<br><span style="color:#888">วันที่ ......................</span></div></div></div>';
+    + '<div class="cond"><b>เงื่อนไข</b>'
+    + '<div class="ct">• ราคาอ้างอิงดีเซล ' + esc0($("q_oil").value || '-') + ' บาท/ลิตร — หากราคาน้ำมันเปลี่ยนเกิน 2 บาท/ลิตร ขอสงวนสิทธิ์ปรับราคา</div>'
+    + qtTerms().map(t => '<div class="ct">• ' + esc0(t) + '</div>').join('') + '</div>'
+    + '<div class="sg">'
+    + '<div><div class="sgt">ผู้เสนอราคา</div><div class="sgl">24 Logistics</div><div class="sgd">วันที่ ......................</div></div>'
+    + '<div><div class="sgt">ผู้อนุมัติ / ลูกค้า</div><div class="sgl">&nbsp;</div><div class="sgd">วันที่ ......................</div></div>'
+    + '</div></div>';
 }
 async function qtSaveDoc() {
   const uid = 'Q' + Date.now().toString(36) + Math.random().toString(36).slice(2, 5);
@@ -6232,6 +6250,7 @@ const CFG_GROUP = [
   ['ตู้พิเศษ', ['rfPerTrip', 'rfPerDay', 'tankPerTrip', 'tankPerDay']],
   ['เกณฑ์ราคาพื้น (กันขาดทุน)', ['minProfit', 'profitPct', 'roundTo']],
   ['เรตมาตรฐานตามระยะทาง', ['ratePoints']],
+  ['ใบเสนอราคา', ['quoteTerms']],
 ];
 const CFG_LABEL = { fe10: '10 ล้อ กินน้ำมัน (กม./ลิตร)', fe6: '6 ล้อ กินน้ำมัน (กม./ลิตร)',
   feQuote: 'อัตราที่ใช้ตีราคา (กม./ลิตร)', oilBase: 'ดีเซลฐานของเรตมาตรฐาน', oilType: 'รถเติมดีเซลชนิดไหน (B7/B20)',
@@ -6241,7 +6260,8 @@ const CFG_LABEL = { fe10: '10 ล้อ กินน้ำมัน (กม./ล
   rfPerTrip: 'ตู้เย็น — บวก/เที่ยว', rfPerDay: 'ตู้เย็น — น้ำมันตู้/วัน',
   tankPerTrip: 'ตู้แทงค์ — ค่าล้าง/เที่ยว', tankPerDay: 'ตู้แทงค์ — บวก/วัน',
   minProfit: 'กำไรขั้นต่ำ (บาท/เที่ยว)', profitPct: 'หรือ % ของต้นทุน (เอาที่มากกว่า)', roundTo: 'ปัดราคาขึ้นทีละ (บาท)',
-  ratePoints: 'จุดอ้างอิง กม.:บาท (คั่นด้วยจุลภาค)' };
+  ratePoints: 'จุดอ้างอิง กม.:บาท (คั่นด้วยจุลภาค)',
+  quoteTerms: 'เงื่อนไขท้ายใบเสนอราคา — 1 บรรทัด = 1 ข้อ' };
 const CFG_TODO = { wearPerKm: 1, tax: 1, office: 1, rfPerTrip: 1, rfPerDay: 1, tankPerTrip: 1, tankPerDay: 1 };
 async function loadCfg() {
   const box = $("cgList"); box.innerHTML = '<div class="empty">กำลังโหลด…</div>';
@@ -6254,7 +6274,9 @@ async function loadCfg() {
       + g[1].map(k => '<div class="cgrow"><div><div class="ck">' + (CFG_LABEL[k] || k)
         + (CFG_TODO[k] ? ' <span class="qchip w">ต้องเติม</span>' : '') + '</div>'
         + '<div class="cd">' + k + '</div></div>'
-        + '<input class="cgin" data-k="' + k + '" value="' + esc0(qState.cfg[k]) + '">'
+        + (k === 'quoteTerms'
+            ? '<textarea class="cgin cgbig" data-k="' + k + '" rows="4">' + esc0(qState.cfg[k]) + '</textarea>'
+            : '<input class="cgin" data-k="' + k + '" value="' + esc0(qState.cfg[k]) + '">')
         + '<div class="cu"></div></div>').join('')
       + '</div></div>').join('');
   } catch (e) { box.innerHTML = '<div class="empty">โหลดไม่ได้</div>'; }
@@ -6334,7 +6356,10 @@ $("qPrint").addEventListener('click', () => {
   if (!w) { flash('เบราว์เซอร์บล็อกหน้าต่างพิมพ์ — อนุญาตป๊อปอัปก่อน', 'err'); return; }
   const css = [...document.querySelectorAll('style')].map(s => s.textContent).join('\n');
   w.document.write('<!doctype html><meta charset="utf-8"><title>ใบเสนอราคา</title><style>' + css
-    + 'body{background:#fff;margin:0;padding:18px;font-family:Sarabun,system-ui,sans-serif}</style>'
+    + 'body{background:#fff;margin:0;padding:0;font-family:Sarabun,system-ui,sans-serif}'
+    // เอากรอบ/เงา/มุมโค้งของการ์ดบนหน้าจอออก — บนกระดาษต้องเป็นเอกสารเปล่าๆ
+    + '.qtdoc{border:0!important;border-radius:0!important;box-shadow:none!important;max-width:none!important;margin:0!important;padding:14mm 12mm!important}'
+    + '@page{size:A4;margin:0}</style>'
     + ($("qtDoc").innerHTML) + '<script>setTimeout(function(){window.print()},400)<\/script>');
   w.document.close();
 });
