@@ -3365,8 +3365,8 @@ function rNorm(s){ return String(s==null?'':s).toLowerCase().replace(/[\s\-._/]/
 /* ชื่อที่คนกรอกจริงในช่องลาน — เจ้าของยืนยัน 16 ส.ค.: LCB = แหลมฉบัง · BKK = ลาดกระบัง
    ต้องรู้จักทั้งตัวย่อและชื่อไทย ไม่งั้นพิมพ์ "แหลมฉบัง" แล้วระบบไม่รู้ว่าโซนไหน */
 const ZONE_WORDS=[
-  {z:'LCB',w:['lcb','lkb','แหลมฉบัง','ทลฉ','laemchabang','lchb']},
-  {z:'BKK',w:['bkk','ลาดกระบัง','icd','latkrabang','ladkrabang','คลองเตย']},
+  {z:'LCB',w:['lcb','แหลมฉบัง','ทลฉ','laemchabang','lchb']},
+  {z:'BKK',w:['bkk','lkb','ลาดกระบัง','icd','latkrabang','ladkrabang','คลองเตย']},   // LKB = ลาดกระบัง (เจ้าของยืนยัน 25 ส.ค. 2569)
   {z:'PAT',w:['pat','ปัตตานี']}
 ];
 function zoneOf(s){
