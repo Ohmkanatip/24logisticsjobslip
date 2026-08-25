@@ -174,6 +174,16 @@
     #billPage .hint{backdrop-filter:none!important;-webkit-backdrop-filter:none!important;background:rgba(20,26,44,.6)}
   }
   .bp-inner{max-width:1100px;margin:0 auto;padding:12px 12px 60px}
+  /* ลานรับ/ลานคืน + แถบบันทึกเรทใหม่ (25 ส.ค. 2569) */
+  #billPage .minihint{font-size:11.5px;color:var(--ink-soft);margin-top:4px;line-height:1.6}
+  #billPage .minihint.ok{color:#1c5c22}
+  #billPage .minihint.warn{color:#8a5a00}
+  .ratesave{display:none;margin-top:10px;background:#eaf3ea;border:1px solid #b9d6ba;border-radius:11px;
+    padding:10px 12px;font-size:13px;line-height:1.75;color:#25452a}
+  .ratesave.on{display:block}
+  .ratesave .rsdesc{margin-top:2px}
+  .ratesave .rsbts{margin-top:8px;display:flex;gap:7px;flex-wrap:wrap}
+  .ratesave .minib.go{background:#2f7d32;border-color:#2f7d32;color:#fff;font-weight:600}
   .ballrow{display:flex;align-items:center;gap:9px;font-size:13.5px;color:var(--ink);padding:4px 2px 10px;cursor:pointer;user-select:none}
   .ballrow input{width:18px;height:18px;accent-color:var(--warn)}
   .bundo{background:transparent;border:1px solid var(--line-strong);color:var(--ink-soft)}
@@ -1438,8 +1448,8 @@
         <!-- V63.5 (เจ้าของขอ 17 ส.ค.): ลานรับ → ลานคืน → สถานที่โหลด — กรอกลานครบก่อน
              รายการแนะนำของช่องโหลด (กรองจากเส้นทางลานรับ+ลานคืน) จะตรงเส้นทางพอดีตอนมาถึงช่องนี้
              ⚠️ เฉพาะลำดับช่องในฟอร์ม — บนใบวางบิลที่พิมพ์ยังเรียง CY | LOAD | Return ตามบิลจริง -->
-        <div class="field"><label>ลานรับตู้ (CY)</label><input id="b2_yardIn" list="dl_yardIn" placeholder="เช่น LCB / แหลมฉบัง" autocomplete="off"><div class="combo-tools" id="b2ct_yardIn"></div></div>
-        <div class="field"><label>ลานคืนตู้ (Return)</label><input id="b2_yardOut" list="dl_yardOut" placeholder="เช่น WGD / ลาดกระบัง" autocomplete="off"><div class="combo-tools" id="b2ct_yardOut"></div></div>
+        <div class="field"><label>ลานรับตู้ (CY)</label><input id="b2_yardIn" list="dl_b2yin" placeholder="เลือกจากรายการ เช่น LCB" autocomplete="off"><datalist id="dl_b2yin"></datalist><div class="minihint" id="b2yinHint"></div></div>
+        <div class="field"><label>ลานคืนตู้ (Return)</label><input id="b2_yardOut" list="dl_b2yout" placeholder="เลือกจากรายการ เช่น BKK" autocomplete="off"><datalist id="dl_b2yout"></datalist><div class="minihint" id="b2youtHint"></div></div>
         <div class="field"><label>สถานที่ส่ง/บรรจุ (LOAD)</label><input id="b2_loadPlace" list="dl_b2load" placeholder="กรอกลูกค้า+ลานก่อน แล้วรายการที่ตรงเส้นทางจะขึ้นให้เลือก" autocomplete="off"><datalist id="dl_b2load"></datalist><div class="combo-tools" id="b2ct_loadPlace"></div></div>
       </div>
       <div class="col-title">เงินที่เรียกเก็บลูกค้า (คีย์จากใบเสร็จตัวจริง — ไม่เกี่ยวกับเงินเบิกคนขับ)</div>
@@ -1457,6 +1467,15 @@
         <input id="b2_tripPay" inputmode="decimal" placeholder="0" autocomplete="off">
         <span class="tripinfo" id="b2TripChip">กรอกลูกค้า / สถานที่โหลด / ลานรับ / ลานคืน แล้วระบบจะหาเรทให้เอง</span>
         <button type="button" class="minib" id="btnTripPick">🔎 เลือกเรทเอง</button>
+      </div>
+      <!-- บันทึกเรทเส้นทางใหม่ลงชีท (ยกมาจากหน้าจ่ายงาน) — ครั้งหน้าเส้นนี้ระบบเติมให้เอง -->
+      <div class="ratesave" id="b2RateSave">
+        <b>💾 บันทึกเรทเส้นนี้ไว้ใช้ครั้งหน้าไหม?</b>
+        <div class="rsdesc" id="b2RateSaveDesc"></div>
+        <div class="rsbts">
+          <button type="button" class="minib go" id="b2RateSaveOk">บันทึกลงชีท</button>
+          <button type="button" class="minib" id="b2RateSaveNo">ไม่ต้อง</button>
+        </div>
       </div>
       <div class="field" style="margin-top:12px"><label>หมายเหตุ (เก็บในชีท ไม่ขึ้นบนบิล)</label><input id="b2_note" placeholder="โน้ตภายใน เช่น รอใบเสร็จตัวจริง" autocomplete="off"></div>
       <div class="b2total"><span class="lbl">รวมเงินบิล (ก่อนหักภาษี)</span><span class="val" id="b2Total">0</span></div>
@@ -3425,6 +3444,62 @@ function updateLoadSuggest(){
   try{ uniq(store.lists.loadPlace||[]).forEach(v=>push(v,'')); }catch(e){}           // master list เดิมปิดท้าย
   dl.innerHTML=opts.join('');
 }
+/* 25 ส.ค. 2569 (เจ้าของสั่ง): ลานรับ/ลานคืน แนะนำ "ตามที่มีในชีทเรท" เท่านั้น — ไม่ดึงรายการจากหน้าจดตู้
+   ตารางเรทเก็บต้นทาง/ปลายทางเป็นชื่อโซน (LCB · BKK · PAT) → เสนอเท่าที่มีจริง
+   ของลูกค้าที่เลือกไว้ขึ้นก่อน แล้วต่อด้วยโซนอื่นที่เหลือ · พิมพ์เองนอกรายการได้เสมอ */
+function updateYardSuggest(){
+  const dIn=$("dl_b2yin"), dOut=$("dl_b2yout"); if(!dIn||!dOut) return;
+  const cu=rNorm($("b2_customer").value);
+  const mine=cu?rateRows.filter(r=>rNorm(r.cust)===cu):[];
+  const build=(key)=>{
+    const cnt={}, order=[];
+    const add=(z,own)=>{ if(!z) return; if(!(z in cnt)){ cnt[z]={n:0,own:false}; order.push(z); } cnt[z].n++; if(own) cnt[z].own=true; };
+    mine.forEach(r=>add(r[key],true));
+    rateRows.forEach(r=>add(r[key],false));
+    order.sort((x,y)=>(cnt[y].own-cnt[x].own)||(cnt[y].n-cnt[x].n));
+    return order.map(z=>'<option value="'+escAttr(z)+'" label="'+escAttr(cnt[z].own?('ลูกค้ารายนี้มี '+cnt[z].n+' เส้นทาง'):('มีในตารางเรท '+cnt[z].n+' เส้นทาง'))+'"></option>').join('');
+  };
+  dIn.innerHTML=build('from'); dOut.innerHTML=build('to');
+  yardHint('b2_yardIn','b2yinHint'); yardHint('b2_yardOut','b2youtHint');
+}
+/* บอกใต้ช่องเลยว่าที่พิมพ์ไป ระบบรู้จักโซนไหม — ไม่ต้องรอไปเดาตอนหาเรทไม่เจอ */
+function yardHint(inputId,hintId){
+  const el=$(hintId); if(!el) return;
+  const v=($(inputId).value||'').trim();
+  if(!v){ el.className='minihint'; el.textContent=''; return; }
+  const z=zoneOf(v);
+  if(z){ el.className='minihint ok'; el.textContent='✅ โซน '+z; }
+  else { el.className='minihint warn'; el.textContent='🆕 ระบบยังไม่รู้ว่าอยู่โซนไหน — เลือกเรทเอง 1 ครั้งแล้วระบบจะจำให้'; }
+}
+/* แถบ "บันทึกเรทเส้นนี้" — โผล่เมื่อพิมพ์ค่าเที่ยวเอง (เส้นทางใหม่ที่ตารางยังไม่มี) */
+function b2RateSaveSync(){
+  const box=$("b2RateSave"); if(!box) return;
+  const pay=b2Num($("b2_tripPay").value);
+  if(!tripManual||!pay||!$("b2_customer").value.trim()){ box.classList.remove('on'); return; }
+  const ld=$("b2_loadPlace").value.trim();
+  box.classList.add('on');
+  $("b2RateSaveDesc").innerHTML = ld
+    ? escHtml($("b2_customer").value)+' · '+escHtml($("b2_yardIn").value||'—')+' → '+escHtml($("b2_yardOut").value||'—')
+      +' · โหลดที่ '+escHtml(ld)+' · <b>'+b2Money(pay)+' บาท</b>'
+    : '<span style="color:var(--warn)">⚠️ ต้องใส่ “สถานที่ส่ง/บรรจุ (LOAD)” ก่อน ระบบถึงจะรู้ว่าเรทนี้ของเส้นทางไหน</span>';
+}
+async function b2RateSaveGo(){
+  const ld=$("b2_loadPlace").value.trim();
+  if(!ld){ flash('ต้องใส่สถานที่ส่ง/บรรจุก่อน ระบบถึงจะรู้ว่าเรทนี้ของเส้นทางไหน','err'); $("b2_loadPlace").focus(); return; }
+  const pay=b2Num($("b2_tripPay").value);
+  if(!pay){ flash('ยังไม่ได้ใส่ค่าเที่ยว','err'); return; }
+  const btn=$("b2RateSaveOk"); btn.disabled=true; btn.textContent='กำลังบันทึก…';
+  try{
+    const j=await callAct({act:'rateadd', cust:$("b2_customer").value, load:ld,
+      yardIn:$("b2_yardIn").value, yardOut:$("b2_yardOut").value, size:$("b2_size").value, pay:String(pay)});
+    if(j&&j.ok){
+      $("b2RateSave").classList.remove('on');
+      tripChip('💾 บันทึกเรทลงชีทแล้ว — ครั้งหน้าเส้นนี้เติมให้เอง','ok');
+      loadRates(true).then(updateYardSuggest);   // ดึงตารางใหม่ทันที ใบถัดไปจะเจอเรทนี้เลย
+    } else flash(j&&/noload/.test(String(j.result))?'ต้องใส่สถานที่ส่ง/บรรจุก่อน':(qActErr?qActErr(j):'บันทึกไม่สำเร็จ'),'err');
+  }catch(e){ flash('บันทึกไม่สำเร็จ','err'); }
+  btn.disabled=false; btn.textContent='บันทึกลงชีท';
+}
 function b2FormRec(){
   return {customer:$("b2_customer").value,loadPlace:$("b2_loadPlace").value,
           yardIn:$("b2_yardIn").value,yardOut:$("b2_yardOut").value,size:$("b2_size").value};
@@ -3854,6 +3929,7 @@ function bill2FormOpen(rec){
     $("b2_tripPay").value=Number(rec.tripPay)||''; $("b2_tripRefVal").value=rec.tripRef||'';
     tripManual=!!rec.tripPay&&!rec.tripRef;
     tripChip(rec.tripRef?('✅ ใช้เรท: '+rec.tripRef):(rec.tripPay?'กรอกเอง':'ยังไม่ได้ใส่ค่าเที่ยว'),rec.tripRef?'ok':(rec.tripPay?'manual':''));
+    try{ updateYardSuggest(); b2RateSaveSync(); }catch(e){}
     $("b2_yardIn").value=rec.yardIn||''; $("b2_loadPlace").value=rec.loadPlace||''; $("b2_yardOut").value=rec.yardOut||'';
     $("b2_trans").value=b2Num(rec.c_trans)||''; $("b2_recv").value=b2Num(rec.c_recv)||''; $("b2_ret").value=b2Num(rec.c_return)||'';
     $("b2_note").value=rec.note||'';
@@ -3873,7 +3949,7 @@ function bill2FormClear(keepBatch){
   tripManual=false; tripChip('กรอกลูกค้า / สถานที่โหลด / ลานรับ / ลานคืน แล้วระบบจะหาเรทให้เอง');
   if(!keepBatch){ ['b2_customer','b2_yardIn','b2_loadPlace','b2_yardOut','b2_trans'].forEach(id=>$(id).value=''); $("b2RateChip").textContent=''; }
   b2Ex=[]; b2RenderEx();
-  try{ updateLoadSuggest(); }catch(e){}
+  try{ updateLoadSuggest(); updateYardSuggest(); b2RateSaveSync(); }catch(e){}
 }
 function bill2Collect(){
   return { date:$("b2_date").value, customer:$("b2_customer").value.trim(), container:$("b2_container").value.trim(),
@@ -4841,9 +4917,20 @@ $("bmDebt").addEventListener('click',()=>{ billMode='debt'; billModeSync(); });
   $(id).addEventListener('change',updateLoadSuggest); $(id).addEventListener('blur',updateLoadSuggest);
 });
 $("b2_loadPlace").addEventListener('focus',updateLoadSuggest);   // เผื่อเพิ่งโหลดเรทเสร็จหลังเปิดฟอร์ม
+/* ลานรับ/ลานคืน: รายการมาจากโซนในชีทเรท (25 ส.ค. 2569) */
+['b2_customer','b2_yardIn','b2_yardOut'].forEach(id=>{
+  $(id).addEventListener('change',updateYardSuggest); $(id).addEventListener('blur',updateYardSuggest);
+  $(id).addEventListener('focus',updateYardSuggest);
+});
+['b2_customer','b2_yardIn','b2_yardOut','b2_loadPlace','b2_size'].forEach(id=>{
+  $(id).addEventListener('change',b2RateSaveSync); $(id).addEventListener('blur',b2RateSaveSync);
+});
+$("b2RateSaveOk").addEventListener('click',b2RateSaveGo);
+$("b2RateSaveNo").addEventListener('click',()=>$("b2RateSave").classList.remove('on'));
 $("b2_tripPay").addEventListener('input',()=>{        // พิมพ์เอง = หยุดเติมอัตโนมัติ ไม่งั้นระบบจะทับที่พิมพ์
   tripManual=true; $("b2_tripRefVal").value='';
   tripChip($("b2_tripPay").value?'กรอกเอง (ไม่ได้ใช้เรทจากตาราง)':'ยังไม่ได้ใส่ค่าเที่ยว',$("b2_tripPay").value?'manual':'');
+  b2RateSaveSync();
 });
 $("btnTripPick").addEventListener('click',tripPick);
 window.addEventListener('hashchange',payPageSync);
@@ -4879,7 +4966,7 @@ $("b2Q").addEventListener('input',bill2SearchSync);
 $("b2From").addEventListener('change',bill2SearchSync);
 $("b2To").addEventListener('change',bill2SearchSync);
 $("b2QClear").addEventListener('click',bill2SearchClear);
-setupCombo2('customer','b2_customer'); setupCombo2('yardIn','b2_yardIn'); setupCombo2('loadPlace','b2_loadPlace'); setupCombo2('yardOut','b2_yardOut');
+setupCombo2('customer','b2_customer'); setupCombo2('loadPlace','b2_loadPlace');   // ลานรับ/ลานคืน ใช้รายการจากชีทเรทแล้ว ไม่ต้องมีปุ่มจัดการรายการของหน้าจดตู้
 renderB2Pending();
 $("btnTrash").addEventListener('click',doTrash);
 $("btnOpenCont").addEventListener('click',showOpenContainers);
