@@ -3404,6 +3404,50 @@ function rateLabel(r){ return [r.sub,r.load,(r.from&&r.to)?(r.from+' - '+r.to):(
 /* หาเรทจากสิ่งที่กรอกในฟอร์ม — คืนรายการที่เข้าเกณฑ์ (0 / 1 / หลายอัน) */
 /* คืน {rows, why} — why บอกว่าอะไรตรง/ไม่ตรง เอาไปขึ้นบนชิปให้คนกรอกรู้ว่าต้องแก้ตรงไหน
    จับแบบผ่อนปรน: ตรงเป๊ะก่อน → ไม่เจอค่อยลองแบบ "มีคำนี้อยู่ในนั้น" (ตารางเขียน "ระยอง" แต่คนกรอก "มาบยางพร ระยอง") */
+/* ข้างหนึ่งของเส้นทางตรงกันไหม — ตรงชื่อในชีทเป๊ะ หรือ ตรงโซน (r.fz/r.tz หลังบ้านส่งมาให้) */
+function routeSideMatch(r,side,typed,zone){
+  const val=side==='from'?r.from:r.to, z=side==='from'?r.fz:r.tz;
+  const t=rNorm(typed);
+  if(val&&rNorm(val)===t) return true;              // ชื่อตรงกันเป๊ะ (จันทบุรี = จันทบุรี)
+  if(zone&&z&&zone===z) return true;                // โซนตรงกัน (แหลมฉบัง = LCB)
+  if(zone&&!z&&val&&rNorm(val)===rNorm(zone)) return true;   // ชีทเก่าที่ยังไม่มี fz/tz
+  return false;
+}
+/* ตัวเลือกลานรับ/ลานคืน — เจ้าของเคาะ 25 ส.ค. 2569:
+   ① เลือกลูกค้าก่อน แล้วโชว์ "เฉพาะของลูกค้ารายนั้น"
+   ② ลานคืนกรองตามลานรับที่เลือกอีกชั้น
+   ③ ยังไม่เลือกลูกค้า = โชว์ทั้งหมดที่มีในชีทไปก่อน
+   ค่าที่เสนอมาจากคอลัมน์ ต้นทาง/ปลายทาง ในแท็บ "เรทค่าเที่ยว" ล้วนๆ — ไม่ยุ่งกับรายการของหน้าจดตู้ */
+function yardOptions(rows,key){
+  const cnt={},order=[];
+  rows.forEach(r=>{ const v=String(r[key]||'').trim(); if(!v) return;
+    if(!(v in cnt)){ cnt[v]=0; order.push(v); } cnt[v]++; });
+  order.sort((x,y)=>(cnt[y]-cnt[x])||x.localeCompare(y,'th'));
+  return order.map(v=>'<option value="'+escAttr(v)+'" label="'+escAttr(cnt[v]+' เส้นทาง')+'"></option>').join('');
+}
+function updateYardSuggest(){
+  const dIn=$("dl_b2yin"), dOut=$("dl_b2yout"); if(!dIn||!dOut) return;
+  const cu=rNorm($("b2_customer").value);
+  const mine=cu?rateRows.filter(r=>rNorm(r.cust)===cu):[];
+  const base=(cu&&mine.length)?mine:rateRows;           // ไม่เลือกลูกค้า (หรือลูกค้าไม่มีเรท) = โชว์ทั้งหมด
+  dIn.innerHTML=yardOptions(base,'from');
+  const yin=$("b2_yardIn").value.trim();
+  const zin=zoneOf(yin);
+  const forOut=yin?base.filter(r=>routeSideMatch(r,'from',yin,zin)):base;
+  dOut.innerHTML=yardOptions(forOut.length?forOut:base,'to');
+  yardHint('b2_yardIn','b2yinHint',base,'from');
+  yardHint('b2_yardOut','b2youtHint',forOut.length?forOut:base,'to');
+}
+/* บอกใต้ช่องเลยว่าที่พิมพ์ไป มีในตารางเรทของลูกค้ารายนี้ไหม */
+function yardHint(inputId,hintId,rows,key){
+  const el=$(hintId); if(!el) return;
+  const v=($(inputId).value||'').trim();
+  if(!v){ el.className='minihint'; el.textContent=''; return; }
+  const z=zoneOf(v);
+  const n=rows.filter(r=>routeSideMatch(r,key,v,z)).length;
+  if(n){ el.className='minihint ok'; el.textContent='✅ มีในตารางเรท '+n+' เส้นทาง'+(z?(' · โซน '+z):''); }
+  else { el.className='minihint warn'; el.textContent='🆕 ไม่มีในตารางเรทของลูกค้ารายนี้ — กรอกค่าเที่ยวเองแล้วกดบันทึกไว้ใช้ครั้งหน้าได้'; }
+}
 function findRates(rec){
   const why={cust:false,load:'',route:'',zoneIn:'',zoneOut:''};
   const cu=rNorm(rec.customer);
@@ -3417,10 +3461,13 @@ function findRates(rec){
     if(!byLoad.length) byLoad=rows.filter(r=>{ const rl=rNorm(r.load); return rl&&(rl.indexOf(lp)>-1||lp.indexOf(rl)>-1); });
     if(byLoad.length){ rows=byLoad; why.load='ok'; } else why.load='miss';
   } else why.load='empty';
+  /* 25 ส.ค. 2569: ตารางเรทมีทั้งชื่อโซน (LCB/BKK) และชื่อสถานที่จริง (จันทบุรี · SAGAMI · 24 L)
+     จึงต้องจับคู่ได้ 2 แบบ — ตรงชื่อเป๊ะ หรือ ตรงโซน · ไม่งั้นแถวที่ไม่ใช่โซนจะหาไม่เจอตลอดกาล */
   const a=zoneOf(rec.yardIn), b=zoneOf(rec.yardOut);
-  why.zoneIn=rec.yardIn?(a||'?'):''; why.zoneOut=rec.yardOut?(b||'?'):'';
-  if(a&&b){
-    const byRoute=rows.filter(r=>r.from===a&&r.to===b);
+  const inHas=!!String(rec.yardIn||'').trim(), outHas=!!String(rec.yardOut||'').trim();
+  why.zoneIn=inHas?(a||'?'):''; why.zoneOut=outHas?(b||'?'):'';
+  if(inHas&&outHas){
+    const byRoute=rows.filter(r=>routeSideMatch(r,'from',rec.yardIn,a)&&routeSideMatch(r,'to',rec.yardOut,b));
     if(byRoute.length){ rows=byRoute; why.route='ok'; } else why.route='miss';
   } else why.route='unknown';
   return {rows:rows.filter(r=>ratePrice(r,rec.size)>0),why:why};
@@ -3438,38 +3485,12 @@ function updateLoadSuggest(){
   if(cu&&rateRows.length){
     const mine=rateRows.filter(r=>rNorm(r.cust)===cu);
     const lbl=r=>{ const pr=ratePrice(r,size); return [r.sub,(r.from&&r.to)?(r.from+'-'+r.to):'',pr?(b2Money(pr)+' บ.'):''].filter(Boolean).join(' · '); };
-    if(a&&b) mine.filter(r=>r.from===a&&r.to===b).forEach(r=>push(r.load,lbl(r)));   // ตรงเส้นทาง ขึ้นก่อน
+    const yi=$("b2_yardIn").value.trim(), yo=$("b2_yardOut").value.trim();
+    if(yi&&yo) mine.filter(r=>routeSideMatch(r,'from',yi,a)&&routeSideMatch(r,'to',yo,b)).forEach(r=>push(r.load,lbl(r)));   // ตรงเส้นทาง ขึ้นก่อน
     mine.forEach(r=>push(r.load,lbl(r)));                                            // ที่เหลือของลูกค้ารายนี้
   }
   try{ uniq(store.lists.loadPlace||[]).forEach(v=>push(v,'')); }catch(e){}           // master list เดิมปิดท้าย
   dl.innerHTML=opts.join('');
-}
-/* 25 ส.ค. 2569 (เจ้าของสั่ง): ลานรับ/ลานคืน แนะนำ "ตามที่มีในชีทเรท" เท่านั้น — ไม่ดึงรายการจากหน้าจดตู้
-   ตารางเรทเก็บต้นทาง/ปลายทางเป็นชื่อโซน (LCB · BKK · PAT) → เสนอเท่าที่มีจริง
-   ของลูกค้าที่เลือกไว้ขึ้นก่อน แล้วต่อด้วยโซนอื่นที่เหลือ · พิมพ์เองนอกรายการได้เสมอ */
-function updateYardSuggest(){
-  const dIn=$("dl_b2yin"), dOut=$("dl_b2yout"); if(!dIn||!dOut) return;
-  const cu=rNorm($("b2_customer").value);
-  const mine=cu?rateRows.filter(r=>rNorm(r.cust)===cu):[];
-  const build=(key)=>{
-    const cnt={}, order=[];
-    const add=(z,own)=>{ if(!z) return; if(!(z in cnt)){ cnt[z]={n:0,own:false}; order.push(z); } cnt[z].n++; if(own) cnt[z].own=true; };
-    mine.forEach(r=>add(r[key],true));
-    rateRows.forEach(r=>add(r[key],false));
-    order.sort((x,y)=>(cnt[y].own-cnt[x].own)||(cnt[y].n-cnt[x].n));
-    return order.map(z=>'<option value="'+escAttr(z)+'" label="'+escAttr(cnt[z].own?('ลูกค้ารายนี้มี '+cnt[z].n+' เส้นทาง'):('มีในตารางเรท '+cnt[z].n+' เส้นทาง'))+'"></option>').join('');
-  };
-  dIn.innerHTML=build('from'); dOut.innerHTML=build('to');
-  yardHint('b2_yardIn','b2yinHint'); yardHint('b2_yardOut','b2youtHint');
-}
-/* บอกใต้ช่องเลยว่าที่พิมพ์ไป ระบบรู้จักโซนไหม — ไม่ต้องรอไปเดาตอนหาเรทไม่เจอ */
-function yardHint(inputId,hintId){
-  const el=$(hintId); if(!el) return;
-  const v=($(inputId).value||'').trim();
-  if(!v){ el.className='minihint'; el.textContent=''; return; }
-  const z=zoneOf(v);
-  if(z){ el.className='minihint ok'; el.textContent='✅ โซน '+z; }
-  else { el.className='minihint warn'; el.textContent='🆕 ระบบยังไม่รู้ว่าอยู่โซนไหน — เลือกเรทเอง 1 ครั้งแล้วระบบจะจำให้'; }
 }
 /* แถบ "บันทึกเรทเส้นนี้" — โผล่เมื่อพิมพ์ค่าเที่ยวเอง (เส้นทางใหม่ที่ตารางยังไม่มี) */
 function b2RateSaveSync(){
