@@ -3413,11 +3413,38 @@ function routeSideMatch(r,side,typed,zone){
   if(zone&&!z&&val&&rNorm(val)===rNorm(zone)) return true;   // ชีทเก่าที่ยังไม่มี fz/tz
   return false;
 }
-/* ตัวเลือกลานรับ/ลานคืน — เจ้าของเคาะ 25 ส.ค. 2569:
-   ① เลือกลูกค้าก่อน แล้วโชว์ "เฉพาะของลูกค้ารายนั้น"
-   ② ลานคืนกรองตามลานรับที่เลือกอีกชั้น
-   ③ ยังไม่เลือกลูกค้า = โชว์ทั้งหมดที่มีในชีทไปก่อน
-   ค่าที่เสนอมาจากคอลัมน์ ต้นทาง/ปลายทาง ในแท็บ "เรทค่าเที่ยว" ล้วนๆ — ไม่ยุ่งกับรายการของหน้าจดตู้ */
+/* ตัวเลือก ลานรับ / ลานคืน / สถานที่โหลด — เจ้าของเคาะ 25 ส.ค. 2569
+   ① เลือกลูกค้าก่อน → ทุกช่องโชว์เฉพาะของลูกค้ารายนั้น
+   ② **กรองไขว้กันทุกช่อง** — เพราะ "สถานที่โหลด" ก็เป็นตัวตัดสินเรทเหมือนกัน (เจ้าของทัก)
+      ตัวอย่างจริง: ROHLIG โหลดที่ "อยุธยา" มี 3 เส้นทาง ราคาต่างกัน 800 / 1,000 / 1,100
+      และมี 33 กลุ่มที่ ลูกค้า+เส้นทางเดียวกัน แต่คนละสถานที่โหลด = คนละราคา
+      → ช่องไหนกรอกแล้ว จะไปช่วยตัดตัวเลือกของช่องที่เหลือทันที ไม่ว่ากรอกลำดับไหนก่อน
+   ③ ยังไม่เลือกลูกค้า = โชว์ทั้งหมดที่มีในชีทไปก่อน · พิมพ์เองนอกรายการได้เสมอ
+   ค่าทั้งหมดมาจากแท็บ "เรทค่าเที่ยว" ล้วนๆ — ไม่ยุ่งกับรายการของหน้าจดตู้ */
+/* คืนเรทที่เกี่ยวกับลูกค้าที่กรอกไว้
+   - ไม่ได้กรอกลูกค้า → คืนทั้งตาราง (เจ้าของเคาะ: ยังไม่เลือกลูกค้า = โชว์ทั้งหมดไปก่อน)
+   - กรอกแล้วแต่ลูกค้ารายนั้นไม่มีเรท → คืน [] · คนเรียกตัดสินเองว่าจะถอยไปใช้อะไร
+     (ช่องสถานที่โหลดถอยไปใช้ master list · ช่องลานถอยไปโชว์ทั้งตาราง) */
+function rateBaseRows(){
+  const cu=rNorm($("b2_customer").value);
+  if(!cu) return rateRows;
+  return rateRows.filter(r=>rNorm(r.cust)===cu);
+}
+/* สถานที่โหลดตรงกันไหม — ผ่อนปรนแบบเดียวกับ findRates (ตารางเขียน "ระยอง" คนกรอก "มาบยางพร ระยอง") */
+function loadSideMatch(r,typed){
+  const lp=rNorm(typed); if(!lp) return true;
+  const rl=rNorm(r.load); if(!rl) return false;
+  return rl===lp||rl.indexOf(lp)>-1||lp.indexOf(rl)>-1;
+}
+/* กรองด้วยทุกช่องที่กรอกแล้ว "ยกเว้นช่องที่กำลังจะเติมตัวเลือกให้" */
+function rateNarrow(rows,skip){
+  const ld=$("b2_loadPlace").value.trim(), yi=$("b2_yardIn").value.trim(), yo=$("b2_yardOut").value.trim();
+  let out=rows;
+  if(skip!=='load'&&ld) out=out.filter(r=>loadSideMatch(r,ld));
+  if(skip!=='in'&&yi){ const z=zoneOf(yi); out=out.filter(r=>routeSideMatch(r,'from',yi,z)); }
+  if(skip!=='out'&&yo){ const z=zoneOf(yo); out=out.filter(r=>routeSideMatch(r,'to',yo,z)); }
+  return out.length?out:rows;      // กรองจนไม่เหลือ = ถอยกลับไปโชว์ของกว้างกว่า ดีกว่าปล่อยว่าง
+}
 function yardOptions(rows,key){
   const cnt={},order=[];
   rows.forEach(r=>{ const v=String(r[key]||'').trim(); if(!v) return;
@@ -3427,26 +3454,39 @@ function yardOptions(rows,key){
 }
 function updateYardSuggest(){
   const dIn=$("dl_b2yin"), dOut=$("dl_b2yout"); if(!dIn||!dOut) return;
-  const cu=rNorm($("b2_customer").value);
-  const mine=cu?rateRows.filter(r=>rNorm(r.cust)===cu):[];
-  const base=(cu&&mine.length)?mine:rateRows;           // ไม่เลือกลูกค้า (หรือลูกค้าไม่มีเรท) = โชว์ทั้งหมด
-  dIn.innerHTML=yardOptions(base,'from');
-  const yin=$("b2_yardIn").value.trim();
-  const zin=zoneOf(yin);
-  const forOut=yin?base.filter(r=>routeSideMatch(r,'from',yin,zin)):base;
-  dOut.innerHTML=yardOptions(forOut.length?forOut:base,'to');
-  yardHint('b2_yardIn','b2yinHint',base,'from');
-  yardHint('b2_yardOut','b2youtHint',forOut.length?forOut:base,'to');
+  const mine=rateBaseRows(), base=mine.length?mine:rateRows;   // ลูกค้าไม่มีเรท = โชว์ทั้งตารางดีกว่าปล่อยว่าง
+  const forIn=rateNarrow(base,'in'), forOut=rateNarrow(base,'out');
+  dIn.innerHTML=yardOptions(forIn,'from');
+  dOut.innerHTML=yardOptions(forOut,'to');
+  yardHint('b2_yardIn','b2yinHint',forIn,'from');
+  yardHint('b2_yardOut','b2youtHint',forOut,'to');
 }
-/* บอกใต้ช่องเลยว่าที่พิมพ์ไป มีในตารางเรทของลูกค้ารายนี้ไหม */
+/* บอกใต้ช่องเลยว่าที่พิมพ์ไป เข้ากับที่กรอกช่องอื่นไว้ไหม */
 function yardHint(inputId,hintId,rows,key){
   const el=$(hintId); if(!el) return;
   const v=($(inputId).value||'').trim();
   if(!v){ el.className='minihint'; el.textContent=''; return; }
   const z=zoneOf(v);
   const n=rows.filter(r=>routeSideMatch(r,key,v,z)).length;
-  if(n){ el.className='minihint ok'; el.textContent='✅ มีในตารางเรท '+n+' เส้นทาง'+(z?(' · โซน '+z):''); }
-  else { el.className='minihint warn'; el.textContent='🆕 ไม่มีในตารางเรทของลูกค้ารายนี้ — กรอกค่าเที่ยวเองแล้วกดบันทึกไว้ใช้ครั้งหน้าได้'; }
+  if(n){ el.className='minihint ok'; el.textContent='✅ เข้ากับที่กรอกไว้ '+n+' เรท'+(z?(' · โซน '+z):''); }
+  else { el.className='minihint warn'; el.textContent='🆕 ไม่มีเรทที่เข้ากับที่กรอกไว้ — กรอกค่าเที่ยวเองแล้วกดบันทึกไว้ใช้ครั้งหน้าได้'; }
+}
+/* V63.4: ช่องสถานที่โหลดเสนอจากตารางเรท — 25 ส.ค. 2569 ให้กรองตามลานที่กรอกไว้ด้วย */
+function updateLoadSuggest(){
+  const dl=$("dl_b2load"); if(!dl) return;
+  const size=$("b2_size").value;
+  const seen={}, opts=[];
+  const push=(load,label)=>{ const k=rNorm(load); if(!load||seen[k]) return; seen[k]=1;
+    opts.push('<option value="'+escAttr(load)+'"'+(label?(' label="'+escAttr(label)+'"'):'')+'></option>'); };
+  const mine=rateBaseRows();
+  if(mine.length&&rNorm($("b2_customer").value)){     // ลูกค้ารายนี้มีเรท → เสนอจากตารางก่อน
+    const lbl=r=>{ const pr=ratePrice(r,size); return [r.sub,(r.from&&r.to)?(r.from+'-'+r.to):'',pr?(b2Money(pr)+' บ.'):''].filter(Boolean).join(' · '); };
+    const narrow=rateNarrow(mine,'load');
+    narrow.forEach(r=>push(r.load,lbl(r)));           // ที่เข้ากับลาน/เส้นทางที่กรอกไว้ ขึ้นก่อน
+    mine.forEach(r=>push(r.load,lbl(r)));             // ที่เหลือของลูกค้ารายนี้ ต่อท้าย
+  }
+  try{ uniq(store.lists.loadPlace||[]).forEach(v=>push(v,'')); }catch(e){}   // master list เดิมต่อท้าย กันของหาย
+  dl.innerHTML=opts.join('');
 }
 function findRates(rec){
   const why={cust:false,load:'',route:'',zoneIn:'',zoneOut:''};
@@ -3471,26 +3511,6 @@ function findRates(rec){
     if(byRoute.length){ rows=byRoute; why.route='ok'; } else why.route='miss';
   } else why.route='unknown';
   return {rows:rows.filter(r=>ratePrice(r,rec.size)>0),why:why};
-}
-/* V63.4 (เจ้าของเสนอ 17 ส.ค.): ช่องสถานที่โหลดเสนอจากตารางเรทของลูกค้ารายนั้น
-   รู้เส้นทาง (ลานรับ→ลานคืน) แล้วเอาที่ตรงเส้นทางขึ้นก่อน · เลือกจากรายการ = เรทเด้งแน่นอน
-   ยังพิมพ์เองนอกรายการได้เสมอ (ตารางเรทมีไม่ครบทุกที่) — ต่อท้ายด้วย master list เดิมกันของหาย */
-function updateLoadSuggest(){
-  const dl=$("dl_b2load"); if(!dl) return;
-  const cu=rNorm($("b2_customer").value), size=$("b2_size").value;
-  const a=zoneOf($("b2_yardIn").value), b=zoneOf($("b2_yardOut").value);
-  const seen={}, opts=[];
-  const push=(load,label)=>{ const k=rNorm(load); if(!load||seen[k]) return; seen[k]=1;
-    opts.push('<option value="'+escAttr(load)+'"'+(label?(' label="'+escAttr(label)+'"'):'')+'></option>'); };
-  if(cu&&rateRows.length){
-    const mine=rateRows.filter(r=>rNorm(r.cust)===cu);
-    const lbl=r=>{ const pr=ratePrice(r,size); return [r.sub,(r.from&&r.to)?(r.from+'-'+r.to):'',pr?(b2Money(pr)+' บ.'):''].filter(Boolean).join(' · '); };
-    const yi=$("b2_yardIn").value.trim(), yo=$("b2_yardOut").value.trim();
-    if(yi&&yo) mine.filter(r=>routeSideMatch(r,'from',yi,a)&&routeSideMatch(r,'to',yo,b)).forEach(r=>push(r.load,lbl(r)));   // ตรงเส้นทาง ขึ้นก่อน
-    mine.forEach(r=>push(r.load,lbl(r)));                                            // ที่เหลือของลูกค้ารายนี้
-  }
-  try{ uniq(store.lists.loadPlace||[]).forEach(v=>push(v,'')); }catch(e){}           // master list เดิมปิดท้าย
-  dl.innerHTML=opts.join('');
 }
 /* แถบ "บันทึกเรทเส้นนี้" — โผล่เมื่อพิมพ์ค่าเที่ยวเอง (เส้นทางใหม่ที่ตารางยังไม่มี) */
 function b2RateSaveSync(){
@@ -4938,10 +4958,13 @@ $("bmDebt").addEventListener('click',()=>{ billMode='debt'; billModeSync(); });
   $(id).addEventListener('change',updateLoadSuggest); $(id).addEventListener('blur',updateLoadSuggest);
 });
 $("b2_loadPlace").addEventListener('focus',updateLoadSuggest);   // เผื่อเพิ่งโหลดเรทเสร็จหลังเปิดฟอร์ม
-/* ลานรับ/ลานคืน: รายการมาจากโซนในชีทเรท (25 ส.ค. 2569) */
-['b2_customer','b2_yardIn','b2_yardOut'].forEach(id=>{
+/* ลานรับ/ลานคืน/สถานที่โหลด กรองไขว้กัน — ช่องไหนเปลี่ยน ต้องคำนวณตัวเลือกใหม่หมด (25 ส.ค. 2569) */
+['b2_customer','b2_yardIn','b2_yardOut','b2_loadPlace'].forEach(id=>{
   $(id).addEventListener('change',updateYardSuggest); $(id).addEventListener('blur',updateYardSuggest);
   $(id).addEventListener('focus',updateYardSuggest);
+});
+['b2_yardIn','b2_yardOut','b2_loadPlace'].forEach(id=>{
+  $(id).addEventListener('input',()=>{ updateYardSuggest(); updateLoadSuggest(); });
 });
 ['b2_customer','b2_yardIn','b2_yardOut','b2_loadPlace','b2_size'].forEach(id=>{
   $(id).addEventListener('change',b2RateSaveSync); $(id).addEventListener('blur',b2RateSaveSync);
