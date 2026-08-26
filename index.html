@@ -6275,6 +6275,10 @@ recalc();
         var ffb=document.getElementById('ffBtn');
         if(ffb){ ffb.style.display=''; ffb.onclick=function(){ try{ openFlagPanel(); }catch(e){} }; }
         if(window.setAdmin) setAdmin('__role_admin__');
+        /* บั๊กตั้งแต่ V63.6: updateAdminUI ถูกเรียกไว้ "ก่อน" setAdmin (ตอนนั้นยังไม่รู้สิทธิ์)
+           แล้วไม่มีใครเรียกซ้ำ → เมนูแอดมิน (แดชบอร์ด/ตรวจสอบ/ประวัติ) หายทั้งที่สิทธิ์อยู่ครบ
+           ต้องวาดซ้ำหลังรู้สิทธิ์แล้ว — และต้องเรียก "ก่อน" ตั้งปุ่มจัดการผู้ใช้ (ไม่งั้นชื่อปุ่มถูกทับ) */
+        try{ if(window.updateAdminUI) updateAdminUI(); }catch(e){}
         var adb=document.getElementById('adminBtn');
         if(adb){ adb.textContent='👥 จัดการผู้ใช้'; adb.title='อนุมัติ/จัดการผู้ใช้'; adb.style.color=''; adb.onclick=openUserPanel; adb.style.display=''; }
       } else {
