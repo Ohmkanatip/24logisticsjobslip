@@ -570,6 +570,18 @@
   .b3acts .bdel3{background:transparent;color:var(--warn);border:1px solid var(--warn)}
   .b3card.done{border-left-color:var(--ok);opacity:.82}
   .b3card.done .b3amt{color:var(--ok)}
+  /* ══ V72: รายการรับเงินย่อย (ทยอยจ่าย) — ชื่อคลาสขึ้นต้น pl* กันชนของเดิม (บทเรียน V59/V60) ══ */
+  .plwrap{margin:0 13px 10px;border:1px solid var(--line);border-radius:9px;overflow:hidden;background:var(--paper)}
+  .plhead{font-size:11.5px;font-weight:700;color:var(--ink-soft);padding:6px 10px;background:var(--field);border-bottom:1px solid var(--line)}
+  .plrow{display:flex;align-items:center;gap:8px;padding:6px 10px;font-size:12.5px;border-top:1px solid var(--line)}
+  .plrow:first-of-type{border-top:none}
+  .plrow .pldate{font-family:'IBM Plex Mono',monospace;color:var(--ink-soft);white-space:nowrap}
+  .plrow .plamt{font-family:'IBM Plex Mono',monospace;font-weight:600;margin-left:auto;white-space:nowrap;color:var(--ok)}
+  .plrow .plwho{color:var(--ink-soft);font-size:11.5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .plvoid{border:1px solid var(--line-strong);background:transparent;color:var(--ink-soft);border-radius:6px;padding:3px 8px;font-size:11px;cursor:pointer;font-family:inherit;flex:none}
+  .plvoid:hover{border-color:var(--warn);color:var(--warn)}
+  .plsum{display:flex;gap:8px;padding:7px 10px;border-top:1px dashed var(--line-strong);font-size:12.5px;font-weight:700}
+  .plsum span:last-child{margin-left:auto;font-family:'IBM Plex Mono',monospace}
   #b3QInfo:empty{display:none}
   #b3QInfo{align-self:center;font-size:12.5px;font-weight:700;color:var(--accent);background:var(--accent-soft);border:1px solid var(--accent);border-radius:20px;padding:5px 11px}
 
@@ -859,6 +871,7 @@
           <button type="button" class="theme-btn" id="userBtn" title="ตั้งชื่อผู้กรอก/เครื่อง (บันทึกติดไปกับทุกใบ)">🙋 ผู้กรอก</button>
           <button type="button" class="theme-btn" id="appBtn" title="รหัสเข้าใช้งานระบบ">🔑 รหัส</button>
           <button type="button" class="theme-btn" id="adminBtn" title="โหมดแอดมิน (แก้ไขใบได้)">แอดมิน</button>
+          <button type="button" class="theme-btn" id="ffBtn" title="เปิด/ปิดฟีเจอร์ใหม่ (แอดมินเท่านั้น)" style="display:none">🎛 สวิตช์ระบบ</button>
           <div class="endpoint" id="epWrap" style="display:none">
             <span class="dot" id="epDot"></span>
             <label for="epUrl" style="color:var(--ink-soft)">Sheet URL:</label>
@@ -1372,6 +1385,17 @@
         <button class="hf2" data-h="del">🗑 ลบ/กู้คืน <span class="b" id="hsc-del">0</span></button>
       </div>
     </div>
+    <!-- V72 [สวิตช์ historyKind]: กรองตามประเภทเหตุการณ์ — โผล่เมื่อเปิดสวิตช์เท่านั้น -->
+    <div class="actions" id="hsKindRow" style="background:var(--paper);border-top:none;align-items:center;display:none">
+      <div class="hfilter" id="hsKind">
+        <button class="hf2 on" data-e="all">ทุกเหตุการณ์</button>
+        <button class="hf2" data-e="PAYMENT">💰 รับเงิน</button>
+        <button class="hf2" data-e="APPROVE">✓ ยืนยัน</button>
+        <button class="hf2" data-e="VOID">✕ ยกเลิก/ถอน</button>
+        <button class="hf2" data-e="CREATE">＋ เพิ่มใหม่</button>
+        <button class="hf2" data-e="CONFIG_CHANGE">⚙️ ตั้งค่า</button>
+      </div>
+    </div>
     <div id="hsJobRow" style="display:none;padding:0 14px 11px">
       <label class="ballrow" style="padding:0">
         <input type="checkbox" id="hsJob"><span>รวม<b>ประวัติใบงาน (จดตู้)</b> ด้วย <span style="color:var(--ink-soft);font-size:12px">· เฉพาะแอดมิน</span></span>
@@ -1407,6 +1431,8 @@
     <div class="billsearch" id="b3Search">
       <input id="b3Q" placeholder="🔍 ค้น — ลูกค้า / เลขบิล / เบอร์ตู้" style="max-width:320px">
       <span id="b3QInfo"></span>
+      <!-- V72.1 [สวิตช์ installment]: โอนก้อนเดียวหักหลายบิล — แอดมินเท่านั้น -->
+      <button class="btn btn-primary" id="b3Lump" style="display:none;margin-left:auto">💰 รับเงินก้อน</button>
     </div>
     <div id="b3Body"><div class="empty">กำลังโหลด…</div></div>
   </div>
@@ -2613,7 +2639,7 @@ function billModeSync(){
   try{ localStorage.setItem('jobform_billmode',billMode); }catch(e){}
   if(isDraft){ if(drLoaded) renderDrafts(); loadDrafts(); return; }
   if(isTrash){ if(trLoaded) renderBTrash(); loadBTrash(); return; }
-  if(isHist){ if(adminToken) $("hsJobRow").style.display=''; if(hsLoaded) renderHist(); loadHist(); return; }
+  if(isHist){ if(adminToken||ff('historyStaff')) $("hsJobRow").style.display=''; if(hsLoaded) renderHist(); loadHist(); return; }
   if(isNew){
     if(!bill2Rows.length) b2CacheLoad();                       // มีแคช = เห็นคิวทันที ไม่ต้องรอเน็ต
     if(bill2Rows.length) renderBill2(); else $("b2Body").innerHTML='<div class="empty">กำลังโหลดคิว…</div>';
@@ -2761,6 +2787,8 @@ function debtMatch(x){
   return b2Norm([x.cust,x.invno,(x.conts||[]).join(' ')].join('|')).indexOf(b2Norm(debtQ))>-1;
 }
 function renderDebt(){
+  /* V72.1: ปุ่มรับเงินก้อน — โผล่เฉพาะ แอดมิน + สวิตช์ทยอยจ่ายเปิด + มีบิลค้างจริง */
+  const lb=$("b3Lump"); if(lb) lb.style.display=(adminToken&&ff('installment')&&debtInvs.some(v=>!v.done&&v.remain>0))?'':'none';
   const all=debtInvs.filter(debtMatch);
   /* V61: ทุกตัวเลข "ค้างรับ" ต้องนับจาก open เท่านั้น — ใบที่เก็บเงินแล้วอยู่หลังชิป ✅ เก็บแล้ว
      ถ้าเผลอเอา all ไปรวม ยอดค้างจะพองขึ้นทันทีที่มีใบเก็บแล้ว */
@@ -2793,7 +2821,10 @@ function renderDebt(){
   }
   $("b3Body").innerHTML=shown.map(x=>{
     const bk=b3Bucket(x);
-    const part=(Number(x.paidAmt)||0)>0?'<div style="font-size:11.5px;color:var(--ok);margin-top:2px">รับมาแล้ว '+b3Money(x.paidAmt)+' บาท'+(x.paidAt?' ('+thd(x.paidAt)+')':'')+'</div>':'';
+    /* V72 [สวิตช์ installment]: กางรายการรับเงินทุกครั้งให้เห็น — เดิมเห็นแต่ยอดรวมก้อนเดียว */
+    const pl=(ff('installment')&&Array.isArray(x.pays)&&x.pays.length)?debtPayList(x):'';
+    // กางตารางแล้วบรรทัด "รับมาแล้ว X" ซ้ำกับบรรทัด "รวมรับมาแล้ว" ข้างล่าง → ตัดออก
+    const part=(!pl&&(Number(x.paidAmt)||0)>0)?'<div style="font-size:11.5px;color:var(--ok);margin-top:2px">รับมาแล้ว '+b3Money(x.paidAmt)+' บาท'+(x.paidAt?' ('+thd(x.paidAt)+')':'')+'</div>':'';
     return '<div class="b3card '+bk+'"><div class="b3head">'
       +'<div style="flex:1"><span class="cust">'+escHtml(x.cust||'-')+'</span>'
       +'<div class="meta">'+(x.invno?'🧾 <b>'+escHtml(x.invno)+'</b> · ':'<span style="color:var(--warn)">⚠️ ไม่มีเลขบิล</span> · ')
@@ -2801,9 +2832,11 @@ function renderDebt(){
       +(x.uids.length>1?' <span class="lchip">'+x.uids.length+' ใบ</span>':'')+'<br>'
       +b3DueTxt(x)+(x.credit?' · เครดิต '+x.credit+' วัน':'')+'</div>'+part+'</div>'
       +'<div class="b3amt">'+b3Money(x.remain)+'<small>บาท</small></div></div>'
+      +pl
       +'<div class="b3acts">'
       /* V62: ปุ่มที่แตะ "เงินที่รับมาจริง" = แอดมินเท่านั้น · คนวางบิลยังแก้วันครบกำหนด/ดึงกลับไปแก้ได้ */
-      +(x.done||!adminToken?'':'<button class="btn bpay" data-pay="'+escAttr(x.key)+'">✓ รับเงินแล้ว</button>')
+      +(x.done||!adminToken?'':'<button class="btn bpay" data-pay="'+escAttr(x.key)+'">'
+        +((ff('installment')&&(Number(x.paidAmt)||0)>0)?'＋ รับเงินเพิ่ม':'✓ รับเงินแล้ว')+'</button>')
       +(x.done?'':'<button class="btn bdue" data-due="'+escAttr(x.key)+'">📅 แก้วันครบกำหนด</button>')
       /* V61: ทางแก้บิลที่จดผิด — เดิมพอยืนยันวางบิลแล้วทำอะไรไม่ได้เลย */
       +(adminToken&&((Number(x.paidAmt)||0)>0||x.done)?'<button class="btn bundo" data-unpay="'+escAttr(x.key)+'">↩ ถอนรับเงิน</button>':'')
@@ -2816,6 +2849,18 @@ function renderDebt(){
   $("b3Body").querySelectorAll('[data-unbill]').forEach(b=>b.onclick=()=>debtUnbill(b.dataset.unbill));
   $("b3Body").querySelectorAll('[data-unpay]').forEach(b=>b.onclick=()=>debtUnpay(b.dataset.unpay));
   $("b3Body").querySelectorAll('[data-del]').forEach(b=>b.onclick=()=>debtDelete(b.dataset.del));
+  $("b3Body").querySelectorAll('[data-pvoid]').forEach(b=>b.onclick=()=>debtPayVoid(b.dataset.pvoid,b.dataset.pamt,b.dataset.pdate));
+}
+/* V72: ตารางย่อย "รับเงินมาแล้วกี่ครั้ง ครั้งละเท่าไหร่" ในการ์ดลูกหนี้ */
+function debtPayList(x){
+  const rows=x.pays.map(p=>'<div class="plrow">'
+    +'<span class="pldate">'+escHtml(thd(p.date)||p.date||'-')+'</span>'
+    +'<span class="plwho">'+escHtml([p.method,p.note,p.by].filter(Boolean).join(' · '))+'</span>'
+    +'<span class="plamt">'+b3Money(p.amt)+'</span>'
+    +(adminToken?'<button class="plvoid" data-pvoid="'+escAttr(p.id)+'" data-pamt="'+escAttr(String(p.amt))+'" data-pdate="'+escAttr(p.date||'')+'">ยกเลิก</button>':'')
+    +'</div>').join('');
+  return '<div class="plwrap"><div class="plhead">รับเงินมาแล้ว '+x.pays.length+' ครั้ง</div>'+rows
+    +'<div class="plsum"><span>รวมรับมาแล้ว</span><span style="color:var(--ok)">'+b3Money(x.paidAmt)+' บาท</span></div></div>';
 }
 /* ============================================================
    V63.2 — ตัวค้นข้ามหน้า: ค้นในคิวไม่เจอ ระบบไปส่องหน้าอื่นให้เอง
@@ -2871,20 +2916,229 @@ async function bill2CrossFind(q){
 }
 
 /* กล่องบันทึกรับเงิน — ใส่ยอดที่ได้รับจริงได้ (เผื่อลูกค้าหักอะไรเพิ่ม หรือจ่ายมาบางส่วน) */
+
+/* ══ V72 [สวิตช์ docCheck]: ตรวจเอกสารก่อนยืนยันวางบิล ══
+   รายการเอกสารมาจากแท็บ "ทะเบียนลูกค้า" (ช่อง "เอกสารที่ต้องมีก่อนวางบิล" 1 บรรทัด = 1 อย่าง)
+   ลูกค้าที่ช่องว่าง = ไม่มีการเช็คอะไร พฤติกรรมเดิมเป๊ะ · เป็นตัวช่วยกันลืม ไม่ใช่ด่านความปลอดภัย */
+let __custReg=null, __custRegAt=0;
+async function loadCusts(){
+  if(__custReg&&Date.now()-__custRegAt<3600000) return __custReg;
+  try{
+    const j=await callAct({act:'custs'});
+    if(j&&j.ok&&Array.isArray(j.rows)){ __custReg={}; j.rows.forEach(r=>{ __custReg[String(r.name||'').trim()]=r; }); __custRegAt=Date.now(); }
+  }catch(e){}
+  return __custReg||{};
+}
+/* คืน true = ผ่าน (ติ๊กครบ/ไม่มีรายการต้องเช็ค/สวิตช์ปิด) · false = ผู้ใช้ยกเลิก */
+async function docCheckGate(groups){
+  if(!ff('docCheck')) return true;
+  const reg=await loadCusts();
+  const need=[];   // [{cust, docs[]}] เฉพาะลูกค้าที่มีรายการเอกสาร
+  const seen={};
+  (groups||[]).forEach(g=>{
+    const c=String(g.cust||'').trim(); if(!c||seen[c]) return; seen[c]=1;
+    const m=reg[c]; if(m&&Array.isArray(m.docs)&&m.docs.length) need.push({cust:c,docs:m.docs});
+  });
+  if(!need.length) return true;
+  return await new Promise(res=>{
+    let ov=document.getElementById('dcOvl'); if(ov) ov.remove();
+    ov=document.createElement('div'); ov.id='dcOvl';
+    ov.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:9100;display:flex;align-items:center;justify-content:center;padding:18px';
+    ov.innerHTML='<div style="background:var(--panel);color:var(--ink);border-radius:14px;max-width:460px;width:100%;padding:20px;box-shadow:var(--shadow);max-height:86vh;overflow:auto">'
+      +'<div style="font-size:30px;text-align:center">📋</div>'
+      +'<h3 style="text-align:center;margin:6px 0 4px;font-size:17px">เช็คเอกสารก่อนวางบิล</h3>'
+      +'<div style="text-align:center;font-size:12.5px;color:var(--ink-soft);margin-bottom:10px">ลูกค้ารายนี้ต้องแนบเอกสารครบก่อนวางบิล — ติ๊กยืนยันว่ามีครบแล้ว</div>'
+      +need.map((n,gi)=>'<div style="border:1px solid var(--line);border-radius:11px;padding:11px 13px;margin-bottom:9px;background:var(--paper)">'
+        +'<b style="font-size:13.5px">'+escHtml(n.cust)+'</b>'
+        +n.docs.map((d,di)=>'<label class="ballrow" style="padding:7px 0 0;display:flex;gap:8px;align-items:flex-start;cursor:pointer">'
+          +'<input type="checkbox" class="dcChk" style="margin-top:3px">'
+          +'<span style="font-size:13px;line-height:1.6">'+escHtml(d)+'</span></label>').join('')
+        +'</div>').join('')
+      +'<div id="dcHint" style="font-size:12px;color:var(--warn);text-align:center;min-height:18px"></div>'
+      +'<div style="display:flex;gap:8px;margin-top:10px">'
+      +'<button id="dcCancel" style="flex:1;padding:11px;border-radius:9px;border:1px solid var(--line-strong);background:transparent;color:var(--ink);font-weight:700;cursor:pointer;font-family:inherit">ยังไม่วางบิล</button>'
+      +'<button id="dcOk" disabled style="flex:1;padding:11px;border-radius:9px;border:none;background:var(--ok);color:#fff;font-weight:700;cursor:pointer;font-family:inherit;opacity:.45">เอกสารครบ — ไปต่อ</button></div></div>';
+    document.body.appendChild(ov);
+    const all=[...ov.querySelectorAll('.dcChk')], okB=ov.querySelector('#dcOk');
+    const sync=()=>{ const done=all.every(c=>c.checked); okB.disabled=!done; okB.style.opacity=done?'1':'.45';
+      ov.querySelector('#dcHint').textContent=done?'':('เหลืออีก '+all.filter(c=>!c.checked).length+' รายการ'); };
+    all.forEach(c=>c.onchange=sync); sync();
+    const fin=v=>{ ov.remove(); res(v); };
+    ov.onclick=e=>{ if(e.target===ov) fin(false); };
+    ov.querySelector('#dcCancel').onclick=()=>fin(false);
+    okB.onclick=()=>{ if(!okB.disabled) fin(true); };
+  });
+}
+/* ══ V72.1 [สวิตช์ installment]: รับเงินก้อน — โอนก้อนเดียวหักหลายบิล ══
+   ตัวแบ่งยอดแยกเป็นฟังก์ชันล้วน (ไม่แตะ DOM) เพื่อให้เทสรันตรวจได้จริง */
+function lumpAlloc(bills,total){
+  // bills=[{key,remain}] เรียงตามลำดับที่จะหัก · คืน [{key,amt}] เฉพาะที่ได้เงิน · หักบิลบนสุดก่อนจนเงินหมด
+  const out=[]; let left=Math.round((Number(total)||0)*100);
+  for(const b of bills){
+    if(left<=0) break;
+    const rem=Math.round((Number(b.remain)||0)*100); if(rem<=0) continue;
+    const take=Math.min(rem,left);
+    out.push({key:b.key,amt:take/100}); left-=take;
+  }
+  return {alloc:out,leftover:left/100};   // leftover>0 = เงินเหลือเกินยอดค้างทั้งหมด
+}
+function lumpPayDialog(){
+  if(!adminToken){ flash('บันทึกรับเงินได้เฉพาะแอดมิน','err'); return; }
+  if(!ff('installment')){ flash('ต้องเปิดสวิตช์ "ทยอยจ่าย" ก่อน (⚙️ ตั้งค่า → 🎛 สวิตช์ระบบ)','err'); return; }
+  const open=debtInvs.filter(v=>!v.done&&v.remain>0);
+  if(!open.length){ flash('ไม่มีบิลค้างรับ','err'); return; }
+  const custs=[...new Set(open.map(v=>v.cust||'-'))].sort((a,b)=>a.localeCompare(b,'th'));
+  const lbl='display:block;font-size:12.5px;color:var(--ink-soft);font-weight:600;margin:10px 0 4px';
+  const inp='width:100%;padding:10px;border-radius:9px;border:1px solid var(--line-strong);background:var(--field);color:var(--ink);font-family:inherit;font-size:14px;box-sizing:border-box';
+  let ov=document.getElementById('lpOvl'); if(ov) ov.remove();
+  ov=document.createElement('div'); ov.id='lpOvl';
+  ov.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:9100;display:flex;align-items:center;justify-content:center;padding:18px';
+  ov.innerHTML='<div style="background:var(--panel);color:var(--ink);border-radius:14px;max-width:560px;width:100%;padding:20px;box-shadow:var(--shadow);max-height:88vh;overflow:auto">'
+    +'<div style="font-size:30px;text-align:center">💰</div>'
+    +'<h3 style="text-align:center;margin:6px 0 4px;font-size:17px">รับเงินก้อน — หักทีเดียวหลายบิล</h3>'
+    +'<div style="text-align:center;font-size:12.5px;color:var(--ink-soft);margin-bottom:6px">ระบบแบ่งให้จากบิลเก่าสุดก่อน · แก้ยอดรายบิลเองได้ · ยอดรวมต้องเท่ากับที่โอนมาเป๊ะ</div>'
+    +'<label style="'+lbl+'">ลูกค้า</label>'
+    +'<select id="lpCust" style="'+inp+'">'+custs.map(c=>'<option>'+escHtml(c)+'</option>').join('')+'</select>'
+    +'<label style="'+lbl+'">ยอดที่โอนมา (บาท)</label>'
+    +'<input id="lpAmt" class="mono" inputmode="decimal" style="'+inp+'" placeholder="เช่น 100000">'
+    +'<label style="'+lbl+'">วันที่รับเงิน</label>'
+    +'<input id="lpWhen" type="date" style="'+inp+'" value="'+escAttr(todayLocal())+'">'
+    +'<label style="'+lbl+'">ช่องทางที่รับ</label>'
+    +'<select id="lpWay" style="'+inp+'"><option>โอนเข้าบัญชี</option><option>เงินสด</option><option>เช็ค</option><option>หักกลบ</option><option value="">ไม่ระบุ</option></select>'
+    +'<label style="'+lbl+'">หมายเหตุ (ไม่ใส่ก็ได้)</label>'
+    +'<input id="lpNote" maxlength="120" style="'+inp+'" placeholder="เช่น เลขที่โอน / เดือนที่ชำระ">'
+    +'<label style="'+lbl+'">หักจากบิลไหนบ้าง (ติ๊กเลือก · เรียงเก่าสุดก่อน)</label>'
+    +'<div id="lpList"></div>'
+    +'<div id="lpSum" style="font-size:13px;font-weight:700;padding:9px 11px;border-radius:9px;background:var(--field);border:1px solid var(--line);margin-top:8px;line-height:1.7"></div>'
+    +'<div style="display:flex;gap:8px;margin-top:12px">'
+    +'<button id="lpCancel" style="flex:1;padding:11px;border-radius:9px;border:1px solid var(--line-strong);background:transparent;color:var(--ink);font-weight:700;cursor:pointer;font-family:inherit">ยกเลิก</button>'
+    +'<button id="lpOk" disabled style="flex:1;padding:11px;border-radius:9px;border:none;background:var(--ok);color:#fff;font-weight:700;cursor:pointer;font-family:inherit;opacity:.45">✓ บันทึกรับเงินก้อน</button></div></div>';
+  document.body.appendChild(ov);
+  const $$=id=>ov.querySelector('#'+id);
+  const bills=()=>open.filter(v=>(v.cust||'-')===$$('lpCust').value)
+      .sort((x,y)=>String(x.due||'9999').localeCompare(String(y.due||'9999'))||x.billAtMs-y.billAtMs);   // เก่าสุดก่อน = ครบกำหนดก่อน
+  function renderList(){
+    $$('lpList').innerHTML=bills().map(v=>'<div class="plrow" style="border:1px solid var(--line);border-radius:9px;margin-top:6px;padding:8px 10px">'
+      +'<input type="checkbox" class="lpChk" data-k="'+escAttr(v.key)+'" checked style="width:19px;height:19px;flex:none;accent-color:var(--accent)">'
+      +'<span style="flex:1;min-width:0"><b>'+escHtml(v.invno||'(ไม่มีเลขบิล)')+'</b>'
+      +'<br><span style="font-size:11px;color:var(--ink-soft)">'+b3DueTxt(v)+' · ค้าง '+b3Money(v.remain)+' บาท</span></span>'
+      +'<input class="lpAmtIn mono" data-k="'+escAttr(v.key)+'" inputmode="decimal" style="width:110px;padding:7px;border-radius:7px;border:1px solid var(--line-strong);background:var(--field);color:var(--ink);text-align:right;font-size:13px" value="">'
+      +'</div>').join('')||'<div class="empty">ลูกค้ารายนี้ไม่มีบิลค้าง</div>';
+    ov.querySelectorAll('.lpChk').forEach(c=>c.onchange=()=>{ autoFill(); });
+    ov.querySelectorAll('.lpAmtIn').forEach(f=>f.oninput=()=>{ sync(); });   // แก้มือ = ไม่แบ่งใหม่ แค่ตรวจผลรวม
+  }
+  function autoFill(){
+    const total=b2Num($$('lpAmt').value);
+    const ticked=bills().filter(v=>{ const c=ov.querySelector('.lpChk[data-k="'+CSS.escape(v.key)+'"]'); return c&&c.checked; });
+    const r=lumpAlloc(ticked.map(v=>({key:v.key,remain:v.remain})),total);
+    ov.querySelectorAll('.lpAmtIn').forEach(f=>{
+      const hit=r.alloc.find(x=>x.key===f.dataset.k);
+      const chk=ov.querySelector('.lpChk[data-k="'+CSS.escape(f.dataset.k)+'"]');
+      f.value=(chk&&chk.checked&&hit)?String(hit.amt):''; f.disabled=!(chk&&chk.checked);
+    });
+    sync();
+  }
+  function sync(){
+    const total=b2Num($$('lpAmt').value);
+    let sum=0,bad=[];
+    bills().forEach(v=>{
+      const chk=ov.querySelector('.lpChk[data-k="'+CSS.escape(v.key)+'"]');
+      const f=ov.querySelector('.lpAmtIn[data-k="'+CSS.escape(v.key)+'"]');
+      if(!chk||!chk.checked||!f) return;
+      const amt=b2Num(f.value); if(!(amt>0)) return;
+      sum+=amt;
+      if(amt-v.remain>0.005) bad.push((v.invno||v.key)+' หักเกินยอดค้าง (ค้าง '+b3Money(v.remain)+')');
+    });
+    sum=Math.round(sum*100)/100;
+    const diff=Math.round((total-sum)*100)/100;
+    const okAll= total>0 && sum>0 && Math.abs(diff)<0.005 && !bad.length;
+    $$('lpSum').innerHTML='รวมหัก <b>'+b3Money(sum)+'</b> / ยอดที่โอนมา <b>'+b3Money(total)+'</b> บาท'
+      +(okAll?' <span style="color:var(--ok)">✓ พอดี</span>'
+        :('<br><span style="color:var(--warn)">'+(bad.length?bad.map(escHtml).join(' · '):(total<=0?'ใส่ยอดที่โอนมาก่อน':(diff>0?'ยังขาดอีก '+b3Money(diff)+' บาท — ติ๊กบิลเพิ่มหรือแก้ยอด':'เกินมา '+b3Money(-diff)+' บาท — เงินมากกว่ายอดที่ติ๊กไว้')))+'</span>'));
+    const okB=$$('lpOk'); okB.disabled=!okAll; okB.style.opacity=okAll?'1':'.45';
+  }
+  $$('lpCust').onchange=()=>{ renderList(); autoFill(); };
+  $$('lpAmt').oninput=autoFill;
+  renderList(); sync();
+  const close=()=>{ const o=document.getElementById('lpOvl'); if(o) o.remove(); };
+  ov.onclick=e=>{ if(e.target===ov) close(); };
+  $$('lpCancel').onclick=close;
+  $$('lpOk').onclick=async()=>{
+    if($$('lpOk').disabled) return;
+    const alloc=[];
+    bills().forEach(v=>{
+      const chk=ov.querySelector('.lpChk[data-k="'+CSS.escape(v.key)+'"]');
+      const f=ov.querySelector('.lpAmtIn[data-k="'+CSS.escape(v.key)+'"]');
+      if(chk&&chk.checked&&f&&b2Num(f.value)>0) alloc.push({key:v.key,amt:b2Num(f.value)});
+    });
+    const total=b2Num($$('lpAmt').value), when=$$('lpWhen').value, way=$$('lpWay').value, note=$$('lpNote').value;
+    $$('lpOk').disabled=true; $$('lpOk').textContent='กำลังบันทึก…';
+    try{
+      const j=await callAct({act:'bpaylump',amt:total,date:when,method:way,note:note,alloc:JSON.stringify(alloc)});
+      if(j&&j.ok&&String(j.result||'').indexOf('lump-ok')===0){
+        close(); flash('✓ รับเงินก้อน '+b3Money(total)+' บาท — หัก '+alloc.length+' บิลแล้ว','ok'); await loadDebt(true);
+      } else {
+        const rr=String((j&&j.result)||'');
+        let msg='บันทึกไม่สำเร็จ';
+        if(rr.indexOf('lump-over')===0){ const g=rr.split(' '); msg='บิล '+g[1]+' หักเกินยอดค้าง — เหลือรับได้ '+b3Money(g[2]||0)+' บาท (มีคนบันทึกตัดหน้า? กดรีเฟรชแล้วลองใหม่)'; }
+        else if(rr.indexOf('lump-sum')===0) msg='ยอดรวมไม่ตรงกับที่โอนมา — รีเฟรชแล้วลองใหม่';
+        else if(rr==='lump-mixed') msg='บิลที่ติ๊กมาจากคนละลูกค้า';
+        else if(rr.indexOf('lump-state')===0||rr.indexOf('lump-badbill')===0) msg='มีบิลที่สถานะเปลี่ยนไปแล้ว — กดรีเฟรชแล้วลองใหม่';
+        else msg+=rr?': '+(ACT_ERR[rr]||rr):'';
+        flash(msg,'err'); $$('lpOk').disabled=false; $$('lpOk').textContent='✓ บันทึกรับเงินก้อน';
+      }
+    }catch(e){ flash('เชื่อมต่อไม่สำเร็จ','err'); $$('lpOk').disabled=false; $$('lpOk').textContent='✓ บันทึกรับเงินก้อน'; }
+  };
+}
+/* V72: ยกเลิกรายการรับเงินทีละรายการ (ไม่ลบแถวในชีท — ติดธงยกเลิกไว้) */
+async function debtPayVoid(id,amt,date){
+  if(!adminToken){ flash('ยกเลิกรายการรับเงินได้เฉพาะแอดมิน','err'); return; }
+  const go=await new Promise(res=>billDialog('↩','ยกเลิกรายการรับเงินนี้?',
+    '<div class="mrow">ยอด <b>'+b3Money(amt)+' บาท</b>'+(date?'<br>รับเมื่อ '+escHtml(thd(date)||date):'')+'</div>'
+    +'<div class="ghl3">ยอดค้างของบิลนี้จะเพิ่มขึ้น '+b3Money(amt)+' บาท<br>รายการรับเงินครั้งอื่น<b>ไม่กระทบ</b> · แถวในชีทไม่ถูกลบ (ติดธง "ยกเลิก" ไว้ตรวจย้อนได้)</div>',
+    '↩ ยกเลิกรายการนี้','ไม่ยกเลิก',()=>res(true),()=>res(false)));
+  if(!go) return;
+  try{
+    const j=await callAct({act:'bpayvoid',payId:id});
+    if(j&&j.ok){ await debtRefreshAll(); flash('✓ ยกเลิกรายการรับเงิน '+b3Money(amt)+' บาท แล้ว','ok'); }
+    else flash('ยกเลิกไม่สำเร็จ'+((j&&j.result)?': '+(ACT_ERR[j.result]||j.result):''),'err');
+  }catch(e){ flash('เชื่อมต่อไม่สำเร็จ','err'); }
+}
 function debtPay(key){
   const x=debtInvs.find(v=>v.key===key); if(!x) return;
   if(!adminToken){ flash('บันทึกรับเงินได้เฉพาะแอดมิน — แจ้งเจ้าของให้กดให้','err'); return; }   // V62
+  /* V72 [สวิตช์ installment]: ทยอยจ่าย — บันทึกได้หลายครั้ง ระบบบวกสะสมให้เอง
+     สวิตช์ปิด = กล่องเดิมทุกอย่าง (ไม่มีช่องทาง/หมายเหตุ · ข้อความเดิม) */
+  const inst=ff('installment');
+  const got=Number(x.paidAmt)||0, nPay=(Array.isArray(x.pays)?x.pays.length:0);
+  const lbl='display:block;font-size:12.5px;color:var(--ink-soft);font-weight:600;margin:10px 0 4px';
+  const inp='width:100%;padding:10px;border-radius:9px;border:1px solid var(--line-strong);background:var(--field);color:var(--ink);font-family:inherit;font-size:14px;box-sizing:border-box';
   let ov=document.getElementById('billOvl'); if(ov) ov.remove();
   ov=document.createElement('div'); ov.id='billOvl'; let done=false;
   ov.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:9000;display:flex;align-items:center;justify-content:center;padding:20px';
-  ov.innerHTML='<div style="background:var(--panel);color:var(--ink);border-radius:14px;max-width:430px;width:100%;padding:20px;box-shadow:var(--shadow)">'
+  ov.innerHTML='<div style="background:var(--panel);color:var(--ink);border-radius:14px;max-width:430px;width:100%;padding:20px;box-shadow:var(--shadow);max-height:88vh;overflow:auto">'
     +'<div style="font-size:32px;text-align:center">💰</div><h3 style="text-align:center;margin:6px 0 10px;font-size:17px">บันทึกรับเงิน</h3>'
-    +'<div style="font-size:13.5px;line-height:1.7">'+escHtml(x.cust||'-')+(x.invno?' · 🧾 '+escHtml(x.invno):'')+'<br>ยอดที่ต้องเก็บ <b>'+b3Money(x.remain)+'</b> บาท'
-    +'<label style="display:block;font-size:12.5px;color:var(--ink-soft);font-weight:600;margin:10px 0 4px">ยอดที่ได้รับจริง</label>'
-    +'<input id="b3Amt" class="mono" inputmode="decimal" value="'+escAttr(String(x.remain))+'">'
-    +'<label style="display:block;font-size:12.5px;color:var(--ink-soft);font-weight:600;margin:10px 0 4px">วันที่รับเงิน</label>'
-    +'<input id="b3When" type="date" value="'+escAttr(todayLocal())+'">'
-    +'<div class="hint" style="margin:8px 0 0">รับไม่ครบ = ระบบจะเก็บไว้เป็น “เก็บบางส่วน” และยังค้างยอดที่เหลือ</div></div>'
+    +'<div style="font-size:13.5px;line-height:1.7">'+escHtml(x.cust||'-')+(x.invno?' · 🧾 '+escHtml(x.invno):'')
+    +(inst&&got>0
+      ?'<br>ยอดบิลทั้งหมด <b>'+b3Money(x.amount||0)+'</b> บาท'
+       +'<br><span style="color:var(--ok)">รับมาแล้ว '+b3Money(got)+' บาท'+(nPay?' ('+nPay+' ครั้ง)':'')+'</span>'
+       +'<br>คงเหลือต้องเก็บ <b>'+b3Money(x.remain)+'</b> บาท'
+      :'<br>ยอดที่ต้องเก็บ <b>'+b3Money(x.remain)+'</b> บาท')
+    +'<label style="'+lbl+'">ยอดที่ได้รับจริง</label>'
+    +'<input id="b3Amt" class="mono" inputmode="decimal" style="'+inp+'" value="'+escAttr(String(x.remain))+'">'
+    +'<label style="'+lbl+'">วันที่รับเงิน</label>'
+    +'<input id="b3When" type="date" style="'+inp+'" value="'+escAttr(todayLocal())+'">'
+    +(inst
+      ?'<label style="'+lbl+'">ช่องทางที่รับ</label>'
+       +'<select id="b3Way" style="'+inp+'"><option>โอนเข้าบัญชี</option><option>เงินสด</option><option>เช็ค</option><option>หักกลบ</option><option value="">ไม่ระบุ</option></select>'
+       +'<label style="'+lbl+'">หมายเหตุ (ไม่ใส่ก็ได้)</label>'
+       +'<input id="b3Note" maxlength="120" style="'+inp+'" placeholder="เช่น เลขที่เช็ค / งวดที่ 2">'
+      :'')
+    +'<div style="margin:10px 0 0;padding:9px 11px;border-radius:9px;background:var(--accent-soft);border:1px solid var(--accent);font-size:12.5px;line-height:1.7">'
+    +(inst
+      ?'รับไม่ครบก็บันทึกได้ — ครั้งหน้ามาบันทึก<b>เพิ่ม</b>ได้เรื่อยๆ ระบบบวกยอดสะสมให้เอง<br>ทุกครั้งที่รับจะขึ้นเป็นรายการแยกให้ตรวจย้อนได้'
+      :'รับไม่ครบ = ระบบจะเก็บไว้เป็น “เก็บบางส่วน” และยังค้างยอดที่เหลือ')
+    +'</div></div>'
     +'<div style="display:flex;gap:8px;margin-top:14px">'
     +'<button id="b3Cancel" style="flex:1;padding:11px;border-radius:9px;border:1px solid var(--line-strong);background:transparent;color:var(--ink);font-weight:700;cursor:pointer;font-family:inherit">ยกเลิก</button>'
     +'<button id="b3Ok" style="flex:1;padding:11px;border-radius:9px;border:none;background:var(--ok);color:#fff;font-weight:700;cursor:pointer;font-family:inherit">✓ บันทึกรับเงิน</button></div></div>';
@@ -2892,14 +3146,27 @@ function debtPay(key){
   const fin=(go)=>{ if(done)return; done=true;
     const amt=go?b2Num(document.getElementById('b3Amt').value):0;
     const when=go?document.getElementById('b3When').value:'';
+    const way=(go&&inst&&document.getElementById('b3Way'))?document.getElementById('b3Way').value:'';
+    const note=(go&&inst&&document.getElementById('b3Note'))?document.getElementById('b3Note').value:'';
     ov.remove();
     if(!go) return;
+    if(!(amt>0)){ flash('ยอดที่รับต้องมากกว่า 0 บาท','err'); return; }
     const full=(amt+0.005)>=Number(x.remain);
     (async()=>{
       try{
-        const j=await callAct({act:'bpay',uids:x.uids.join(','),state:full?'paid':'part',amt:amt,date:when});
-        if(j&&j.ok){ flash(full?('✓ บันทึกรับเงิน '+b3Money(amt)+' บาท — ปิดหนี้บิลนี้แล้ว'):('✓ รับบางส่วน '+b3Money(amt)+' บาท — ยังค้าง '+b3Money(x.remain-amt)+' บาท'),'ok'); await loadDebt(true); }
-        else flash('บันทึกไม่สำเร็จ'+((j&&j.result)?': '+(ACT_ERR[j.result]||j.result):''),'err');
+        const q={act:'bpay',uids:x.uids.join(','),state:full?'paid':'part',amt:amt,date:when};
+        if(inst){ q.method=way; q.note=note; }
+        const j=await callAct(q);
+        if(j&&j.ok){
+          flash(full?('✓ บันทึกรับเงิน '+b3Money(amt)+' บาท — ปิดหนี้บิลนี้แล้ว')
+                    :('✓ รับ '+b3Money(amt)+' บาท'+(inst&&got>0?(' — รวมรับมาแล้ว '+b3Money(got+amt)+' บาท'):'')+' · ยังค้าง '+b3Money(x.remain-amt)+' บาท'),'ok');
+          await loadDebt(true);
+        } else {
+          const rr=String((j&&j.result)||'');
+          // หลังบ้านกันรับเกินยอดบิล แล้วบอกมาว่ารับได้สูงสุดเท่าไหร่
+          if(rr.indexOf('bpay-over')===0) flash('รับเกินยอดที่ค้าง — บิลนี้รับได้อีกไม่เกิน '+b3Money(rr.split(' ')[1]||0)+' บาท','err');
+          else flash('บันทึกไม่สำเร็จ'+(rr?': '+(ACT_ERR[rr]||rr):''),'err');
+        }
       }catch(e){ flash('เชื่อมต่อไม่สำเร็จ','err'); }
     })();
   };
@@ -3289,6 +3556,7 @@ async function bill2Act(act,key,uidOne){
       return;
     }
     if(act==='confirm'){
+      if(!await docCheckGate([g])) return;   // V72 [docCheck]: เอกสารไม่ครบ = ยังไม่วางบิล
       const go=await new Promise(res=>billDialog('✓','ยืนยันวางบิล?','ตู้ '+escHtml(g.rows.map(r=>r.container).filter(Boolean).join(' + ')||'-')+nTxt+(g.invno?' · เลขบิล '+escHtml(g.invno):'')+' — ยืนยันแล้วจะหายจากคิว (ถ้าพลาด กดดึงกลับได้ในแท็บ “เพิ่งวางบิล”)','ยืนยันวางบิล','ยกเลิก',()=>res(true),()=>res(false)));
       if(go) await bill2Set(uids,'billed','✓ วางบิลแล้ว — หายจากคิว');
       return;
@@ -3713,7 +3981,7 @@ function printPay(){
    ทั้งหมดอ่านอย่างเดียวจากชีท ไม่ยิงแจ้งเตือน
    ============================================================ */
 let trRows=[], trSel={}, trLoaded=false, trAdmin=false;
-let hsRows=[], hsFilter='all', hsLoaded=false;
+let hsRows=[], hsFilter='all', hsKindF='all', hsLoaded=false;
 
 /* ส่ง uid เป็นก้อนละ 25 — URL ยาวเกินแล้วคำสั่งจะหายเงียบ (บทเรียน V52) */
 async function b2Chunked(act, uids, extra){
@@ -3826,9 +4094,9 @@ async function loadHist(force){
   if(!force&&hsLoaded&&Date.now()-hsLastFetch<15000){ renderHist(); return; }   // V63.3: กันยิงถี่ (สลับติ๊ก "รวมใบงาน" = force เพราะข้อมูลคนละชุด)
   hsLastFetch=Date.now();
   try{
-    const wantJob=(adminToken&&$("hsJob").checked)?'1':'';
+    const wantJob=((adminToken||ff('historyStaff'))&&$("hsJob").checked)?'1':'';
     const j=await callAct(wantJob?{act:'bhistall',job:'1'}:{act:'bhistall'});
-    if(j&&j.ok&&Array.isArray(j.rows)){ hsRows=j.rows; hsLoaded=true; if(j.admin||adminToken) $("hsJobRow").style.display=''; renderHist(); }
+    if(j&&j.ok&&Array.isArray(j.rows)){ hsRows=j.rows; hsLoaded=true; if(j.admin||adminToken||j.staffJob) $("hsJobRow").style.display=''; renderHist(); }
     else if(j&&j.result==='unknown-act') $("hsBody").innerHTML='<div class="empty">⚙️ หลังบ้านยังไม่ได้อัปเดตเป็น V60 — วางไฟล์ .gs แล้ว Deploy → New version ก่อน<div style="color:var(--ink-soft);font-size:12px;margin-top:6px">ระหว่างนี้กดปุ่ม 🕘 บนการ์ดแต่ละใบดูทีละใบได้</div></div>';
     else $("hsBody").innerHTML='<div class="empty">โหลดประวัติไม่สำเร็จ'+((j&&j.result)?' — '+escHtml(j.result):'')+'</div>';
   }catch(e){ $("hsBody").innerHTML='<div class="empty">เชื่อมต่อไม่สำเร็จ</div>'; }
@@ -3840,19 +4108,24 @@ function renderHist(){
   $("hsc-all").textContent=base.length;
   $("hsc-edit").textContent=base.filter(r=>r.kind==='edit').length;
   $("hsc-del").textContent=base.filter(r=>r.kind==='del').length;
-  const rows=base.filter(r=>hsFilter==='all'||r.kind===hsFilter);
+  /* V72 [สวิตช์ historyKind]: กรองซ้อนด้วยประเภทเหตุการณ์ (แถวเก่าไม่มี event = โผล่เฉพาะ "ทุกเหตุการณ์") */
+  const kOn=ff('historyKind');
+  const kr=$("hsKindRow"); if(kr) kr.style.display=kOn?'':'none';
+  const rows=base.filter(r=>(hsFilter==='all'||r.kind===hsFilter)&&(!kOn||hsKindF==='all'||r.event===hsKindF));
   $("hsCount").textContent=rows.length+' รายการ'+(base.length!==hsRows.length?(' · จากที่ค้น '+base.length):'');
   document.querySelectorAll('#hsFilter .hf2').forEach(b=>b.classList.toggle('on',b.dataset.h===hsFilter));
+  document.querySelectorAll('#hsKind .hf2').forEach(b=>b.classList.toggle('on',b.dataset.e===hsKindF));
   if(!rows.length){ $("hsBody").innerHTML='<div class="empty">'+(hsRows.length?'ไม่พบรายการที่ตรงกับที่ค้น':'ยังไม่มีประวัติการแก้ไข')+'</div>'; return; }
   $("hsBody").innerHTML='<div class="hscroll"><table class="htable">'
     +'<thead><tr><th>เวลาแก้</th><th>ผู้แก้ไข</th><th>บิล</th><th>ช่องที่แก้</th><th>ค่าเดิม → ค่าใหม่</th></tr></thead><tbody>'
     +rows.map(r=>{
       const k=r.kind==='del'?'del':(r.kind==='job'?'job':'edit');
       const label=r.kind==='job'?'🚛 ใบงาน':(r.kind==='del'?('🗑 '+escHtml(r.field)):('✏️ '+escHtml(r.field)));
+      const evTag=(kOn&&r.event)?('<br><span style="font-size:10.5px;color:var(--ink-soft)">'+escHtml(({PAYMENT:'💰 รับเงิน',APPROVE:'✓ ยืนยัน',VOID:'✕ ยกเลิก',CREATE:'＋ เพิ่มใหม่',DELETE:'🗑 ลบ',RESTORE:'↩ กู้คืน',STATUS_CHANGE:'⇄ สถานะ',CONFIG_CHANGE:'⚙️ ตั้งค่า',UPDATE:'✏️ แก้ไข'})[r.event]||r.event)+'</span>'):'';
       return '<tr><td style="white-space:nowrap">'+escHtml(String(r.time||'').replace('T',' '))+'</td>'
         +'<td style="white-space:nowrap">'+escHtml(r.editor||'-')+'</td>'
         +'<td><b>'+escHtml(r.cust||'-')+'</b>'+(r.cont?'<br><span style="color:var(--ink-soft);font-size:11.5px">ตู้ '+escHtml(r.cont)+'</span>':'')+'</td>'
-        +'<td><span class="kindchip '+k+'">'+label+'</span></td>'
+        +'<td><span class="kindchip '+k+'">'+label+'</span>'+evTag+'</td>'
         +'<td><span class="holdv">'+escHtml(r.old||'(ว่าง)')+'</span> → <span class="hnewv">'+escHtml(r.neu||'(ว่าง)')+'</span></td></tr>';
     }).join('')+'</tbody></table></div>';
 }
@@ -3922,8 +4195,9 @@ async function bill2BulkPrint(){
   else flash('เปิดพิมพ์แล้ว (ทุกบิลเคยพิมพ์ไปก่อนหน้า)','ok');
   renderBill2();
 }
-function bill2BulkConfirm(){
+async function bill2BulkConfirm(){
   const keys=Object.keys(bill2Sel).filter(k=>bill2Sel[k]&&bill2Map[k]); if(!keys.length) return;
+  if(!await docCheckGate(keys.map(k=>bill2Map[k]))) return;   // V72 [docCheck]: เช็คทุกลูกค้าที่เลือก
   billDialog('✓','ยืนยันวางบิล '+keys.length+' บิล?','บิลที่เลือกจะถูกทำเป็น “วางบิลแล้ว” และหายจากคิวพร้อมกัน<br>ถ้าพลาด กดดึงกลับได้ในแท็บ “เพิ่งวางบิล”','ยืนยันทั้งหมด','ยกเลิก',async()=>{
     const uids=b2SelUids(), n=Object.keys(bill2Sel).filter(k=>bill2Sel[k]).length; bill2Sel={};
     await bill2Set(uids,'billed','✓ ยืนยันวางบิล '+n+' บิลพร้อมกัน — หายจากคิว'); renderBill2();
@@ -4535,6 +4809,74 @@ async function callAct(params){
   const r=await fetch(url+(url.includes('?')?'&':'?')+qs+APPQS(),{method:'GET'});
   return await r.json();
 }
+/* ══════════════════════════════════════════════════════════════════════
+   V72 — สวิตช์ระบบ (Feature Flags)
+   ฟีเจอร์ใหม่ทุกตัวห่อด้วย ff('ชื่อสวิตช์') → ของใหม่พังก็ปิดได้จากในชีทใน 30 วินาที
+   ⚠️ ถามหลังบ้านไม่ได้ = ใช้ค่าที่จำไว้ในเครื่อง · ไม่เคยจำ = ปิดหมด (ของเดิมทำงานปกติ)
+   ══════════════════════════════════════════════════════════════════════ */
+window.FF = {}; window.__ffList = [];
+try{ window.FF = JSON.parse(localStorage.getItem('jobform_ff')||'{}')||{}; }catch(e){ window.FF={}; }
+function ff(k){ try{ return !!(window.FF && window.FF[k]); }catch(e){ return false; } }
+async function loadFlags(){
+  try{
+    const j = await callAct({act:'flags'});
+    if(j && j.ok && j.flags){
+      window.FF = j.flags; window.__ffList = j.list || [];
+      try{ localStorage.setItem('jobform_ff', JSON.stringify(j.flags)); }catch(e){}
+      // สวิตช์เปลี่ยนแล้วหน้าที่เปิดค้างอยู่ต้องวาดใหม่ ไม่งั้นต้องรีเฟรชเอง
+      try{ if(typeof renderDebt==='function' && document.body.classList.contains('bill-on')) renderDebt(); }catch(e){}
+    }
+  }catch(e){}    // หลังบ้านยังไม่อัปเดต/เน็ตหลุด = เงียบ ใช้ค่าเดิม ไม่ขึ้น error กวนผู้ใช้
+}
+/* V72: หน้าต่างเปิด/ปิดสวิตช์ระบบ (แอดมินเท่านั้น) — เจ้าของกดเองได้ ไม่ต้องเข้าชีท */
+async function openFlagPanel(){
+  if(!adminToken){ flash('เปิด/ปิดสวิตช์ระบบได้เฉพาะแอดมิน','err'); return; }
+  let ov=document.getElementById('ffOvl'); if(ov) ov.remove();
+  ov=document.createElement('div'); ov.id='ffOvl';
+  ov.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:9200;display:flex;align-items:center;justify-content:center;padding:18px';
+  ov.innerHTML='<div id="ffBox" style="background:var(--panel);color:var(--ink);border-radius:14px;max-width:560px;width:100%;padding:20px;box-shadow:var(--shadow);max-height:88vh;overflow:auto">'
+    +'<div style="font-size:30px;text-align:center">🎛</div>'
+    +'<h3 style="text-align:center;margin:6px 0 4px;font-size:17px">สวิตช์ระบบ</h3>'
+    +'<div style="text-align:center;font-size:12.5px;color:var(--ink-soft);line-height:1.7;margin-bottom:12px">เปิด/ปิดฟีเจอร์ใหม่ได้ทันที ไม่ต้องรอวางโค้ดใหม่<br>ของใหม่มีปัญหา = กดปิด แล้วทุกเครื่องกลับเป็นของเดิมภายในครึ่งนาที</div>'
+    +'<div id="ffList" style="font-size:13px;color:var(--ink-soft);text-align:center;padding:14px">กำลังโหลด…</div>'
+    +'<button id="ffClose" style="width:100%;margin-top:14px;padding:11px;border-radius:9px;border:1px solid var(--line-strong);background:transparent;color:var(--ink);font-weight:700;cursor:pointer;font-family:inherit">ปิดหน้าต่าง</button></div>';
+  document.body.appendChild(ov);
+  const close=()=>{ const o=document.getElementById('ffOvl'); if(o) o.remove(); };
+  ov.onclick=e=>{ if(e.target===ov) close(); };
+  document.getElementById('ffClose').onclick=close;
+  await loadFlags();
+  ffRender();
+}
+function ffRender(){
+  const box=document.getElementById('ffList'); if(!box) return;
+  const list=window.__ffList||[];
+  if(!list.length){
+    box.innerHTML='<div style="padding:12px;border-radius:9px;background:var(--field);border:1px solid var(--line);line-height:1.8">'
+      +'หลังบ้านยังไม่ได้อัปเดต — ยังเปิด/ปิดจากตรงนี้ไม่ได้<br>'
+      +'<span style="font-size:12px">วาง .gs ตัวใหม่ → Deploy → Run <b>setupV72</b> ก่อน</span></div>';
+    return;
+  }
+  box.style.color='var(--ink)'; box.style.textAlign='left'; box.style.padding='0';
+  box.innerHTML=list.map(f=>
+    '<div style="border:1px solid '+(f.on?'var(--ok)':'var(--line)')+';border-radius:11px;padding:11px 13px;margin-bottom:9px;background:'+(f.on?'rgba(45,122,74,.07)':'var(--paper)')+'">'
+    +'<div style="display:flex;align-items:center;gap:10px">'
+    +'<b style="flex:1;font-size:13.5px">'+escHtml(f.what||f.key)+'</b>'
+    +'<button class="ffTgl" data-k="'+escAttr(f.key)+'" data-on="'+(f.on?'0':'1')+'" style="flex:none;border:none;border-radius:20px;padding:6px 15px;font-size:12.5px;font-weight:700;cursor:pointer;font-family:inherit;background:'+(f.on?'var(--ok)':'var(--line-strong)')+';color:#fff">'+(f.on?'เปิดอยู่':'ปิดอยู่')+'</button></div>'
+    +'<div style="font-size:11.8px;color:var(--ink-soft);line-height:1.7;margin-top:5px">ถ้าปิด: '+escHtml(f.off||'-')+'</div></div>').join('');
+  box.querySelectorAll('.ffTgl').forEach(b=>b.onclick=()=>ffToggle(b.dataset.k,b.dataset.on,b));
+}
+async function ffToggle(key,on,btn){
+  if(btn){ btn.disabled=true; btn.textContent='กำลังบันทึก…'; }
+  try{
+    const j=await callAct({act:'flagset',key:key,on:on});
+    if(j&&j.ok){
+      await loadFlags(); ffRender();
+      flash(on==='1'?'✓ เปิดฟีเจอร์แล้ว':'✓ ปิดฟีเจอร์แล้ว — กลับเป็นของเดิม','ok');
+      // หน้าที่เปิดค้างอยู่ต้องวาดใหม่ ไม่งั้นเห็นของเก่าจนกว่าจะรีเฟรช
+      try{ if(document.body.classList.contains('bill-on')&&typeof renderDebt==='function') renderDebt(); }catch(e){}
+    } else { flash('เปลี่ยนไม่สำเร็จ'+((j&&j.result)?': '+(ACT_ERR[j.result]||j.result):''),'err'); ffRender(); }
+  }catch(e){ flash('เชื่อมต่อไม่สำเร็จ','err'); ffRender(); }
+}
 const ACT_ERR={forbidden:'รหัสแอดมินไม่ถูกต้อง (เช็ก ADMIN_TOKEN ในสคริปต์)',
   'no-id-col':'ชีทยังไม่มีคอลัมน์ ID — รัน migrateSheet ในชีทก่อน',
   'not-found':'ไม่พบใบนี้ในชีท (อาจถูกลบไปแล้ว)','bad-request':'ข้อมูลไม่ครบ','busy':'ระบบไม่ว่าง ลองใหม่',
@@ -4542,6 +4884,10 @@ const ACT_ERR={forbidden:'รหัสแอดมินไม่ถูกต้
   'self-verify':'จดเอง ตรวจเอง/ถอนเองไม่ได้ — ต้องให้อีกคนเป็นคนตรวจ',
   'reset-locked':'ป้าย “แก้หลังตรวจ” ถอนไม่ได้ — เทียบใบจริงแล้วกด ✅ ตรวจใหม่เท่านั้น',
   'pay-admin-only':'บันทึก/ถอนรับเงินได้เฉพาะแอดมิน — แจ้งเจ้าของให้กดให้',
+  'flag-admin-only':'เปิด/ปิดสวิตช์ระบบได้เฉพาะแอดมิน',
+  'flag-off':'ฟีเจอร์นี้ยังไม่ได้เปิด — เปิดที่แท็บ "สวิตช์ระบบ" ในชีทก่อน',
+  'bpay-amt':'ยอดที่รับต้องมากกว่า 0 บาท',
+  'pay-void-already':'รายการนี้ถูกยกเลิกไปแล้ว',
   'unknown-act':'หลังบ้านยังไม่ได้อัปเดต — ต้อง deploy Apps Script เวอร์ชันใหม่ก่อน'};
 async function deleteSelected(){
   const url=endpoint(); if(!url.startsWith('http')){ flash('ยังไม่ได้ตั้ง Sheet URL','err'); return; }
@@ -4995,6 +5341,8 @@ $("hsSearch").addEventListener('input',renderHist);
 $("hsReload").addEventListener('click',()=>loadHist(true));
 $("hsJob").addEventListener('change',()=>loadHist(true));
 document.querySelectorAll('#hsFilter .hf2').forEach(b=>b.addEventListener('click',()=>{ hsFilter=b.dataset.h; renderHist(); }));
+document.querySelectorAll('#hsKind .hf2').forEach(b=>b.addEventListener('click',()=>{ hsKindF=b.dataset.e; renderHist(); }));
+$("b3Lump").addEventListener('click',lumpPayDialog);
 document.querySelectorAll('#b3Filter .fb').forEach(f=>f.addEventListener('click',()=>{ debtFilter=f.dataset.f; renderDebt(); }));
 $("b3Q").addEventListener('input',e=>{ debtQ=e.target.value.trim(); renderDebt(); });
 $("btnB2New").addEventListener('click',()=>{ b2EditUid=''; bill2FormOpen(null); });
@@ -5924,6 +6272,8 @@ recalc();
       var ub=document.getElementById('userBtn'); if(ub) ub.style.display='none';
       if(window.__me&&window.__me.role==='admin'){
         var epw=document.getElementById('epWrap'); if(epw) epw.style.display='';
+        var ffb=document.getElementById('ffBtn');
+        if(ffb){ ffb.style.display=''; ffb.onclick=function(){ try{ openFlagPanel(); }catch(e){} }; }
         if(window.setAdmin) setAdmin('__role_admin__');
         var adb=document.getElementById('adminBtn');
         if(adb){ adb.textContent='👥 จัดการผู้ใช้'; adb.title='อนุมัติ/จัดการผู้ใช้'; adb.style.color=''; adb.onclick=openUserPanel; adb.style.display=''; }
@@ -5932,6 +6282,7 @@ recalc();
       }
       addUserChip();
       if(!window.__mfStarted && window.fetchMaster) fetchMaster();
+      try{ if(window.loadFlags) loadFlags(); }catch(e){}   // V72: ถามหลังบ้านว่าตอนนี้เปิดฟีเจอร์ไหนอยู่
     }catch(e){}
     scheduleRefresh();
   }
