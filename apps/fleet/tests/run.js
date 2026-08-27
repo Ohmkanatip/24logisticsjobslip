@@ -298,6 +298,31 @@ async function main() {
     ok(!/AKfy|AIza|pk\.eyJ|sk\.eyJ|Bearer [A-Za-z0-9_\-]{8,}/.test(src), 'ไม่มี secret/API key ฝังใน worker');
   }
 
+  section('mock feed: เวลาเพี้ยนต้องไม่ทำให้ state พังถาวร');
+  {
+    const { safeDt, makeInitialState, tick, toPings } = await import('../src/mock/feed.js');
+    ok(safeDt(60) === 60, 'ค่าปกติผ่านตรงๆ');
+    ok(safeDt(NaN) === 0, 'NaN → 0');
+    ok(safeDt(undefined) === 0, 'ไม่ส่งมา → 0');
+    ok(safeDt('abc') === 0, 'ข้อความ → 0');
+    ok(safeDt(-100) === 0, 'ติดลบ → 0 (รถถอยหลังข้ามเวลาไม่มีในโลกจริง)');
+    ok(safeDt(Infinity) === 0, 'Infinity → 0 (ไม่ใช่เวลาจริง จึงถือว่าไม่มีเวลาผ่านไป ปลอดภัยกว่าเดินสุดเพดาน)');
+    ok(safeDt(1e9) === 3600, 'ค่ามหาศาล → ตัดที่ 1 ชม. (กันเครื่อง sleep แล้วตื่นมากระโดดไกล)');
+    ok(safeDt('60') === 60, 'สตริงตัวเลขใช้ได้');
+
+    // ⭐ ของจริง: tick ด้วยค่าเพี้ยนครั้งเดียว = พิกัดทุกคันกลายเป็น NaN ค้างถาวร
+    for (const badDt of [NaN, undefined, 'abc', -50]) {
+      let st = makeInitialState();
+      st = tick(st, badDt);
+      const pings = toPings(st, 1756000000000);
+      const allFinite = pings.every((p) => Number.isFinite(p.lat) && Number.isFinite(p.lng));
+      ok(allFinite, '⭐ tick(' + JSON.stringify(badDt) + ') แล้วพิกัดยังใช้ได้ทุกคัน (ไม่เป็นพิษถาวร)');
+      // ต่อด้วย tick ปกติ ต้องเดินหน้าได้ตามปกติ
+      st = tick(st, 60);
+      ok(toPings(st, 1756000000000).every((p) => Number.isFinite(p.lat)), 'tick ปกติหลังจากนั้นยังทำงานได้');
+    }
+  }
+
   // ══ รูที่ mutation test เจอ (28 ส.ค. 2569) — ฝังบั๊กแล้วเทสเดิมยังเขียว ══
   section('อุดรูจาก mutation test');
   {

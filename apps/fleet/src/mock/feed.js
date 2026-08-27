@@ -77,11 +77,21 @@ export function makeInitialState() {
 }
 
 // เดินเวลาไป dtSec วินาที — pure function: ไม่แก้ state เดิม คืน state ใหม่
+// เวลาที่ผ่านไปต้องใช้ได้เสมอ — ค่าเพี้ยนแม้ครั้งเดียวทำให้ระยะทางกลายเป็น NaN
+// แล้ว NaN ติดอยู่ใน state ตลอดกาล (พิกัดรถทุกคันพังถาวรจนกว่าจะรีสตาร์ท) — พิสูจน์แล้ว 28 ส.ค. 2569
+// ติดลบ = ถอยหลัง (ไม่มีในโลกจริง) · เกิน 1 ชม. = กระโดดไกลเกินจริง (เช่นเครื่อง sleep แล้วตื่น)
+export function safeDt(dtSec, maxSec = 3600) {
+  const n = Number(dtSec);
+  if (!Number.isFinite(n) || n <= 0) return 0;
+  return n > maxSec ? maxSec : n;
+}
+
 export function tick(state, dtSec) {
+  const dt = safeDt(dtSec);
   const vehicles = state.vehicles.map((v) => {
     const copy = { ...v, job: v.job ? { ...v.job } : null };
     if (copy.status !== 'กำลังวิ่ง') return copy; // ว่าง/ถึงแล้ว = อยู่กับที่
-    let dist = copy.dist_m + (copy.speed_kmh / 3.6) * dtSec;
+    let dist = copy.dist_m + (copy.speed_kmh / 3.6) * dt;
     if (dist >= ROUTE_TOTAL_M) {
       dist = ROUTE_TOTAL_M;
       copy.status = 'ถึงแล้ว';

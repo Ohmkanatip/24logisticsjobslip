@@ -82,6 +82,16 @@ const MUTATIONS = [
     find: "  return `gps_track/${new Date(ts).toISOString().slice(0, 7)}/run-${cutoffTs}.csv.gz`;",
     replace: "  return `gps_track/${new Date(ts).toISOString().slice(0, 7)}.csv.gz`;" },
 
+  // ── mock feed: เวลาเพี้ยน ──
+  { name: 'safeDt: ถอด clamp (เวลาเพี้ยนครั้งเดียว = พิกัดรถ NaN ถาวร)',
+    file: 'src/mock/feed.js',
+    find: '  if (!Number.isFinite(n) || n <= 0) return 0;',
+    replace: '  if (false) return 0;' },
+  { name: 'safeDt: ไม่ตัดค่ามหาศาล (เครื่อง sleep แล้วตื่น = รถกระโดดข้ามประเทศ)',
+    file: 'src/mock/feed.js',
+    find: '  return n > maxSec ? maxSec : n;',
+    replace: '  return n;' },
+
   // ── ด่านความปลอดภัย ──
   { name: '⚠️ ถอดด่าน INGEST_TOKEN (ใครก็ยิงปิงปลอมเข้าฐานได้)',
     file: 'src/worker/api.js',
