@@ -30,11 +30,13 @@ export function makeMemoryStagingRepo() {
     },
     // รายการผลตามตัวกรอง — ค่าเริ่มต้นคืนเฉพาะที่ยังไม่ถูกดึง (status=confirmed)
     async listResults({ status = 'confirmed', driverId, jobUid } = {}) {
+      // ⚠️ ต้องเรียง id มาก→น้อย ให้ตรงกับ D1 (ORDER BY id DESC) เป๊ะ
+      //    เดิม memory คืนตามลำดับที่ใส่ (น้อย→มาก) — ตัวตรวจอิสระจับได้ว่า "interface เท่ากัน" แต่ผลลัพธ์ไม่เท่า
       return rows.filter((r) =>
         (status === 'all' || r.status === status) &&
         (!driverId || r.driver_id === driverId) &&
         (!jobUid || r.job_uid === jobUid)
-      ).map((r) => ({ ...r }));
+      ).map((r) => ({ ...r })).sort((a, b) => b.id - a.id);
     },
     // เว็บเอาไปใช้แล้ว — ติดธง ไม่ลบแถว (หลักเดียวกับถังขยะ/ประวัติของระบบแม่: ของไม่หายเงียบ)
     async markPulled(id, pulledBy, ts) {
@@ -56,7 +58,11 @@ export function makeD1StagingRepo(db) {
         `INSERT INTO ocr_results (container_no, confirmed_by, driver_id, job_uid, ts, status)
          VALUES (?, ?, ?, ?, ?, 'confirmed')`
       ).bind(containerNo, confirmedBy || null, driverId || null, jobUid || null, ts || null).run();
-      return { ok: true, id: r && r.meta ? r.meta.last_row_id : null };
+      // ⚠️ ต้องตรวจผลจริง — เดิมคืน ok:true เสมอ · D1 เขียนไม่สำเร็จแบบไม่ throw = คนขับเห็น "รับแล้ว" แต่ของไม่มีในฐาน
+      if (r && r.success === false) return { ok: false, reason: 'd1-insert-failed' };
+      const id = r && r.meta ? r.meta.last_row_id : null;
+      if (id === null || id === undefined) return { ok: false, reason: 'd1-no-row-id' };
+      return { ok: true, id };
     },
     async listResults({ status = 'confirmed', driverId, jobUid } = {}) {
       let sql = 'SELECT * FROM ocr_results WHERE 1=1';
@@ -69,13 +75,19 @@ export function makeD1StagingRepo(db) {
       return rs.results || [];
     },
     async markPulled(id, pulledBy, ts) {
+      // ⚠️ ต้องเป็นคำสั่งเดียว (UPDATE ... WHERE status='confirmed') — เดิมเป็น SELECT แล้วค่อย UPDATE
+      //    2 คำสั่งแยกกัน = มีช่องว่างให้คนที่ 2 แทรกกลาง แล้วดึงเบอร์เดียวกันไปใช้ 2 ใบ (ตัวตรวจอิสระจับได้)
+      //    UPDATE เดียวจบ: ใครถึงก่อนได้ไป · คนหลัง changes = 0 แล้วค่อยไปดูว่าทำไม
+      const upd = await db.prepare(
+        `UPDATE ocr_results SET status = 'pulled', pulled_by = ?, pulled_at = ?
+         WHERE id = ? AND status = 'confirmed'`
+      ).bind(pulledBy || null, ts || null, Number(id)).run();
+      const changed = upd && upd.meta ? upd.meta.changes : 0;
+      if (changed > 0) return { ok: true };
+      // ไม่ได้แถว = ไม่มี id นี้ หรือมีคนดึงไปแล้ว — ค่อยถามเพื่อบอกเหตุผลให้ถูก
       const row = await db.prepare('SELECT status, pulled_by FROM ocr_results WHERE id = ?').bind(Number(id)).first();
       if (!row) return { ok: false, reason: 'not-found' };
-      if (row.status === 'pulled') return { ok: false, reason: 'already-pulled', pulledBy: row.pulled_by };
-      await db.prepare(
-        `UPDATE ocr_results SET status = 'pulled', pulled_by = ?, pulled_at = ? WHERE id = ?`
-      ).bind(pulledBy || null, ts || null, Number(id)).run();
-      return { ok: true };
+      return { ok: false, reason: 'already-pulled', pulledBy: row.pulled_by };
     },
   };
 }

@@ -134,7 +134,10 @@ export async function handleEvent(event, deps) {
       }
       await lineClient.replyMessage(event.replyToken, [{
         type: 'text',
-        text: '✅ บันทึกเบอร์ ' + v.normalized + ' เข้าใบงานเรียบร้อย ขอบคุณครับ'
+        // ⚠️ ห้ามบอกว่า "เข้าใบงานแล้ว" ถ้าแค่พักไว้รอเว็บดึง (ทาง ③ d1 staging) — ข้อความต้องตรงความจริง
+        text: w.staged
+          ? '✅ รับเบอร์ ' + v.normalized + ' แล้ว ส่งให้ออฟฟิศเรียบร้อย ขอบคุณครับ'
+          : '✅ บันทึกเบอร์ ' + v.normalized + ' เข้าใบงานเรียบร้อย ขอบคุณครับ'
       }]);
       return { ok: true, written: true, containerNo: v.normalized, jobUid };
     }

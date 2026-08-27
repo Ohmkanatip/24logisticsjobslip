@@ -14,3 +14,7 @@ LINE_CHANNEL_ACCESS_TOKEN=
 
 # โทเคนกันคนนอกอ่าน/แก้ผล OCR ผ่าน /api/ocr/* — ก่อนใช้จริงต้องตั้งเสมอ (ว่าง = โหมดทดลอง ไม่ตรวจ)
 PULL_TOKEN=
+
+# โดเมนเว็บ jobslip ที่อนุญาตให้ดึงผล OCR ข้ามโดเมนได้ (CORS) — ไม่ตั้ง = ไม่ปล่อย CORS เลย
+# ของจริงใส่: https://ohmkanatip.github.io
+ALLOW_ORIGIN=

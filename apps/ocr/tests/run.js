@@ -390,6 +390,116 @@ async function main() {
       'schema.sql มีตาราง ocr_results ครบช่อง status/pulled_by');
   }
 
+
+  // ══ ล็อกบั๊กที่ตัวตรวจอิสระเจอ 28 ส.ค. 2569 (พิสูจน์แล้วทุกข้อก่อนแก้) ══
+  console.log('\n== ล็อกบั๊กจากรีวิว adversarial ==');
+  {
+    const { makeMemoryStagingRepo } = await import('../src/db/staging.js');
+    const { chooseWriteback } = await import('../src/writeback/index.js');
+    const worker2 = (await import('../src/worker/index.js')).default;
+
+    // ① ข้อความถึงคนขับต้องไม่หลอกว่า "เข้าใบงานแล้ว" ทั้งที่แค่พักรอเว็บดึง
+    {
+      const repo = makeMemoryStagingRepo();
+      const lc = createMockLineClient();
+      await handleEvent(
+        { type: 'postback', replyToken: 'rtA', timestamp: 1756000000000,
+          postback: { data: 'action=confirm&container=CSQU3054383' }, source: { userId: 'U1' } },
+        { lineClient: lc, engine: createMockEngine(''), writeback: chooseWriteback({ WRITEBACK_PROVIDER: 'd1' }, repo) }
+      );
+      const txt = JSON.stringify(lc.calls.filter((c) => c.fn === 'replyMessage').pop());
+      ok(!/เข้าใบงาน/.test(txt), '⭐ ทาง staging: ห้ามบอกคนขับว่า "เข้าใบงานเรียบร้อย" (ยังไม่เข้า)', txt.slice(0, 120));
+      ok(/ส่งให้ออฟฟิศ/.test(txt), 'บอกตามจริงว่าส่งให้ออฟฟิศแล้ว');
+    }
+
+    // ② ลืมตั้ง WRITEBACK_PROVIDER ต้องไม่หล่นลง mock (ข้อมูลหายเงียบ)
+    {
+      const repo = makeMemoryStagingRepo();
+      const w = chooseWriteback({}, repo);
+      ok(w.provider === 'mock', 'chooseWriteback({}) ยังเป็น mock ตามสัญญาเดิมของฟังก์ชัน');
+      const src = await (await import('node:fs/promises')).readFile(new URL('../src/worker/index.js', import.meta.url), 'utf8');
+      ok(/WRITEBACK_PROVIDER\)\s*\|\|\s*'d1'/.test(src),
+        '⭐ worker ใช้ค่าเริ่มต้น d1 (ลืมตั้ง env = ยังเข้า staging ไม่ใช่หายลง mock)');
+    }
+
+    // ③ memory กับ D1 ต้องเรียงเหมือนกัน (ทั้งคู่ id มาก→น้อย)
+    {
+      const repo = makeMemoryStagingRepo();
+      await repo.insertResult({ containerNo: 'AAAU0000001', ts: 1 });
+      await repo.insertResult({ containerNo: 'BBBU0000002', ts: 2 });
+      const ids = (await repo.listResults()).map((r) => r.id);
+      ok(ids[0] === 2 && ids[1] === 1, '⭐ memory เรียง id มาก→น้อย ตรงกับ D1 (ORDER BY id DESC)', ids);
+    }
+
+    // ④ insertResult ของ D1 ต้องตรวจผลจริง ไม่ใช่ ok:true เสมอ
+    {
+      const { makeD1StagingRepo } = await import('../src/db/staging.js');
+      const failDb = { prepare: () => ({ bind() { return this; }, async run() { return { success: false }; } }) };
+      const r = await makeD1StagingRepo(failDb).insertResult({ containerNo: 'CSQU3054383' });
+      ok(r.ok === false, '⭐ D1 เขียนไม่สำเร็จ → insertResult ต้องคืน ok:false (เดิมคืน true เสมอ)', r);
+      const noIdDb = { prepare: () => ({ bind() { return this; }, async run() { return { success: true, meta: {} }; } }) };
+      ok((await makeD1StagingRepo(noIdDb).insertResult({ containerNo: 'CSQU3054383' })).ok === false,
+        'ไม่ได้ row id กลับมา = ถือว่าไม่สำเร็จ');
+    }
+
+    // ⑤ markPulled ของ D1 ต้องเป็น UPDATE คำสั่งเดียว (กัน race ดึงเบอร์เดียวไป 2 ใบ)
+    {
+      const { makeD1StagingRepo } = await import('../src/db/staging.js');
+      const sqls = [];
+      const db = { prepare(sql) { sqls.push(sql); return { bind() { return this; },
+        async run() { return { meta: { changes: 1 } }; }, async first() { return null; } }; } };
+      const r = await makeD1StagingRepo(db).markPulled(5, 'ธุรการ', 1);
+      ok(r.ok === true, 'markPulled สำเร็จเมื่อ UPDATE โดนแถว');
+      ok(sqls.length === 1 && /UPDATE/.test(sqls[0]) && /status\s*=\s*'confirmed'/.test(sqls[0]),
+        "⭐ ใช้ UPDATE ... WHERE status='confirmed' คำสั่งเดียว (เดิม SELECT แล้ว UPDATE = มี race)", sqls);
+      const db2 = { prepare(sql) { return { bind() { return this; },
+        async run() { return { meta: { changes: 0 } }; },
+        async first() { return { status: 'pulled', pulled_by: 'คนแรก' }; } }; } };
+      const r2 = await makeD1StagingRepo(db2).markPulled(5, 'คนที่สอง', 1);
+      ok(r2.ok === false && r2.reason === 'already-pulled' && r2.pulledBy === 'คนแรก',
+        'คนที่ 2 ถูกปฏิเสธพร้อมบอกว่าใครดึงไปแล้ว', r2);
+    }
+
+    // ⑥ ขึ้นของจริงแล้วลืมตั้ง PULL_TOKEN = ปฏิเสธ ไม่ใช่เปิดโล่ง
+    {
+      const prodEnv = { LINE_CHANNEL_SECRET: 'x' };   // มี secret = ไม่ใช่โหมดทดลอง
+      const res = await worker2.fetch(new Request('http://x/api/ocr/results'), prodEnv, {});
+      const body = await res.json();
+      ok(res.status === 503 && body.reason === 'server-misconfigured',
+        '⭐ โหมดจริงไม่มี PULL_TOKEN → ปฏิเสธ 503 (เดิมเปิดโล่งให้ใครก็อ่านได้)', { status: res.status, body });
+      const devRes = await worker2.fetch(new Request('http://x/api/ocr/results'), {}, {});
+      ok(devRes.status === 200, 'โหมดทดลองในเครื่องยังใช้ได้สะดวกเหมือนเดิม');
+      const okRes = await worker2.fetch(new Request('http://x/api/ocr/results', { headers: { authorization: 'Bearer t' } }),
+        { LINE_CHANNEL_SECRET: 'x', PULL_TOKEN: 't' }, {});
+      ok(okRes.status === 200, 'ตั้ง token แล้วแนบถูก = ผ่าน');
+      const badRes = await worker2.fetch(new Request('http://x/api/ocr/results', { headers: { authorization: 'Bearer wrong-token' } }),
+        { LINE_CHANNEL_SECRET: 'x', PULL_TOKEN: 't' }, {});
+      ok(badRes.status === 401, 'token ผิด = 401');
+    }
+
+    // ⑦ CORS — เว็บ jobslip อยู่คนละโดเมน ไม่มี header นี้ = ดึงผลไม่ได้เลย
+    {
+      const env = { ALLOW_ORIGIN: 'https://ohmkanatip.github.io' };
+      const pre = await worker2.fetch(new Request('http://x/api/ocr/results', { method: 'OPTIONS' }), env, {});
+      ok(pre.status === 204 && pre.headers.get('access-control-allow-origin') === env.ALLOW_ORIGIN,
+        '⭐ ตอบ preflight (OPTIONS) พร้อม allow-origin', pre.status);
+      ok(/authorization/i.test(pre.headers.get('access-control-allow-headers') || ''),
+        'อนุญาต header authorization (เว็บต้องแนบ token)');
+      const got = await worker2.fetch(new Request('http://x/api/ocr/results'), env, {});
+      ok(got.headers.get('access-control-allow-origin') === env.ALLOW_ORIGIN, 'GET จริงก็มี allow-origin');
+      const noCors = await worker2.fetch(new Request('http://x/api/ocr/results'), {}, {});
+      ok(!noCors.headers.get('access-control-allow-origin'), 'ไม่ตั้ง ALLOW_ORIGIN = ไม่ปล่อย CORS (ปลอดภัยไว้ก่อน)');
+    }
+
+    // ⑧ /api/ocr/pulled แยกรหัสสถานะให้ฝั่งเว็บอ่านออก
+    {
+      const env = {};
+      const r1 = await worker2.fetch(new Request('http://x/api/ocr/pulled', { method: 'POST',
+        body: JSON.stringify({ id: 999999, by: 'ธุรการ' }) }), env, {});
+      ok(r1.status === 404, '⭐ ไม่มีแถวนี้ = 404 (เดิมเหมารวม 409 ทุกกรณี)', r1.status);
+    }
+  }
+
   console.log('\nผ่าน ' + pass + ' · ตก ' + fail);
   process.exit(fail === 0 ? 0 : 1);
 }
