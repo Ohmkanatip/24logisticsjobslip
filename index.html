@@ -582,6 +582,7 @@
   .plvoid:hover{border-color:var(--warn);color:var(--warn)}
   .plsum{display:flex;gap:8px;padding:7px 10px;border-top:1px dashed var(--line-strong);font-size:12.5px;font-weight:700}
   .plsum span:last-child{margin-left:auto;font-family:'IBM Plex Mono',monospace}
+  #b2Body{scroll-margin-top:12px}
   #b3QInfo:empty{display:none}
   #b3QInfo{align-self:center;font-size:12.5px;font-weight:700;color:var(--accent);background:var(--accent-soft);border:1px solid var(--accent);border-radius:20px;padding:5px 11px}
 
@@ -1131,9 +1132,11 @@
         </div>
       </div>
       <div class="dtwo">
-        <div class="dcard"><div class="dcard-h"><h3>🏢 ลูกค้าที่ทำเงินสูงสุด</h3></div><div class="dcard-b" id="topCust"></div></div>
+        <div class="dcard"><div class="dcard-h"><h3>🏢 ลูกค้าที่ทำเงินสูงสุด</h3><span class="note">กดชื่อดูรายบริษัท</span></div><div class="dcard-b" id="topCust"></div></div>
         <div class="dcard"><div class="dcard-h"><h3>⏰ ค้างจ่ายนานสุด</h3><span class="note">ควรตามเก็บ</span></div><div class="dcard-b" id="overdue"></div></div>
       </div>
+      <!-- V72.4 (เจ้าของขอ 26 ส.ค.): แยกรายบริษัท รับมาแล้วเท่าไหร่ ยังขาดเท่าไหร่ · กดชื่อเจาะดูรายบิล -->
+      <div class="dcard" style="margin-top:14px"><div class="dcard-h"><h3>🟡 บริษัทที่ยังเก็บเงินไม่ครบ</h3><span class="note">กดชื่อดูรายบิล</span></div><div class="dcard-b" id="dPartial"><div style="text-align:center;color:var(--ink-soft);padding:14px;font-size:13px">กำลังโหลด…</div></div></div>
     </div>
 
     <div class="view" id="vOps">
@@ -1429,6 +1432,7 @@
         <button class="fb" data-f="over">🔴 เกินกำหนด <span class="b" id="b3c-over">0</span></button>
         <button class="fb" data-f="soon" title="ครบกำหนดภายใน 7 วัน · รวมบิลที่ยังไม่ได้ตั้งวันครบกำหนดด้วย">🟠 ใกล้ครบ / ยังไม่ตั้ง <span class="b" id="b3c-soon">0</span></button>
         <button class="fb" data-f="ok">🟢 ยังไม่ถึงกำหนด <span class="b" id="b3c-ok">0</span></button>
+        <button class="fb" data-f="part" title="บิลที่ลูกค้าจ่ายมาแล้วบางส่วน ยังขาดอยู่ — ควรตามต่อ">🟡 รับบางส่วน <span class="b" id="b3c-part">0</span></button>
         <button class="fb" data-f="done" title="เก็บเงินครบแล้ว — ไม่นับเป็นยอดค้าง แต่ยังหาเจอไว้แก้/ลบได้">✅ เก็บแล้ว <span class="b" id="b3c-done">0</span></button>
       </div>
     </div>
@@ -2683,6 +2687,65 @@ function dashCacheLoad(){
   }catch(e){}
   return false;
 }
+/* ══ V72.4 (เจ้าของขอ 26 ส.ค.): แยกรายบริษัท "รับมาแล้ว / ยังขาด" + เจาะดูรายบิล ══
+   ใช้ข้อมูลลูกหนี้ (act=bdebt) ที่มี paidAmt/remain/done ครบอยู่แล้ว — ไม่ต้องแก้หลังบ้าน */
+let __ddInvs=null, __ddAt=0;
+async function dashDebtData(force){
+  if(!force&&__ddInvs&&Date.now()-__ddAt<60000) return __ddInvs;
+  try{ const j=await callAct({act:'bdebt'});
+    if(j&&j.ok&&Array.isArray(j.invs)){ __ddInvs=j.invs; __ddAt=Date.now(); } }catch(e){}
+  return __ddInvs||[];
+}
+async function fillDashPartial(){
+  const box=$("dPartial"); if(!box) return;
+  const invs=await dashDebtData();
+  const g={}, order=[];
+  invs.forEach(x=>{ const c=String(x.cust||'-');
+    if(!g[c]){ g[c]={got:0,remain:0,nOpen:0}; order.push(c); }
+    g[c].got+=Number(x.paidAmt)||0;
+    if(!x.done){ g[c].remain+=Number(x.remain)||0; if((Number(x.remain)||0)>0) g[c].nOpen++; } });
+  const rows=order.filter(c=>g[c].remain>0).sort((x,y)=>g[y].remain-g[x].remain);
+  if(!rows.length){ box.innerHTML='<div style="text-align:center;color:var(--ok);padding:14px">'+(invs.length?'เก็บเงินครบทุกบริษัทแล้ว 🎉':'ยังไม่มีบิลที่ยืนยันวางบิล')+'</div>'; return; }
+  box.innerHTML=rows.slice(0,10).map(c=>'<div class="od" data-cu="'+escAttr(c)+'" style="cursor:pointer" title="กดดูรายบิลของบริษัทนี้">'
+    +'<span class="info"><b>'+escHtml(c)+'</b><small>'+g[c].nOpen+' บิลค้าง'+(g[c].got>0?' · รับมาแล้ว '+dMoney(g[c].got):' · ยังไม่ได้รับเลย')+'</small></span>'
+    +'<span class="amt" style="color:var(--warn)">ขาด '+dMoney(g[c].remain)+'</span></div>').join('')
+    +(rows.length>10?'<div style="text-align:center;font-size:11.5px;color:var(--ink-soft);padding:6px">…และอีก '+(rows.length-10)+' บริษัท (กดชื่อในอันดับลูกค้าดูได้)</div>':'');
+  box.querySelectorAll('[data-cu]').forEach(el=>el.onclick=()=>dashCustDrill(el.dataset.cu));
+}
+/* ป๊อปอัพข้อมูลแยกรายบริษัท: บิลทุกใบ (ค้าง+เก็บแล้ว) · รับมาแล้ว/ยังขาด */
+async function dashCustDrill(name){
+  let ov=document.getElementById('ddOvl'); if(ov) ov.remove();
+  ov=document.createElement('div'); ov.id='ddOvl';
+  ov.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:9200;display:flex;align-items:center;justify-content:center;padding:16px';
+  ov.innerHTML='<div style="background:var(--panel);color:var(--ink);border-radius:14px;max-width:620px;width:100%;padding:20px;box-shadow:var(--shadow);max-height:88vh;overflow:auto">'
+    +'<h3 style="margin:0 0 2px;font-size:17px">🏢 '+escHtml(name)+'</h3>'
+    +'<div id="ddBody" style="font-size:13px;color:var(--ink-soft);padding:12px 0">กำลังโหลด…</div>'
+    +'<button id="ddClose" style="width:100%;margin-top:6px;padding:11px;border-radius:9px;border:1px solid var(--line-strong);background:transparent;color:var(--ink);font-weight:700;cursor:pointer;font-family:inherit">ปิด</button></div>';
+  document.body.appendChild(ov);
+  const close=()=>{ const o=document.getElementById('ddOvl'); if(o) o.remove(); };
+  ov.onclick=e=>{ if(e.target===ov) close(); };
+  ov.querySelector('#ddClose').onclick=close;
+  const invs=(await dashDebtData()).filter(x=>String(x.cust||'-')===name);
+  const bd=ov.querySelector('#ddBody'); if(!bd) return;
+  if(!invs.length){ bd.innerHTML='<div class="empty">ไม่พบบิลที่ยืนยันวางบิลของบริษัทนี้<div style="font-size:11.5px;margin-top:4px">(ยอดในอันดับลูกค้ามาจากใบที่ยังอยู่ในคิว — ยังไม่เป็นลูกหนี้)</div></div>'; return; }
+  const total=invs.reduce((s,x)=>s+(Number(x.amount)||0),0);
+  const got=invs.reduce((s,x)=>s+(Number(x.paidAmt)||0),0);
+  const remain=invs.filter(x=>!x.done).reduce((s,x)=>s+(Number(x.remain)||0),0);
+  const box=(l,v,c)=>'<div style="flex:1;min-width:120px;background:var(--paper);border:1px solid var(--line);border-radius:10px;padding:9px 11px"><div style="font-size:11px;color:var(--ink-soft)">'+l+'</div><div style="font-size:16px;font-weight:700;font-family:\'IBM Plex Mono\',monospace'+(c?';color:'+c:'')+'">'+dMoney(v)+'</div></div>';
+  const open=invs.filter(x=>!x.done).sort((a,b)=>(b.overdue||0)-(a.overdue||0));
+  const done=invs.filter(x=>x.done);
+  const row=x=>'<div style="display:flex;gap:8px;align-items:center;border-top:1px solid var(--line);padding:7px 2px;font-size:12.5px">'
+    +'<span style="flex:1;min-width:0"><b>'+(x.invno?'🧾 '+escHtml(x.invno):'<span style="color:var(--warn)">ไม่มีเลขบิล</span>')+'</b>'
+    +' <span style="color:var(--ink-soft)">ตู้ '+escHtml((x.conts||[]).join(' + ')||'-')+'</span>'
+    +'<br><span style="font-size:11px;color:var(--ink-soft)">'+b3DueTxt(x)
+    +((Number(x.paidAmt)||0)>0?' · <span style="color:var(--ok)">รับแล้ว '+b3Money(x.paidAmt)+'</span>':'')+'</span></span>'
+    +'<span class="mono" style="white-space:nowrap;font-weight:600'+(x.done?';color:var(--ok)':';color:var(--warn)')+'">'
+    +(x.done?'✅ ครบ':'ขาด '+b3Money(x.remain))+'</span></div>';
+  bd.innerHTML='<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px">'
+    +box('มูลค่าบิลทั้งหมด',total,'')+box('💵 รับมาแล้ว',got,'var(--ok)')+box('ยังขาดอยู่',remain,remain>0?'var(--warn)':'var(--ok)')+'</div>'
+    +(open.length?'<div style="font-weight:700;font-size:12.5px;margin:6px 0 2px">ยังค้าง '+open.length+' บิล</div>'+open.map(row).join(''):'')
+    +(done.length?'<div style="font-weight:700;font-size:12.5px;margin:12px 0 2px;color:var(--ok)">เก็บครบแล้ว '+done.length+' บิล</div>'+done.map(row).join(''):'');
+}
 function renderDash(){
   const D=dashData; if(!D) return;
   const M=D.money, O=D.ops;
@@ -2713,11 +2776,13 @@ function renderDash(){
       +'<div class="hint" style="margin:6px 0 0">ระบบบิลเพิ่งเริ่มใช้ 15 ส.ค. 2569 — ช่วงก่อนหน้านั้นจึงยังไม่มีข้อมูล</div></div>';
   } else {
     const cmax=M.topCust[0].amt||1;
-    $("topCust").innerHTML=M.topCust.map((c,i)=>'<div class="rank"><span class="no'+(i===0?' top':'')+'">'+(i+1)+'</span>'
+    $("topCust").innerHTML=M.topCust.map((c,i)=>'<div class="rank" data-cu="'+escAttr(c.name)+'" style="cursor:pointer" title="กดดูข้อมูลแยกของบริษัทนี้"><span class="no'+(i===0?' top':'')+'">'+(i+1)+'</span>'
       +'<span class="nm">'+escHtml(c.name)+'<small>'+c.n+' ใบ</small>'
       +'<span class="barbg"><span class="barfill" style="width:'+Math.round(c.amt/cmax*100)+'%"></span></span></span>'
       +'<span class="amt">'+dMoney(c.amt)+'</span></div>').join('');
+    $("topCust").querySelectorAll('[data-cu]').forEach(el=>el.onclick=()=>dashCustDrill(el.dataset.cu));   // V72.4
   }
+  fillDashPartial();   // V72.4: การ์ด "ยังเก็บไม่ครบ" ใช้ข้อมูลลูกหนี้ โหลดแยกไม่ถ่วงแดชบอร์ด
   $("overdue").innerHTML=M.overdue.length?M.overdue.map(o=>'<div class="od"><span class="days">'+o.days+' วัน</span>'
     +'<span class="info"><b>'+escHtml(o.cust||'-')+'</b><small>'+(o.inv?'🧾 '+escHtml(o.inv):'ไม่มีเลขบิล')+'</small></span>'
     +'<span class="amt">'+dMoney(o.amt)+'</span></div>').join('')
@@ -2798,18 +2863,24 @@ function renderDebt(){
      ถ้าเผลอเอา all ไปรวม ยอดค้างจะพองขึ้นทันทีที่มีใบเก็บแล้ว */
   const open=all.filter(x=>!x.done), nDone=all.length-open.length;
   const nOver=open.filter(x=>b3Bucket(x)==='over').length, nSoon=open.filter(x=>b3Bucket(x)==='soon').length, nOk=open.filter(x=>b3Bucket(x)==='ok').length;
+  const parts=open.filter(x=>(Number(x.paidAmt)||0)>0);          // V72.4: จ่ายมาแล้วบางส่วน ยังไม่ครบ
   const sumAll=open.reduce((s,x)=>s+(Number(x.remain)||0),0);
   const sumOver=open.filter(x=>b3Bucket(x)==='over').reduce((s,x)=>s+(Number(x.remain)||0),0);
+  const sumGot=all.reduce((s,x)=>s+(Number(x.paidAmt)||0),0);    // V72.4: เงินที่รับมาแล้ว (รวมบิลที่ปิดแล้ว)
   $("b3Count").textContent=open.length+' บิลที่ยังไม่ได้เงิน';
   $("b3Sum").innerHTML='<div class="box"><div class="lbl">รวมค้างรับทั้งหมด</div><div class="val">'+b3Money(sumAll)+'</div></div>'
     +'<div class="box"><div class="lbl">เกินกำหนดแล้ว</div><div class="val'+(sumOver?' red':'')+'">'+b3Money(sumOver)+'</div></div>'
+    +'<div class="box"><div class="lbl">💵 รับมาแล้ว</div><div class="val" style="color:var(--ok)">'+b3Money(sumGot)+'</div></div>'
     +'<div class="box"><div class="lbl">จำนวนบิล</div><div class="val">'+open.length+'</div></div>';
   $("b3c-all").textContent=open.length; $("b3c-over").textContent=nOver; $("b3c-soon").textContent=nSoon; $("b3c-ok").textContent=nOk;
+  const pc=$("b3c-part"); if(pc) pc.textContent=parts.length;
   $("b3c-done").textContent=nDone;
   $("b3QInfo").textContent=debtQ?('🔍 ตรงกับที่ค้น '+all.length+' จาก '+debtInvs.length+' บิล'):'';
   document.querySelectorAll('#b3Filter .fb').forEach(f=>f.classList.toggle('on',f.dataset.f===debtFilter));
   // "ทั้งหมด" = เฉพาะที่ยังค้าง · ใบที่เก็บแล้วดูได้ที่ชิป ✅ เก็บแล้ว (หน้านี้คือหน้าติดตามหนี้ ความหมายต้องไม่เพี้ยน)
-  const shown=(debtFilter==='all'?open:all.filter(x=>b3Bucket(x)===debtFilter))
+  const shown=(debtFilter==='all'?open
+      :debtFilter==='part'?open.filter(x=>(Number(x.paidAmt)||0)>0)   // V72.4: รับบางส่วน = ค้าง + เคยจ่ายมาแล้ว
+      :all.filter(x=>b3Bucket(x)===debtFilter))
     .sort((a,b)=>(b.overdue||0)-(a.overdue||0));   // ค้างนานสุดขึ้นก่อน
   if(!shown.length){
     /* V63.2: ค้นเจอแต่ใบอยู่หลังชิปอื่น → ห้ามบอก "ไม่พบ" เฉยๆ (ป้ายบนบอกว่าเจอ แต่การ์ดไม่โผล่ = คนใช้งง) */
@@ -2820,7 +2891,7 @@ function renderDebt(){
       const gb=document.getElementById('b3GoDone'); if(gb) gb.onclick=()=>{ debtFilter='done'; renderDebt(); };
       return;
     }
-    $("b3Body").innerHTML='<div class="empty" style="color:var(--ok)">'+(debtQ?'ไม่พบบิลที่ตรงกับที่ค้น':(debtFilter==='done'?'ยังไม่มีบิลที่เก็บเงินครบ':(debtInvs.length?'ไม่มีบิลในกลุ่มนี้':'เก็บเงินครบทุกบิลแล้ว 🎉')))+'</div>';
+    $("b3Body").innerHTML='<div class="empty" style="color:var(--ok)">'+(debtQ?'ไม่พบบิลที่ตรงกับที่ค้น':(debtFilter==='done'?'ยังไม่มีบิลที่เก็บเงินครบ':(debtFilter==='part'?'ไม่มีบิลที่รับเงินมาบางส่วน':(debtInvs.length?'ไม่มีบิลในกลุ่มนี้':'เก็บเงินครบทุกบิลแล้ว 🎉'))))+'</div>';
     return;
   }
   $("b3Body").innerHTML=shown.map(x=>{
@@ -3435,7 +3506,7 @@ function renderBill2(){
     $("b2Body").querySelectorAll('.b2chk').forEach(c=>c.onchange=()=>{ if(c.checked)bill2Sel[c.dataset.k]=1; else delete bill2Sel[c.dataset.k]; renderBill2(); });
     $("b2Body").querySelectorAll('[data-act]').forEach(b=>b.onclick=()=>bill2Act(b.dataset.act,b.dataset.k,b.dataset.u||''));
   }
-  document.querySelectorAll('.billfilter2 .fb').forEach(f=>f.classList.toggle('on',f.dataset.f===bill2Filter));
+  document.querySelectorAll('#b2Filter .fb').forEach(f=>f.classList.toggle('on',f.dataset.f===bill2Filter));   // V72.4: เจาะจงชิปคิว — เดิมคลาสรวมไปทับสถานะชิปหน้าลูกหนี้ด้วย
 }
 
 /* ---- แท็บ "เพิ่งวางบิล" (วันนี้) ---- */
@@ -3446,7 +3517,7 @@ async function loadBill2Recent(){
 function renderBill2Recent(){
   $("b2SelAllRow").style.display='none'; $("b2Bulk").style.display='none';
   const bs=$("b2Search"); if(bs) bs.style.display='none';
-  document.querySelectorAll('.billfilter2 .fb').forEach(f=>f.classList.toggle('on',f.dataset.f==='recent'));
+  document.querySelectorAll('#b2Filter .fb').forEach(f=>f.classList.toggle('on',f.dataset.f==='recent'));
   if(!bill2RecentRows.length){ $("b2Body").innerHTML='<div class="empty">วันนี้ยังไม่มีบิลที่เพิ่งวางบิล</div>'; return; }
   const g={},order=[]; // งานที่รวมไว้ = การ์ดเดียว (ดึงกลับทีเดียวทั้งกลุ่ม)
   bill2RecentRows.forEach(r=>{ const k=b2GroupKey(r); if(!g[k]){ g[k]=[]; order.push(k); } g[k].push(r); });
@@ -3751,13 +3822,20 @@ function updateLoadSuggest(){
   const push=(load,label)=>{ const k=rNorm(load); if(!load||seen[k]) return; seen[k]=1;
     opts.push('<option value="'+escAttr(load)+'"'+(label?(' label="'+escAttr(label)+'"'):'')+'></option>'); };
   const mine=rateBaseRows();
-  if(mine.length&&rNorm($("b2_customer").value)){     // ลูกค้ารายนี้มีเรท → เสนอจากตารางก่อน
+  if(mine.length&&rNorm($("b2_customer").value)){
+    /* V72.4 (เจ้าของสั่ง 26 ส.ค.): เข้มแบบเดียวกับช่องลาน — แนะนำเฉพาะที่ "ตรงเส้นทางที่กรอกแล้ว" ในชีทจริง
+       เส้นทางนี้ไม่มีในตารางเรท = ไม่แนะนำอะไรเลย (พิมพ์เองได้เสมอ)
+       เลิกถอยไปโชว์ของกว้าง + เลิกต่อท้ายรายการอื่นของลูกค้า + เลิกต่อ master (เดิมทำให้เส้นทางอื่นโผล่เต็มลิสต์) */
     const lbl=r=>{ const pr=ratePrice(r,size); return [r.sub,(r.from&&r.to)?(r.from+'-'+r.to):'',pr?(b2Money(pr)+' บ.'):''].filter(Boolean).join(' · '); };
-    const narrow=rateNarrow(mine,'load');
-    narrow.forEach(r=>push(r.load,lbl(r)));           // ที่เข้ากับลาน/เส้นทางที่กรอกไว้ ขึ้นก่อน
-    mine.forEach(r=>push(r.load,lbl(r)));             // ที่เหลือของลูกค้ารายนี้ ต่อท้าย
+    const yi=$("b2_yardIn").value.trim(), yo=$("b2_yardOut").value.trim();
+    let strict=mine;
+    if(yi){ const z=zoneOf(yi); strict=strict.filter(r=>routeSideMatch(r,'from',yi,z)); }
+    if(yo){ const z=zoneOf(yo); strict=strict.filter(r=>routeSideMatch(r,'to',yo,z)); }
+    strict.forEach(r=>push(r.load,lbl(r)));
+  } else {
+    // ลูกค้าไม่มีเรทในชีท = ไม่มี "เส้นทางในชีท" ให้ยึด → ใช้ master list เดิมช่วยพิมพ์ (พฤติกรรม V63.4)
+    try{ uniq(store.lists.loadPlace||[]).forEach(v=>push(v,'')); }catch(e){}
   }
-  try{ uniq(store.lists.loadPlace||[]).forEach(v=>push(v,'')); }catch(e){}   // master list เดิมต่อท้าย กันของหาย
   dl.innerHTML=opts.join('');
 }
 function findRates(rec){
@@ -5357,7 +5435,10 @@ $("btnB2ExAdd").addEventListener('click',()=>{ b2Ex.push({n:'',v:''}); b2RenderE
 ['b2_trans','b2_recv','b2_ret'].forEach(id=>$(id).addEventListener('input',b2Recalc));
 $("b2_customer").addEventListener('change',b2RateApply);
 $("b2_loadPlace").addEventListener('change',b2RateApply);
-document.querySelectorAll('.billfilter2 .fb').forEach(f=>f.addEventListener('click',()=>{ bill2Filter=f.dataset.f; document.querySelectorAll('.billfilter2 .fb').forEach(x=>x.classList.toggle('on',x.dataset.f===bill2Filter)); $("b2Bulk").style.display='none'; if(bill2Filter==='recent') loadBill2Recent(); else loadBill2Queue(); }));
+document.querySelectorAll('#b2Filter .fb').forEach(f=>f.addEventListener('click',()=>{ bill2Filter=f.dataset.f; document.querySelectorAll('#b2Filter .fb').forEach(x=>x.classList.toggle('on',x.dataset.f===bill2Filter)); $("b2Bulk").style.display='none'; if(bill2Filter==='recent') loadBill2Recent(); else loadBill2Queue();
+  // V72.4 (เจ้าของขอ): กดชิปแล้วเด้งลงไปที่รายการเลย ไม่ต้องเลื่อนเอง
+  setTimeout(()=>{ try{ $("b2Body").scrollIntoView({behavior:'smooth',block:'start'}); }catch(e){} },80);
+}));
 $("b2Q").addEventListener('input',bill2SearchSync);
 $("b2From").addEventListener('change',bill2SearchSync);
 $("b2To").addEventListener('change',bill2SearchSync);
