@@ -1,0 +1,14 @@
+{
+  // multi-root workspace — เปิดด้วย VS Code: File → Open Workspace from File
+  // เห็น 4 โปรเจกต์แยกกันในหน้าต่างเดียว แต่ละอันมี terminal/context ของตัวเอง
+  "folders": [
+    { "name": "① PRODUCTION (ระบบใบงาน — อย่าแตะโดยไม่มี rollback)", "path": "." },
+    { "name": "② Fleet Map + GPS (โครงรอ key)", "path": "apps/fleet" },
+    { "name": "③ OCR เบอร์ตู้ (LINE/LIFF — โครงรอเคาะ)", "path": "apps/ocr" },
+    { "name": "④ Docs (ในเครื่องเท่านั้น ไม่ push)", "path": "docs" }
+  ],
+  "settings": {
+    "files.exclude": { "apps": false },
+    "search.exclude": { "**/node_modules": true, "**/dist": true, "**/.wrangler": true }
+  }
+}

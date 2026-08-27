@@ -1,0 +1,16 @@
+# ── โครง monorepo (28 ส.ค. 2569 · ตาม docs/SETUP-โครงโปรเจกต์-VSCode.md) ──
+
+# apps/ ไม่อยู่บน main — โค้ดจริงอยู่บน branch feat/fleet และ feat/ocr
+# (สำเนาในเครื่องวางไว้ให้ workspace เห็น · git status บน main ต้องสะอาด)
+apps/
+
+# เอกสารภายใน — ห้าม push เด็ดขาด (repo เป็น public + Pages เสิร์ฟทุกไฟล์บน main)
+# เหตุผลเต็มอยู่ใน docs/README.md · บทเรียนเดียวกับ V63.6
+docs/
+
+# ของชั่วคราวจากเครื่องมือ dev
+node_modules/
+dist/
+.wrangler/
+.dev.vars
+.DS_Store
