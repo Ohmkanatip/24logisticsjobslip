@@ -500,6 +500,45 @@ async function main() {
     }
   }
 
+
+  // ══ อุดรูที่ mutation test เจอ (28 ส.ค. 2569) ══
+  console.log('\n== อุดรูจาก mutation test ==');
+  {
+    const { verifySignature, hmacBase64 } = await import('../src/line/signature.js');
+    const { makeD1StagingRepo } = await import('../src/db/staging.js');
+
+    // ① ขอบหน้าของ regex — เบอร์ที่ติดอยู่ท้ายคำอื่นต้องไม่ถูกจับ
+    ok(extractCandidates('XCSQU3054383').length === 0, '⭐ มีตัวอักษรนำหน้าติดกัน (XCSQU…) ต้องไม่ถูกจับ');
+    ok(extractCandidates('9CSQU3054383').length === 0, 'มีตัวเลขนำหน้าติดกัน ต้องไม่ถูกจับ');
+    ok(extractCandidates('ตู้:CSQU3054383').length === 1, 'มีตัวไทย/เครื่องหมายคั่น ยังจับได้ปกติ');
+
+    // ② ด่านต้นทางของ verifySignature — ค่าที่ใช้ไม่ได้ต้องคืน false ไม่ใช่ throw
+    const body = '{"events":[]}';
+    const goodSig = await hmacBase64('secret', body);
+    ok((await verifySignature('secret', body, goodSig)) === true, 'ลายเซ็นถูกผ่าน');
+    for (const [sec, bd, sig, name] of [
+      ['secret', body, '', 'ลายเซ็นว่าง'],
+      ['', body, goodSig, 'secret ว่าง'],
+      ['secret', null, goodSig, 'body เป็น null'],
+      ['secret', { a: 1 }, goodSig, 'body เป็น object'],
+      ['secret', body, null, 'ลายเซ็นเป็น null'],
+      ['secret', body, 12345, 'ลายเซ็นเป็นตัวเลข'],
+    ]) {
+      let threw = false, r = null;
+      try { r = await verifySignature(sec, bd, sig); } catch (e) { threw = true; }
+      ok(!threw && r === false, '⭐ ' + name + ' → คืน false ไม่ throw', { threw, r });
+    }
+
+    // ③ insertResult ต้องดูธง success ไม่ใช่แค่ row id
+    {
+      // D1 บอกว่าไม่สำเร็จ แต่ยังส่ง row id มาด้วย — ต้องเชื่อธง success
+      const db = { prepare: () => ({ bind() { return this; }, async run() { return { success: false, meta: { last_row_id: 7 } }; } }) };
+      const r = await makeD1StagingRepo(db).insertResult({ containerNo: 'CSQU3054383' });
+      ok(r.ok === false && r.reason === 'd1-insert-failed',
+        '⭐ D1 ตอบ success:false ต้องถือว่าไม่สำเร็จ แม้จะมี row id มาด้วย', r);
+    }
+  }
+
   console.log('\nผ่าน ' + pass + ' · ตก ' + fail);
   process.exit(fail === 0 ? 0 : 1);
 }
