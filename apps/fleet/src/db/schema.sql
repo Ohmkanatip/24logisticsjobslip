@@ -29,6 +29,9 @@ CREATE TABLE IF NOT EXISTS gps_track (
 );
 -- index หลักของการดูเส้นทางย้อนหลังรายคัน + การเลือกช่วงเวลาไป archive
 CREATE INDEX IF NOT EXISTS idx_track ON gps_track (vehicle_id, ts);
+-- index บน ts อย่างเดียว — ใช้โดย countTrackWritesOn (WHERE ts >= ? AND ts < ?)
+-- ถ้าไม่มี = สแกนทั้งตารางทุกปิง กินโควตาอ่าน D1 หมดวัน (ดู migrations/0002)
+CREATE INDEX IF NOT EXISTS idx_track_ts ON gps_track (ts);
 
 -- งานที่จ่ายให้รถแต่ละคัน (เชื่อมกับระบบใบงานภายหลัง — ตอนนี้เก็บเองก่อน)
 CREATE TABLE IF NOT EXISTS job_assignment (

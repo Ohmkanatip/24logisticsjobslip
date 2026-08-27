@@ -17,23 +17,55 @@ export function checkWriteBudget(count) {
   return { level: 'ok', used: n, limit: WRITE_OVER };
 }
 
+// ตรวจปิงก่อนใช้ — ปิงที่ใช้ไม่ได้ต้องถูกปฏิเสธ ไม่ใช่เขียนค่าเสียลงฐาน
+// ⚠️ ของจริงที่เจอ (28 ส.ค. 2569): lat/lng เป็น NaN ทำให้ shouldWriteTrack ตอบ "parked" (ไม่เขียน track)
+//    แต่ upsertLive ยังเขียน NaN ลง gps_live → หมุดเพี้ยนบนแผนที่แบบเงียบๆ ไม่มีใครรู้
+export function validatePing(ping) {
+  if (!ping || typeof ping !== 'object') return { ok: false, reason: 'bad-ping' };
+  const id = ping.vehicle_id;
+  if (typeof id !== 'string' || !id.trim()) return { ok: false, reason: 'bad-vehicle-id' };
+  const lat = Number(ping.lat), lng = Number(ping.lng), ts = Number(ping.ts);
+  if (!Number.isFinite(lat) || lat < -90 || lat > 90) return { ok: false, reason: 'bad-lat' };
+  if (!Number.isFinite(lng) || lng < -180 || lng > 180) return { ok: false, reason: 'bad-lng' };
+  if (!Number.isFinite(ts) || ts <= 0) return { ok: false, reason: 'bad-ts' };
+  return { ok: true };
+}
+
+// ปรับ threshold ให้ปลอดภัยเสมอ
+// ⚠️ ของจริงที่เจอ: ค่าติดลบทำให้ระยะทางมากกว่า threshold เสมอ → เขียน track ทุกปิง
+//    = ทะลุเพดาน D1 100,000 แถว/วัน ทั้งที่ mitigation ทั้ง 3 ข้อมีไว้กันเรื่องนี้โดยตรง
+//    ค่าที่ใช้ไม่ได้ (NaN/สตริง/undefined) → ใช้ค่าเริ่มต้น 20 เมตร · ติดลบ → 0
+export function safeThreshold(v, fallback = 20) {
+  // สตริงว่าง/ช่องว่างล้วน = "ไม่ได้ตั้งค่า" → ค่าเริ่มต้น (Number('') ให้ 0 ซึ่งแปลว่า "เขียนทุกครั้งที่ขยับแม้ 1 ซม.")
+  if (v === null || v === undefined) return fallback;
+  if (typeof v === 'string' && v.trim() === '') return fallback;
+  const n = Number(v);
+  if (!Number.isFinite(n)) return fallback;
+  return n < 0 ? 0 : n;
+}
+
 // mitigation ข้อ 1: เขียน track เฉพาะตอนรถขยับ
 // prev = จุดล่าสุดที่รู้ (จาก gps_live) หรือ null ถ้าไม่เคยเห็นคันนี้
 export function shouldWriteTrack(prev, ping, thresholdM) {
+  const th = safeThreshold(thresholdM);                                // กันค่าเพี้ยนแม้ถูกเรียกตรงๆ
   if (!prev) return { write: true, reason: 'first-point' };            // จุดแรกของคัน = เขียนไว้ก่อน
-  if ((ping.speed_kmh || 0) > 0) return { write: true, reason: 'speed' }; // มีความเร็ว = ขยับแน่
+  if (Number(ping.speed_kmh) > 0) return { write: true, reason: 'speed' }; // มีความเร็ว = ขยับแน่ (สตริงเพี้ยน = ไม่นับ)
   const distM = haversineM(prev.lat, prev.lng, ping.lat, ping.lng);
-  if (distM > thresholdM) return { write: true, reason: 'moved', distM };
+  if (!Number.isFinite(distM)) return { write: false, reason: 'bad-distance', distM: null }; // พิกัดใช้ไม่ได้
+  if (distM > th) return { write: true, reason: 'moved', distM };
   return { write: false, reason: 'parked', distM };                    // รถจอด — ไม่บันทึกซ้ำ
 }
 
 // ประมวลปิง 1 จุด — คืน { wroteTrack, budget, reason }
 // opts: { thresholdM: เมตร (default 20 · มาจาก env MOVE_THRESHOLD_M), day: 'YYYY-MM-DD' (default = วันของ ping.ts) }
 export async function processPing(repo, prev, ping, opts = {}) {
-  const thresholdM = Number.isFinite(Number(opts.thresholdM)) && opts.thresholdM !== undefined
-    ? Number(opts.thresholdM)
-    : 20;
+  // ปิงเสียต้องไม่ถูกเขียนลงฐานเลยสักที่ (ทั้ง track และ live) — คืนเหตุผลให้คนเรียกรายงานต่อ
+  const v = validatePing(ping);
+  if (!v.ok) return { ok: false, wroteTrack: false, reason: v.reason };
+
+  const thresholdM = safeThreshold(opts.thresholdM);
   const day = opts.day || dayOfTs(ping.ts);
+  if (!day) return { ok: false, wroteTrack: false, reason: 'bad-ts' };   // dayOfTs คืน null เมื่อ ts ใช้ไม่ได้
 
   const writesToday = await repo.countTrackWritesOn(day);
   let budget = checkWriteBudget(writesToday);
@@ -57,5 +89,5 @@ export async function processPing(repo, prev, ping, opts = {}) {
     updated_at: ping.ts,
   });
 
-  return { wroteTrack, budget, reason: decision.reason };
+  return { ok: true, wroteTrack, budget, reason: decision.reason };
 }

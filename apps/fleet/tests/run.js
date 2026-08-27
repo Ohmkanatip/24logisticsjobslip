@@ -298,6 +298,96 @@ async function main() {
     ok(!/AKfy|AIza|pk\.eyJ|sk\.eyJ|Bearer [A-Za-z0-9_\-]{8,}/.test(src), 'ไม่มี secret/API key ฝังใน worker');
   }
 
+  // ══ เคสขอบ + บั๊กที่เจอจากรีวิว adversarial 28 ส.ค. 2569 ══
+  section('ปิงข้อมูลเพี้ยน — ต้องถูกปฏิเสธ ไม่ใช่เขียนค่าเสียลงฐาน');
+  {
+    const { validatePing, safeThreshold, shouldWriteTrack, processPing } = await import('../src/worker/ingest.js');
+    const good = { vehicle_id: '71-3760', lat: 13.08, lng: 100.89, ts: 1756000000000, speed_kmh: 0 };
+    ok(validatePing(good).ok === true, 'ปิงปกติผ่าน');
+    const bad = [
+      [{ ...good, lat: NaN }, 'bad-lat', 'lat เป็น NaN'],
+      [{ ...good, lat: 'สิบสาม' }, 'bad-lat', 'lat เป็นข้อความไทย'],
+      [{ ...good, lat: 91 }, 'bad-lat', 'lat เกิน 90'],
+      [{ ...good, lat: -91 }, 'bad-lat', 'lat ต่ำกว่า -90'],
+      [{ ...good, lng: 181 }, 'bad-lng', 'lng เกิน 180'],
+      [{ ...good, lng: Infinity }, 'bad-lng', 'lng เป็น Infinity'],
+      [{ ...good, ts: 0 }, 'bad-ts', 'ts = 0'],
+      [{ ...good, ts: -5 }, 'bad-ts', 'ts ติดลบ'],
+      [{ ...good, ts: 'เมื่อวาน' }, 'bad-ts', 'ts เป็นข้อความ'],
+      [{ ...good, vehicle_id: '' }, 'bad-vehicle-id', 'ทะเบียนว่าง'],
+      [{ ...good, vehicle_id: '   ' }, 'bad-vehicle-id', 'ทะเบียนเป็นช่องว่างล้วน'],
+      [{ ...good, vehicle_id: 71 }, 'bad-vehicle-id', 'ทะเบียนเป็นตัวเลข'],
+      [null, 'bad-ping', 'ปิงเป็น null'],
+      ['ไม่ใช่ object', 'bad-ping', 'ปิงเป็นสตริง'],
+    ];
+    for (const [p, reason, name] of bad) {
+      const r = validatePing(p);
+      ok(r.ok === false && r.reason === reason, 'ปฏิเสธ: ' + name + ' → ' + reason, r);
+    }
+
+    // ⭐ ของจริงที่เจอ: พิกัด NaN ไม่เขียน track (ถูก) แต่เดิม upsertLive ยังเขียน NaN ลงฐาน (ผิด)
+    {
+      const repo = makeMemoryRepo();
+      const r = await processPing(repo, null, { ...good, lat: NaN }, {});
+      ok(r.ok === false && r.reason === 'bad-lat', '⭐ ปิงพิกัดเสีย → processPing ปฏิเสธ', r);
+      ok((await repo.getLiveAll()).length === 0, '⭐ ปิงเสียต้องไม่มีอะไรลง gps_live เลย (เดิมเขียน NaN ลงไป)');
+      const t = await repo.selectTrackOlderThan(Number.MAX_SAFE_INTEGER);
+      ok(t.length === 0, 'ปิงเสียต้องไม่มีอะไรลง gps_track');
+    }
+  }
+
+  section('threshold เพี้ยน — ต้องไม่ทำลายกลไกกันเพดาน D1');
+  {
+    const { safeThreshold, shouldWriteTrack, processPing } = await import('../src/worker/ingest.js');
+    ok(safeThreshold(20) === 20, 'ค่าปกติผ่านตรงๆ');
+    ok(safeThreshold(NaN) === 20, 'NaN → ค่าเริ่มต้น 20');
+    ok(safeThreshold('abc') === 20, 'ข้อความ → ค่าเริ่มต้น 20');
+    ok(safeThreshold(undefined) === 20, 'ไม่ส่งมา → ค่าเริ่มต้น 20');
+    ok(safeThreshold('') === 20, 'สตริงว่าง → ค่าเริ่มต้น 20 (ไม่ใช่ 0 แบบที่ Number("") ให้)');
+    ok(safeThreshold(-5) === 0, '⭐ ติดลบ → 0 (เดิม: ระยะทาง > ค่าติดลบ เสมอ = เขียนทุกปิงจนทะลุเพดาน)');
+    ok(safeThreshold(0) === 0, '0 ใช้ได้ (เขียนเมื่อขยับแม้นิดเดียว)');
+
+    const prev = { lat: 13.0, lng: 100.0 };
+    const still = { vehicle_id: 'x', lat: 13.0, lng: 100.0, ts: 1, speed_kmh: 0 };
+    ok(shouldWriteTrack(prev, still, -5).write === false, '⭐ threshold ติดลบ: รถจอดสนิทต้องยังไม่เขียน');
+    ok(shouldWriteTrack(prev, still, NaN).write === false, 'threshold NaN: รถจอดสนิทต้องไม่เขียน');
+    const moved = { vehicle_id: 'x', lat: 13.001, lng: 100.0, ts: 1, speed_kmh: 0 };
+    ok(shouldWriteTrack(prev, moved, NaN).write === true, 'threshold NaN: ขยับ 111 เมตร ต้องเขียน (ใช้ค่าเริ่มต้น 20)');
+    ok(shouldWriteTrack(prev, { ...still, speed_kmh: 'เร็ว' }).write === false,
+      'speed เป็นข้อความ ไม่นับว่าเคลื่อนที่ (เดิม "เร็ว" || 0 ก็ยัง false แต่ล็อกไว้กันแก้พลาด)');
+    ok(shouldWriteTrack(prev, { ...still, lat: NaN }).reason === 'bad-distance',
+      'พิกัดเสีย → บอก bad-distance ไม่ใช่ปนกับ parked');
+  }
+
+  section('cutoff ของ archive — กันกวาดทั้งตาราง');
+  {
+    const repo = makeMemoryRepo();
+    await repo.insertTrack({ vehicle_id: 'a', lat: 1, lng: 1, ts: 1000 });
+    let threw = false;
+    try { await repo.selectTrackOlderThan('abc'); } catch (e) { threw = true; }
+    ok(threw, "⭐ cutoff เป็นข้อความต้อง throw — บน D1 จริง `ts < 'abc'` เป็นจริงทุกแถว = กวาดทั้งตารางไปลบ");
+    threw = false;
+    try { await repo.deleteTrackOlderThan(undefined); } catch (e) { threw = true; }
+    ok(threw, 'cutoff undefined ก็ต้อง throw เหมือนกัน');
+    ok((await repo.selectTrackOlderThan(Number.MAX_SAFE_INTEGER)).length === 1, 'ข้อมูลยังอยู่ครบ ไม่ถูกลบจากการลองผิด');
+  }
+
+  section('index ที่จำเป็นต้องมีจริงในไฟล์ schema/migration');
+  {
+    const { readFile } = await import('node:fs/promises');
+    const schema = await readFile(new URL('../src/db/schema.sql', import.meta.url), 'utf8');
+    ok(/idx_track_ts[\s\S]*gps_track\s*\(\s*ts\s*\)/.test(schema),
+      '⭐ schema มี index บน ts อย่างเดียว (countTrackWritesOn ใช้ช่วง ts — ไม่มี index = สแกนทั้งตารางทุกปิง)');
+    const mig = await readFile(new URL('../src/db/migrations/0002_track_ts_index.sql', import.meta.url), 'utf8');
+    ok(/CREATE INDEX IF NOT EXISTS idx_track_ts/.test(mig), 'มีไฟล์ migration 0002 จริง (คอมเมนต์ใน repo.js อ้างถึง)');
+    const repoSrc = await readFile(new URL('../src/db/repo.js', import.meta.url), 'utf8');
+    // ตัดบรรทัดคอมเมนต์ออกก่อน — คอมเมนต์ที่อธิบายบั๊กเก่าไม่ใช่โค้ดที่รัน
+    const codeOnly = repoSrc.split('\n').filter((l) => !l.trim().startsWith('//')).join('\n');
+    ok(!/date\(ts\s*\/\s*1000/.test(codeOnly),
+      '⭐ ไม่เหลือ query แบบ date(ts/1000,...) ที่ใช้ index ไม่ได้ (กินโควตาอ่าน D1 5 ล้านแถว/ครั้ง)');
+    ok(/ts\s*>=\s*\?\s*AND\s*ts\s*<\s*\?/.test(codeOnly), 'query นับ write ใช้ช่วง ts (ใช้ index ได้)');
+  }
+
   // สรุป
   console.log('\n==============================');
   console.log(`ผ่าน ${pass} · ตก ${fail}`);
