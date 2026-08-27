@@ -1,0 +1,18 @@
+// การตั้งค่า Cloudflare Worker — โปรเจกต์ OCR อ่านเบอร์ตู้ผ่าน LINE
+// ⚠️ เฟสนี้เป็นโครงรอ (mock-first) — ห้าม deploy จนกว่าเจ้าของจะเคาะ OCR engine + วิธีเขียนกลับใบงาน
+{
+  "name": "ocr-24logistics",
+  "main": "src/worker/index.js",
+  "compatibility_date": "2026-08-01",
+
+  // ตัวแปรธรรมดา (ไม่ลับ) — dev ในเครื่องใช้ .dev.vars (ก๊อปจาก .dev.vars.example)
+  "vars": {
+    "OCR_PROVIDER": "mock"
+  }
+
+  // 🔑 ของลับต้องตั้งเป็น secret ผ่านคำสั่ง `wrangler secret put <ชื่อ>` เท่านั้น
+  //    ห้ามใส่ค่าจริงลงไฟล์นี้หรือไฟล์ไหนในโปรเจกต์เด็ดขาด:
+  //    - LINE_CHANNEL_SECRET        (ใช้ตรวจลายเซ็น webhook จาก LINE)
+  //    - LINE_CHANNEL_ACCESS_TOKEN  (ใช้ยิง reply/push กลับหาคนขับ)
+  //    - OCR_API_KEY                (คีย์ของ engine จริง — ยังไม่เคาะว่าใช้เจ้าไหน)
+}

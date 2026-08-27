@@ -1,0 +1,13 @@
+# ตัวอย่างไฟล์ .dev.vars — ก๊อปเป็น `.dev.vars` แล้วค่อยเติมค่าจริง (ไฟล์ .dev.vars ห้าม commit)
+# ค่าในไฟล์ตัวอย่างนี้ต้องว่างเสมอ — ห้ามใส่ key จริงเด็ดขาด
+
+# engine ที่ใช้อ่านรูป: mock (ค่าเริ่มต้น ไม่ต้องมี key) / qwen / vision / typhoon
+OCR_PROVIDER=mock
+
+# คีย์ของ OCR engine จริง — ยังไม่เคาะว่าใช้เจ้าไหน ปล่อยว่างไว้ก่อน
+OCR_API_KEY=
+
+# จากหน้า LINE Developers Console (Messaging API channel ของ "บอทรับรูปจากคนขับ")
+# ไม่ตั้ง = worker เข้าโหมด mock (ตอบ 200 พร้อมธง mock ไม่ตรวจลายเซ็น)
+LINE_CHANNEL_SECRET=
+LINE_CHANNEL_ACCESS_TOKEN=
