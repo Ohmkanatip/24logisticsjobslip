@@ -550,6 +550,26 @@ async function main() {
     }
   }
 
+
+  // ══ สลับ OCR engine ได้ด้วยค่า env ตัวเดียว (คำถามเจ้าของ 28 ส.ค.: "เปลี่ยนได้เรื่อยๆ ไหม") ══
+  console.log('\n== สลับ engine ด้วย env ตัวเดียว ==');
+  {
+    const names = ['mock', 'gemini', 'qwen', 'vision', 'typhoon'];
+    for (const n of names) {
+      const e = chooseEngine({ OCR_PROVIDER: n });
+      ok(e.provider === n, 'ตั้ง OCR_PROVIDER=' + n + ' → ได้ engine ' + n);
+      ok(typeof e.readImage === 'function', n + ' มี readImage ครบตาม interface');
+    }
+    // engine จริงทุกตัวต้องเป็น stub ซื่อสัตย์ (ยังไม่ได้ต่อ API) — ห้ามแกล้งตอบสำเร็จ
+    for (const n of ['gemini', 'qwen', 'vision', 'typhoon']) {
+      const r = await chooseEngine({ OCR_PROVIDER: n }).readImage(new Uint8Array([1, 2, 3]));
+      ok(r.ok === false && r.reason === 'not-implemented', '⭐ ' + n + ' ยังไม่ได้ต่อ API → ตอบ not-implemented ตรงๆ', r.reason);
+      ok(typeof r.todo === 'string' && r.todo.length > 10, n + ' บอกด้วยว่าต้องทำอะไรถึงจะใช้ได้');
+    }
+    // เปลี่ยน engine ไม่กระทบส่วนอื่นเลย — เช็คดิจิต/extract/staging ใช้ตัวเดิมทั้งหมด
+    ok(validate('CSQU3054383').ok === true, 'เช็คดิจิตทำงานเหมือนเดิมไม่ว่าใช้ engine ไหน');
+  }
+
   console.log('\nผ่าน ' + pass + ' · ตก ' + fail);
   process.exit(fail === 0 ? 0 : 1);
 }

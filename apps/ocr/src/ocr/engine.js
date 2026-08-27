@@ -4,6 +4,7 @@ import { createMockEngine } from './engines/mock.js';
 import * as qwen from './engines/qwen.js';
 import * as vision from './engines/vision.js';
 import * as typhoon from './engines/typhoon.js';
+import * as gemini from './engines/gemini.js';
 
 export function chooseEngine(env) {
   const provider = ((env && env.OCR_PROVIDER) || 'mock').toLowerCase();
@@ -11,6 +12,7 @@ export function chooseEngine(env) {
     case 'qwen': return { provider, readImage: qwen.readImage };
     case 'vision': return { provider, readImage: vision.readImage };
     case 'typhoon': return { provider, readImage: typhoon.readImage };
+    case 'gemini': return { provider, readImage: gemini.readImage };   // ⭐ ชั้นฟรี 1,000 รูป/วัน (ดูหมายเหตุในไฟล์)
     case 'mock':
       return Object.assign({ provider: 'mock' }, createMockEngine());
     default:
