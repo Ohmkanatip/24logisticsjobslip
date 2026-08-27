@@ -68,6 +68,12 @@ const MUTATIONS = [
     find: "      if (r.status === 'pulled') return { ok: false, reason: 'already-pulled', pulledBy: r.pulled_by };",
     replace: '      if (false) return { ok: false };' },
 
+  // ── เลือก OCR engine ──
+  { name: '⚠️ ชื่อ engine ผิด → ถอยมา mock เงียบๆ (คนขับได้เบอร์ตู้ปลอมทุกรูป)',
+    file: 'src/ocr/engine.js',
+    find: "      if (!env || !env.OCR_PROVIDER) {",
+    replace: '      if (true) {' },
+
   // ── ด่านความปลอดภัยของ endpoint ที่เว็บ jobslip เรียก ──
   { name: '⚠️ ถอดด่าน PULL_TOKEN (ใครก็อ่าน/ติดธงผลเบอร์ตู้ได้)',
     file: 'src/worker/index.js', find: "  return (request.headers.get('authorization') || '') === 'Bearer ' + token;", replace: '  return true;' },

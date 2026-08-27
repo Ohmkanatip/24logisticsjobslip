@@ -199,7 +199,18 @@ async function main() {
   console.log('\n== engine: chooseEngine + stub ซื่อสัตย์ ==');
   ok(chooseEngine({}).provider === 'mock', 'ไม่ตั้ง OCR_PROVIDER → default mock');
   ok(chooseEngine(undefined).provider === 'mock', 'env undefined → default mock');
-  ok(chooseEngine({ OCR_PROVIDER: 'ไม่รู้จัก' }).provider === 'mock', 'provider แปลก → ถอยมา mock');
+  {
+    // ⚠️ เดิมเทสนี้ล็อกพฤติกรรมอันตรายไว้: "provider แปลก → ถอยมา mock"
+    //    ของจริงคือ พิมพ์ชื่อ engine ผิดตัวเดียว = คนขับได้เบอร์ตู้ปลอมทุกรูป (เช็คดิจิตผ่านด้วย)
+    //    กติกาใหม่: ตั้งค่ามาแต่ไม่รู้จัก = ล้มดังๆ · ไม่ได้ตั้งเลย = mock ได้ (โหมด dev)
+    const unknown = chooseEngine({ OCR_PROVIDER: 'qwen-vl' });
+    ok(unknown.unknown === true && unknown.provider === 'qwen-vl',
+      '⭐ ตั้ง OCR_PROVIDER ผิด → ไม่ถอยมา mock (ติดธง unknown)', unknown.provider);
+    ok((await unknown.readImage(new Uint8Array())).reason === 'unknown-ocr-provider',
+      '⭐ engine ที่ไม่รู้จักต้องตอบว่าอ่านไม่ได้ ไม่ใช่คืนเบอร์ปลอม');
+    ok(chooseEngine({}).provider === 'mock', 'ไม่ได้ตั้งค่าเลย = mock (โหมด dev ตามเอกสาร)');
+    ok(chooseEngine({ OCR_PROVIDER: 'mock' }).provider === 'mock', "ตั้ง 'mock' เองอย่างจงใจ = mock");
+  }
   const qr = await qwen.readImage(new Uint8Array());
   ok(qr.ok === false && qr.reason === 'not-implemented', 'qwen stub ตอบ not-implemented (ไม่โกหก)', qr);
   const vr = await vision.readImage(new Uint8Array());
