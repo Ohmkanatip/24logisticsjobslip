@@ -1,0 +1,112 @@
+<!doctype html>
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>แผนที่ติดตามรถ — 24 Logistics</title>
+<!-- Leaflet จาก CDN (unpkg) — ไม่ต้องมี key · tile จาก OpenStreetMap -->
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<style>
+  html, body { margin: 0; height: 100%; font-family: -apple-system, 'Segoe UI', sans-serif; }
+  #banner {
+    display: none; background: #b45309; color: #fff; padding: 8px 14px;
+    font-size: 14px; text-align: center;
+  }
+  #bar {
+    display: flex; gap: 12px; align-items: center; flex-wrap: wrap;
+    background: #0b1633; color: #fff; padding: 10px 14px; font-size: 14px;
+  }
+  #bar b { font-size: 16px; }
+  .lg { display: inline-flex; align-items: center; gap: 5px; }
+  .dot { width: 11px; height: 11px; border-radius: 50%; display: inline-block; }
+  #upd { margin-left: auto; opacity: .85; font-size: 12.5px; }
+  #map { height: calc(100% - 44px); }
+  body.has-banner #map { height: calc(100% - 44px - 36px); }
+</style>
+</head>
+<body>
+<div id="banner">🧪 โหมด mock — ยังไม่ได้เชื่อม Cartrack จริง (ตำแหน่ง/ชื่อทั้งหมดเป็นข้อมูลสมมติ)</div>
+<div id="bar">
+  <b>🚛 แผนที่ติดตามรถ</b>
+  <span class="lg"><span class="dot" style="background:#8a8a8a"></span>ว่าง</span>
+  <span class="lg"><span class="dot" style="background:#1c64d9"></span>กำลังวิ่ง</span>
+  <span class="lg"><span class="dot" style="background:#1f9d55"></span>ถึงแล้ว</span>
+  <span id="upd">อัปเดตล่าสุด: —</span>
+</div>
+<div id="map"></div>
+<script>
+// สีหมุดตามสถานะรถ
+var STATUS_COLOR = { 'ว่าง': '#8a8a8a', 'กำลังวิ่ง': '#1c64d9', 'ถึงแล้ว': '#1f9d55' };
+
+var map = L.map('map').setView([13.45, 100.75], 9); // กึ่งกลางแหลมฉบัง–กรุงเทพ
+L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
+  attribution: '&copy; OpenStreetMap contributors', maxZoom: 18
+}).addTo(map);
+
+var markers = {}; // vehicle_id → L.circleMarker
+
+function esc(s) { // กันข้อความแปลกปลอมใน popup (บทเรียน V70.3 ของโปรเจกต์แม่)
+  return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+}
+
+function popupHtml(v) {
+  var job = v.job
+    ? 'งาน: ' + esc(v.job.customer) + ' · ' + esc(v.job.origin) + ' → ' + esc(v.job.destination) +
+      '<br>เบอร์ตู้: ' + esc(v.job.container_no)
+    : 'งาน: — (ว่าง)';
+  return '<b>ทะเบียน ' + esc(v.vehicle_id) + '</b><br>' +
+    'คนขับ: ' + esc(v.driver_name || '-') + '<br>' +
+    'สถานะ: ' + esc(v.status) + ' · ' + Math.round(v.speed_kmh || 0) + ' กม./ชม.<br>' + job;
+}
+
+function render(data) {
+  if (data.mock) {
+    document.getElementById('banner').style.display = 'block';
+    document.body.classList.add('has-banner');
+  }
+  (data.vehicles || []).forEach(function (v) {
+    var color = STATUS_COLOR[v.status] || '#8a8a8a';
+    var m = markers[v.vehicle_id];
+    if (!m) {
+      m = L.circleMarker([v.lat, v.lng], { radius: 9, weight: 2, color: '#fff', fillOpacity: 1 });
+      m.addTo(map);
+      markers[v.vehicle_id] = m;
+    }
+    m.setLatLng([v.lat, v.lng]);
+    m.setStyle({ fillColor: color });
+    m.bindPopup(popupHtml(v));
+  });
+  document.getElementById('upd').textContent =
+    'อัปเดตล่าสุด: ' + new Date().toLocaleTimeString('th-TH') + ' น.';
+}
+
+function refresh() {
+  fetch('/api/fleet/live')
+    .then(function (r) { return r.json(); })
+    .then(render)
+    .catch(function () {
+      document.getElementById('upd').textContent = 'อัปเดตล่าสุด: ⚠️ ต่อเซิร์ฟเวอร์ไม่ได้ จะลองใหม่เอง';
+    });
+}
+
+refresh();
+setInterval(refresh, 15000); // ดึงตำแหน่งใหม่ทุก 15 วินาที
+
+// ถามเซิร์ฟเวอร์ว่า env ตั้ง provider อะไร — แก้ MAP_PROVIDER ตัวเดียว หน้านี้รู้ทันที
+// ตอนนี้ adapter ที่วาดได้จริงมีแค่ leaflet · ถ้าตั้งเจ้าอื่นไว้แต่ยังใช้ไม่ได้ (ไม่มี key/ยังไม่ implement)
+// จะบอกตรงๆ บนแบนเนอร์ว่า fallback มา ไม่แกล้งเงียบ
+fetch('/api/fleet/mapconfig')
+  .then(function (r) { return r.json(); })
+  .then(function (c) {
+    if (!c || !c.fallback) return;
+    var b = document.getElementById('banner');
+    b.textContent = '🗺 ตั้งค่า provider เป็น "' + esc(c.wanted) + '" ไว้ แต่ยังใช้ไม่ได้ (ไม่มี key หรือ adapter ยังไม่เสร็จ) — ใช้ Leaflet/OSM ชั่วคราว';
+    b.style.display = 'block';
+    document.body.classList.add('has-banner');
+  })
+  .catch(function () {}); // เซิร์ฟเวอร์เก่าไม่มี endpoint นี้ = ข้ามเงียบ ไม่พังหน้า
+</script>
+</body>
+</html>
