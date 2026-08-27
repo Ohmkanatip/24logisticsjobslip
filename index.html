@@ -583,6 +583,8 @@
   .plsum{display:flex;gap:8px;padding:7px 10px;border-top:1px dashed var(--line-strong);font-size:12.5px;font-weight:700}
   .plsum span:last-child{margin-left:auto;font-family:'IBM Plex Mono',monospace}
   #b2Body{scroll-margin-top:12px}
+  /* กดปุ่มโหมดแล้วเด้งลงมา — เว้นที่ข้างบนนิดหน่อย ไม่ให้ชิดขอบจนดูอึดอัด */
+  #bill2Card,#bill3Card,#billCard,#billTrashCard,#billHistCard,#billDraftCard{scroll-margin-top:10px}
   #b3QInfo:empty{display:none}
   #b3QInfo{align-self:center;font-size:12.5px;font-weight:700;color:var(--accent);background:var(--accent-soft);border:1px solid var(--accent);border-radius:20px;padding:5px 11px}
 
@@ -2627,7 +2629,9 @@ function b2NextInv(cust){
 }
 
 /* ---- สลับโหมด คิวใหม่ ↔ คิวแบบเก่า ---- */
-function billModeSync(){
+/* jump=true → กดปุ่มโหมดแล้วเด้งลงไปที่การ์ดของโหมดนั้นเลย (เจ้าของขอ 27 ส.ค.)
+   ตอนเปิดหน้า/คืนค่าโหมดที่จำไว้ ห้ามเด้ง — เรียกแบบไม่ส่ง jump */
+function billModeSync(jump){
   if(['new','debt','trash','hist','old','draft'].indexOf(billMode)<0) billMode='new';
   const isNew=(billMode==='new'), isDebt=(billMode==='debt'), isOld=(billMode==='old');
   const isTrash=(billMode==='trash'), isHist=(billMode==='hist'), isDraft=(billMode==='draft');
@@ -2645,6 +2649,10 @@ function billModeSync(){
   $("bmHist").classList.toggle('on',isHist);
   $("bmOld").classList.toggle('on',isOld);
   try{ localStorage.setItem('jobform_billmode',billMode); }catch(e){}
+  if(jump){   // รอให้การ์ดโผล่ก่อน (display เพิ่งเปลี่ยน) แล้วค่อยเลื่อน
+    const card=isNew?b2:isDebt?b3:isOld?b1:isTrash?bt:isHist?bh:bd;
+    setTimeout(()=>{ try{ if(card) card.scrollIntoView({behavior:'smooth',block:'start'}); }catch(e){} },80);
+  }
   if(isDraft){ if(drLoaded) renderDrafts(); loadDrafts(); return; }
   if(isTrash){ if(trLoaded) renderBTrash(); loadBTrash(); return; }
   if(isHist){ if(adminToken||ff('historyStaff')) $("hsJobRow").style.display=''; if(hsLoaded) renderHist(); loadHist(); return; }
@@ -5376,8 +5384,8 @@ $("billFrom").addEventListener('change',billSearchSync);
 $("billTo").addEventListener('change',billSearchSync);
 $("billQClear").addEventListener('click',billSearchClear);
 /* ---- V57: คิวบิลใหม่ ---- */
-$("bmNew").addEventListener('click',()=>{ billMode='new'; billModeSync(); });
-$("bmDebt").addEventListener('click',()=>{ billMode='debt'; billModeSync(); });
+$("bmNew").addEventListener('click',()=>{ billMode='new'; billModeSync(true); });
+$("bmDebt").addEventListener('click',()=>{ billMode='debt'; billModeSync(true); });
 /* V63: ค่าเที่ยวคนขับ + หน้าเงินคนขับ */
 ['b2_customer','b2_loadPlace','b2_yardIn','b2_yardOut','b2_size'].forEach(id=>{
   $(id).addEventListener('change',tripAuto); $(id).addEventListener('blur',tripAuto);
@@ -5412,9 +5420,9 @@ $("ppBack").addEventListener('click',()=>{ location.hash=''; });
 $("ppPrint").addEventListener('click',printPay);
 document.querySelectorAll('#pPeriod button').forEach(b=>b.addEventListener('click',()=>{ payPeriod=b.dataset.pp; payData=null; payOpen={}; loadPay(true); }));
 
-$("bmTrash").addEventListener('click',()=>{ billMode='trash'; billModeSync(); });
-$("bmHist").addEventListener('click',()=>{ billMode='hist'; billModeSync(); });
-$("bmOld").addEventListener('click',()=>{ billMode='old'; billModeSync(); });
+$("bmTrash").addEventListener('click',()=>{ billMode='trash'; billModeSync(true); });
+$("bmHist").addEventListener('click',()=>{ billMode='hist'; billModeSync(true); });
+$("bmOld").addEventListener('click',()=>{ billMode='old'; billModeSync(true); });
 /* V60: ถังขยะ + ประวัติแก้ไขรวม */
 $("trSearch").addEventListener('input',renderBTrash);
 $("trReload").addEventListener('click',()=>{ trSel={}; loadBTrash(true); });
@@ -7031,7 +7039,7 @@ $("drBody").addEventListener('click', e => {
   if (ok) drAct(ok.dataset.uid, 'confirm');
   else if (no) drAct(no.dataset.uid, 'cancel');
 });
-$("bmDraft").addEventListener('click', () => { billMode = 'draft'; billModeSync(); });
+$("bmDraft").addEventListener('click', () => { billMode = 'draft'; billModeSync(true); });
 function b3Mode(m) { billMode = m; billModeSync(); }   // ให้หน้าจ่ายงานเรียกกระโดดมาโหมดร่างได้
 
 
@@ -7069,7 +7077,7 @@ function b3Mode(m) { billMode = m; billModeSync(); }   // ให้หน้า�
 /* ไปหน้าวางบิลแล้วเปิดโหมดที่เลือก */
 function navBill(mode) {
   billMode = mode;
-  if (location.hash !== '#bill') location.hash = 'bill'; else billModeSync();
+  if (location.hash !== '#bill') location.hash = 'bill'; else billModeSync(true);   // อยู่หน้านี้อยู่แล้ว = เด้งลงไปที่การ์ดโหมดนั้นเลย
 }
 $("nvDraft").addEventListener('click', () => navBill('draft'));
 $("nvDebt").addEventListener('click', () => navBill('debt'));
