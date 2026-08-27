@@ -8,6 +8,7 @@
 - งานใหม่ทั้งหมดทำใต้ `apps/` เท่านั้น (`apps/fleet`, `apps/ocr`) — แต่ละตัวมี `CLAUDE.md` ของตัวเอง **อ่านก่อนทำ**
 - **ห้าม dependency/ไฟล์ของ apps/ ปนเข้าโค้ด production เดิม**
 - งานใหม่อยู่บน branch แยก (`feat/fleet`, `feat/ocr`) — **ยังไม่ merge เข้า main** จนกว่าเจ้าของสั่ง
+- **⚠️ บทเรียน git (28 ส.ค. 2569 — เกิดแล้วจริง): ไฟล์ apps/ ที่แก้ค้างบน main เป็นแค่ working copy (ignored) — `git checkout feat/*` จะทับมันด้วยเวอร์ชันใน branch เงียบๆ ไม่มีเตือน งานหายทันที** · กติกา: **จะแก้ apps/* ต้อง `git checkout feat/<app>` ก่อนแก้เสมอ** แก้เสร็จ commit → push → กลับ main → `git restore --source=feat/<app> --worktree -- apps/<app>` · การ add ไฟล์ใหม่บน branch ต้องใช้ `git add -f` (gitignore คลุมอยู่)
 - `docs/` และ `apps/` ถูก gitignore บน main **โดยตั้งใจ** — repo เป็น public + Pages เสิร์ฟทุกไฟล์บน main · เหตุผลเต็มใน `docs/README.md` · ห้ามเอาออกจาก .gitignore
 
 ## โครง
