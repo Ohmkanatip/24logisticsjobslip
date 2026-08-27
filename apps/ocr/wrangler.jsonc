@@ -7,12 +7,23 @@
 
   // ตัวแปรธรรมดา (ไม่ลับ) — dev ในเครื่องใช้ .dev.vars (ก๊อปจาก .dev.vars.example)
   "vars": {
-    "OCR_PROVIDER": "mock"
+    "OCR_PROVIDER": "mock",
+    // ✅ ทางเขียนกลับที่เจ้าของเคาะ (28 ส.ค. 2569): d1 staging — บอทไม่แตะชีท เว็บดึงเอง
+    "WRITEBACK_PROVIDER": "d1"
   }
 
   // 🔑 ของลับต้องตั้งเป็น secret ผ่านคำสั่ง `wrangler secret put <ชื่อ>` เท่านั้น
   //    ห้ามใส่ค่าจริงลงไฟล์นี้หรือไฟล์ไหนในโปรเจกต์เด็ดขาด:
   //    - LINE_CHANNEL_SECRET        (ใช้ตรวจลายเซ็น webhook จาก LINE)
   //    - LINE_CHANNEL_ACCESS_TOKEN  (ใช้ยิง reply/push กลับหาคนขับ)
-  //    - OCR_API_KEY                (คีย์ของ engine จริง — ยังไม่เคาะว่าใช้เจ้าไหน)
+  //    - OCR_API_KEY                (คีย์ของ engine จริง — ยังไม่เคาะว่าใช้เจ้าไหน),
+
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "ocr-24logistics",
+      // ⚠️ ต้องเติมตอน setup จริง: `wrangler d1 create ocr-24logistics` แล้วรัน src/db/schema.sql
+      "database_id": ""
+    }
+  ]
 }

@@ -122,7 +122,8 @@ export async function handleEvent(event, deps) {
       const w = await writeback.fillContainer({
         jobUid,
         containerNo: v.normalized,
-        confirmedBy: (event.source && event.source.userId) || null
+        confirmedBy: (event.source && event.source.userId) || null,
+        ts: event.timestamp || null   // เวลาจาก LINE event — ชั้นนี้ไม่แตะ Date.now (กติกาบ้าน)
       });
       if (!w || !w.ok) {
         await lineClient.replyMessage(event.replyToken, [{

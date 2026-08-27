@@ -326,6 +326,70 @@ async function main() {
     ok(writeback.calls.length === 0, 'ไม่มีการเรียก writeback ใน path นี้');
   }
 
+
+  // ========== ทาง ③ d1 staging (เจ้าของเคาะ 28 ส.ค. 2569) — วงจรเต็ม: ยืนยัน → พัก → เว็บดึง → ติดธง ==========
+  console.log('\n== d1 staging: บอทไม่แตะชีท เว็บดึงเอง ==');
+  {
+    const { makeMemoryStagingRepo, makeD1StagingRepo } = await import('../src/db/staging.js');
+    const { chooseWriteback } = await import('../src/writeback/index.js');
+    const { readFile } = await import('node:fs/promises');
+
+    // interface memory ต้องเท่า D1 เป๊ะ (ด่านกัน stub หลวม — บทเรียนโปรเจกต์แม่)
+    const mem = makeMemoryStagingRepo();
+    const d1 = makeD1StagingRepo({ prepare() { return { bind() { return this; }, run() {}, first() {}, all() {} }; } });
+    ok(JSON.stringify(Object.keys(mem).sort()) === JSON.stringify(Object.keys(d1).sort()),
+      'interface memory staging = D1 staging เป๊ะ', Object.keys(mem));
+
+    // วงจรเต็มผ่าน webhook จริง
+    const repo = makeMemoryStagingRepo();
+    const lineClient = createMockLineClient();
+    const writeback = chooseWriteback({ WRITEBACK_PROVIDER: 'd1' }, repo);
+    ok(writeback.provider === 'd1', 'chooseWriteback(d1) ได้ adapter ตัวจริง ไม่ใช่ stub');
+    const r = await handleEvent(
+      { type: 'postback', replyToken: 'rt9', timestamp: 1756350000000,
+        postback: { data: 'action=confirm&container=CSQU3054383&jobUid=J-001' },
+        source: { userId: 'U-driver-1' } },
+      { lineClient, engine: createMockEngine(''), writeback }
+    );
+    ok(r && r.ok === true, 'คนขับกดยืนยัน → สำเร็จ');
+    const staged = await repo.listResults();
+    ok(staged.length === 1 && staged[0].container_no === 'CSQU3054383' && staged[0].job_uid === 'J-001'
+      && staged[0].confirmed_by === 'U-driver-1' && staged[0].ts === 1756350000000,
+      'ผลไปพักใน staging ครบทุกช่อง (เบอร์/งาน/คนยืนยัน/เวลา)', staged[0]);
+
+    // เช็คดิจิตผิด → ห้ามมีอะไรลง staging
+    await handleEvent(
+      { type: 'postback', replyToken: 'rt10', timestamp: 1756350001000,
+        postback: { data: 'action=confirm&container=CSQU3054384' }, source: { userId: 'U-driver-1' } },
+      { lineClient, engine: createMockEngine(''), writeback }
+    );
+    ok((await repo.listResults()).length === 1, '⭐ เช็คดิจิตผิดตอน postback → staging ไม่โต (payload ดัดแปลงเข้าไม่ได้)');
+
+    // เว็บดึง → ติดธง pulled → หายจากคิว default แต่แถวไม่ถูกลบ
+    const p1 = await repo.markPulled(staged[0].id, 'ธุรการ-A', 1756350100000);
+    ok(p1.ok === true, 'เว็บติดธง pulled สำเร็จ');
+    ok((await repo.listResults()).length === 0, 'ดึงแล้วหายจากคิว confirmed (ไม่โผล่ซ้ำ)');
+    const all = await repo.listResults({ status: 'all' });
+    ok(all.length === 1 && all[0].status === 'pulled' && all[0].pulled_by === 'ธุรการ-A',
+      'แถวไม่ถูกลบ — ติดธงไว้สาวย้อนได้ว่าใครดึงเมื่อไหร่');
+    const p2 = await repo.markPulled(staged[0].id, 'ธุรการ-B', 1756350200000);
+    ok(p2.ok === false && p2.reason === 'already-pulled', 'ดึงซ้ำ = ปฏิเสธพร้อมบอกว่าใครดึงไปแล้ว (กันใช้เบอร์ซ้ำ 2 ใบ)');
+
+    // กรองตาม driverId / jobUid
+    await repo.insertResult({ containerNo: 'MSKU9070323', confirmedBy: 'U2', driverId: 'D002', ts: 1 });
+    await repo.insertResult({ containerNo: 'TCLU1234568', confirmedBy: 'U3', driverId: 'D003', jobUid: 'J-777', ts: 2 });
+    ok((await repo.listResults({ driverId: 'D002' })).length === 1, 'กรองตาม driverId ได้');
+    ok((await repo.listResults({ jobUid: 'J-777' }))[0].container_no === 'TCLU1234568', 'กรองตาม jobUid ได้');
+
+    // worker มี endpoint ให้เว็บดึง + ด่าน PULL_TOKEN + schema ตรงชื่อตาราง
+    const wsrc = await readFile(new URL('../src/worker/index.js', import.meta.url), 'utf8');
+    ok(wsrc.includes("'/api/ocr/results'") && wsrc.includes("'/api/ocr/pulled'"), 'worker มี endpoint ดึงผล + ติดธง');
+    ok(wsrc.includes('PULL_TOKEN') && wsrc.includes('pullAuthorized'), 'endpoint ดึงผลมีด่าน PULL_TOKEN');
+    const schema = await readFile(new URL('../src/db/schema.sql', import.meta.url), 'utf8');
+    ok(/CREATE TABLE IF NOT EXISTS ocr_results/.test(schema) && /status/.test(schema) && /pulled_by/.test(schema),
+      'schema.sql มีตาราง ocr_results ครบช่อง status/pulled_by');
+  }
+
   console.log('\nผ่าน ' + pass + ' · ตก ' + fail);
   process.exit(fail === 0 ? 0 : 1);
 }

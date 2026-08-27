@@ -5,7 +5,7 @@
 
 **สถานะ: โครงรอ (mock-first) — ห้าม deploy** · ทุกอย่างรันได้ทันทีโดยไม่มี key จริง
 - OCR engine จริงยังไม่เคาะ → ใช้ mock (`OCR_PROVIDER=mock`)
-- การเขียนกลับใบงานยังไม่เคาะ → มีแค่ interface + mock (ทางเลือกอยู่ใน `ARCHITECTURE-OPTIONS.md`)
+- **การเขียนกลับ: เคาะแล้ว (28 ส.ค.) ทาง ③ d1 staging — implement จริงแล้ว** (`src/db/staging.js` + endpoint `GET /api/ocr/results` / `POST /api/ocr/pulled` + ด่าน `PULL_TOKEN`) · บอทไม่แตะชีท เว็บดึงเอง — ดู `ARCHITECTURE-OPTIONS.md`
 
 ## ⚠️ กติกาเหล็ก (ห้ามฝ่าฝืน)
 - **เช็คดิจิตไม่ผ่าน = flag เท่านั้น — ห้ามเติมเข้าใบงานเอง** ระบบเสนอทางซ่อม (`suggestRepairs`) ให้คนเลือกได้ แต่ห้าม auto-ใช้
@@ -47,7 +47,7 @@ cd "apps/ocr" && node tests/run.js   # ไม่มี npm dependency ใดๆ 
 
 ## สิ่งที่รอเคาะ (อย่าทำก่อนเจ้าของสั่ง)
 1. เลือก OCR engine (ตารางด้านบน — ควรลองยิงรูปตู้จริง ~30 รูปเทียบความแม่นก่อน)
-2. วิธีเขียนกลับใบงาน (3 ทางเลือกใน `ARCHITECTURE-OPTIONS.md`)
+2. ~~วิธีเขียนกลับใบงาน~~ ✅ เคาะแล้ว: ทาง ③ d1 staging (implement แล้ว) — **ยังเหลือฝั่งเว็บ jobslip: ปุ่ม/จุดดึงผลมาเติมช่องเบอร์ตู้** (แตะ production ต้องขอเจ้าของก่อนตามกติกา)
 3. สร้าง LINE Official Account + Messaging API channel ใหม่ (ของเดิมเลิกใช้ไปแล้ว)
 4. วิธีจับคู่รูป↔ใบงานในเฟส ① (ก่อนมี LIFF)
 5. deploy — ห้ามจนกว่าข้อ 1-3 จะเคาะครบ

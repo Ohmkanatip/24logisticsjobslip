@@ -11,3 +11,6 @@ OCR_API_KEY=
 # ไม่ตั้ง = worker เข้าโหมด mock (ตอบ 200 พร้อมธง mock ไม่ตรวจลายเซ็น)
 LINE_CHANNEL_SECRET=
 LINE_CHANNEL_ACCESS_TOKEN=
+
+# โทเคนกันคนนอกอ่าน/แก้ผล OCR ผ่าน /api/ocr/* — ก่อนใช้จริงต้องตั้งเสมอ (ว่าง = โหมดทดลอง ไม่ตรวจ)
+PULL_TOKEN=

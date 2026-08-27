@@ -4,7 +4,23 @@ import { verifySignature } from '../line/signature.js';
 import { createMockLineClient, createLineClient } from '../line/client.js';
 import { chooseEngine } from '../ocr/engine.js';
 import { chooseWriteback } from '../writeback/index.js';
+import { makeMemoryStagingRepo, makeD1StagingRepo } from '../db/staging.js';
 import { handleEvent } from '../line/webhook.js';
+
+// staging repo กลาง (ทาง ③ ที่เจ้าของเคาะ): มี env.DB = D1 จริง · ไม่มี = memory ก้อนเดียวทั้ง isolate
+// (memory หายเมื่อ isolate รีเซ็ต — พอสำหรับ dev · ของจริงต้องผูก D1 ใน wrangler.jsonc)
+let memStaging = null;
+function stagingRepoOf(env) {
+  if (env && env.DB) return makeD1StagingRepo(env.DB);
+  if (!memStaging) memStaging = makeMemoryStagingRepo();
+  return memStaging;
+}
+
+// ด่านกันคนนอกอ่าน/แก้ผล OCR — ตั้ง PULL_TOKEN แล้วต้องแนบ Bearer ให้ตรง (แพทเทิร์นเดียวกับ INGEST_TOKEN ของ fleet)
+function pullAuthorized(request, env) {
+  if (!env || !env.PULL_TOKEN) return true;   // โหมดทดลองในเครื่อง — ก่อนใช้จริงต้องตั้งเสมอ
+  return (request.headers.get('authorization') || '') === 'Bearer ' + env.PULL_TOKEN;
+}
 
 function json(obj, status = 200) {
   return new Response(JSON.stringify(obj), {
@@ -46,7 +62,7 @@ export default {
       const deps = {
         lineClient: (env && env.LINE_CHANNEL_ACCESS_TOKEN) ? createLineClient(env) : createMockLineClient(),
         engine: chooseEngine(env),
-        writeback: chooseWriteback(env)
+        writeback: chooseWriteback(env, ((env && env.WRITEBACK_PROVIDER) || '').toLowerCase() === 'd1' ? stagingRepoOf(env) : undefined)
       };
 
       const events = Array.isArray(payload.events) ? payload.events : [];
@@ -60,6 +76,28 @@ export default {
         }
       }
       return json({ ok: true, mock: isMock, handled: results.length, results });
+    }
+
+    // ══ ทาง ③: จุดให้เว็บ jobslip "ดึงมาต่อ" — บอทไม่แตะชีท เว็บเป็นฝ่ายมาเอา ══
+    // GET /api/ocr/results?status=confirmed&driverId=D001&jobUid=…  → รายการเบอร์ตู้ที่คนขับยืนยันแล้ว
+    if (request.method === 'GET' && url.pathname === '/api/ocr/results') {
+      if (!pullAuthorized(request, env)) return json({ ok: false, reason: 'unauthorized' }, 401);
+      const repo = stagingRepoOf(env);
+      const rows = await repo.listResults({
+        status: url.searchParams.get('status') || 'confirmed',
+        driverId: url.searchParams.get('driverId') || undefined,
+        jobUid: url.searchParams.get('jobUid') || undefined,
+      });
+      return json({ ok: true, mock: isMock, results: rows });
+    }
+    // POST /api/ocr/pulled {id, by} → เว็บบอกว่าเอาไปใช้แล้ว (ติดธง ไม่ลบแถว — ไว้สาวย้อน)
+    if (request.method === 'POST' && url.pathname === '/api/ocr/pulled') {
+      if (!pullAuthorized(request, env)) return json({ ok: false, reason: 'unauthorized' }, 401);
+      const body = await request.json().catch(() => null);
+      if (!body || !body.id) return json({ ok: false, reason: 'bad-body', hint: 'ต้องมี {id, by}' }, 400);
+      const repo = stagingRepoOf(env);
+      const r = await repo.markPulled(body.id, body.by || null, body.ts || Date.now());
+      return json(r, r.ok ? 200 : 409);
     }
 
     return json({ ok: false, reason: 'not-found' }, 404);
