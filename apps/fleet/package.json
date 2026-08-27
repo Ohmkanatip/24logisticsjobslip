@@ -4,6 +4,7 @@
   "type": "module",
   "scripts": {
     "test": "node tests/run.js",
-    "demo": "node demo-server.js"
+    "demo": "node demo-server.js",
+    "mutation": "node tests/mutation.js"
   }
 }

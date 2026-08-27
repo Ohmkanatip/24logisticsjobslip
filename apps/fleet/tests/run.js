@@ -298,6 +298,64 @@ async function main() {
     ok(!/AKfy|AIza|pk\.eyJ|sk\.eyJ|Bearer [A-Za-z0-9_\-]{8,}/.test(src), 'ไม่มี secret/API key ฝังใน worker');
   }
 
+  // ══ รูที่ mutation test เจอ (28 ส.ค. 2569) — ฝังบั๊กแล้วเทสเดิมยังเขียว ══
+  section('อุดรูจาก mutation test');
+  {
+    const { dayRangeMs } = await import('../src/db/repo.js');
+
+    // ① dayRangeMs ต้องปฏิเสธรูปแบบวันที่มั่ว (ไม่งั้นนับ write ผิดวัน = ด่านกันเพดานเพี้ยน)
+    ok(dayRangeMs('2026-08-28') !== null, 'รูปแบบถูกต้องผ่าน');
+    for (const badDay of ['2026-8-28', '28/08/2026', '2026-08', 'พรุ่งนี้', '', '2026-08-28T00:00:00Z']) {
+      ok(dayRangeMs(badDay) === null, 'ปฏิเสธวันที่รูปแบบผิด: ' + JSON.stringify(badDay));
+    }
+    ok(dayRangeMs('2026-08-28').endMs - dayRangeMs('2026-08-28').startMs === 86400000, 'ช่วงวันกว้าง 24 ชม.พอดี');
+
+    // ② countTrackWritesOn ต้องไม่นับแถวที่ ts เพี้ยน (D1 จริงเทียบตัวเลขกับข้อความไม่ได้ ก็ไม่นับ)
+    {
+      const repo = makeMemoryRepo();
+      const day = '2026-08-28';
+      const { startMs } = dayRangeMs(day);
+      await repo.insertTrack({ vehicle_id: 'a', lat: 1, lng: 1, ts: startMs + 1000 });
+      await repo.insertTrack({ vehicle_id: 'a', lat: 1, lng: 1, ts: 'เมื่อวาน' });   // แถวเสีย
+      await repo.insertTrack({ vehicle_id: 'a', lat: 1, lng: 1, ts: null });
+      // ⭐ ตัวชี้ขาด: ts เป็น "สตริงตัวเลข" — JS แปลงให้เทียบผ่านได้ (ด่านหลวมจะนับด้วย)
+      //    แต่ SQLite จัดลำดับ TEXT ไว้หลัง INTEGER เสมอ → D1 จริงไม่นับ · memory ต้องไม่นับเหมือนกัน
+      await repo.insertTrack({ vehicle_id: 'a', lat: 1, lng: 1, ts: String(startMs + 2000) });
+      const n = await repo.countTrackWritesOn(day);
+      ok(n === 1, '⭐ นับเฉพาะแถวที่ ts เป็นตัวเลขจริง (สตริงตัวเลขก็ไม่นับ — ตรงกับ D1)', n);
+    }
+
+    // ③ ⚠️ รูที่อันตรายสุด: ไม่มีเทสครอบ "R2 พังกลางคัน" มาก่อนเลย
+    //    ลำดับต้องเป็น put ให้ครบก่อน → ค่อยลบ · ถ้าลบก่อนแล้ว R2 พัง = ข้อมูลหายถาวร กู้ไม่ได้
+    {
+      const repo = makeMemoryRepo();
+      const day1 = Date.UTC(2026, 3, 10), day2 = Date.UTC(2026, 4, 20);
+      await repo.insertTrack({ vehicle_id: 'a', lat: 1, lng: 1, ts: day1 });
+      await repo.insertTrack({ vehicle_id: 'b', lat: 2, lng: 2, ts: day2 });
+      const cutoff = Date.UTC(2026, 5, 28);
+
+      const r2Fail = { puts: 0, async put() { this.puts++; throw new Error('R2 ล่ม'); } };
+      let threw = false;
+      try { await archiveOldTracks(repo, r2Fail, cutoff); } catch (e) { threw = true; }
+      ok(threw, 'R2 พัง → archiveOldTracks โยน error ออกมา ไม่กลืนเงียบ');
+      const left = await repo.selectTrackOlderThan(Number.MAX_SAFE_INTEGER);
+      ok(left.length === 2, '⭐⭐ R2 พังกลางคัน → ข้อมูลใน D1 ต้องยังอยู่ครบ ห้ามถูกลบ (put ก่อน ลบทีหลัง)', left.length);
+
+      // พังที่ก้อนที่ 2 (ก้อนแรก put สำเร็จไปแล้ว) — ก็ยังห้ามลบอะไรทั้งสิ้น
+      const r2Half = { n: 0, async put() { this.n++; if (this.n >= 2) throw new Error('R2 ล่มกลางคัน'); } };
+      threw = false;
+      try { await archiveOldTracks(repo, r2Half, cutoff); } catch (e) { threw = true; }
+      ok(threw && (await repo.selectTrackOlderThan(Number.MAX_SAFE_INTEGER)).length === 2,
+        '⭐ พังที่ก้อนที่ 2 (ก้อนแรกขึ้นไปแล้ว) ก็ยังไม่ลบอะไร — ยอมสำรองซ้ำ ดีกว่าข้อมูลหาย');
+
+      // ปกติแล้วต้องลบได้จริง
+      const r2Ok = { puts: [], async put(k) { this.puts.push(k); } };
+      const res = await archiveOldTracks(repo, r2Ok, cutoff);
+      ok(res.archived === 2 && (await repo.selectTrackOlderThan(Number.MAX_SAFE_INTEGER)).length === 0,
+        'R2 ปกติ → อัปครบแล้วลบออกจาก D1 ได้');
+    }
+  }
+
   // ══ เคสขอบ + บั๊กที่เจอจากรีวิว adversarial 28 ส.ค. 2569 ══
   section('ปิงข้อมูลเพี้ยน — ต้องถูกปฏิเสธ ไม่ใช่เขียนค่าเสียลงฐาน');
   {
