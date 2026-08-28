@@ -12,6 +12,9 @@ import { ingestAuthorized, mapConfigOf } from './api.js';
 // เก็บ track สดใน D1 กี่วันก่อน archive ขึ้น R2 (ตามสเปก 60 วัน)
 const TRACK_KEEP_DAYS = 60;
 
+// จำนวนปิงสูงสุดต่อ 1 คำขอ — กัน Worker ถูกตัดกลางคันเพราะ CPU เกินเพดาน (ดูคอมเมนต์ใน ingestHandler)
+export const INGEST_MAX_PINGS = 500;
+
 // สถานะ mock ระดับโมดูล — อยู่ได้ตลอดอายุ isolate (พอสำหรับโหมดทดลอง ไม่ใช่ของจริง)
 let mockState = null;
 let mockRepo = null;
@@ -100,6 +103,14 @@ async function ingestHandler(request, env) {
   const body = await request.json().catch(() => null);
   const pings = Array.isArray(body) ? body : body && Array.isArray(body.pings) ? body.pings : null;
   if (!pings) return json({ ok: false, reason: 'bad-body', hint: 'ต้องเป็น array ของ ping หรือ {pings:[...]}' }, 400);
+  // ⚠️ จำกัดขนาดก้อน — Worker มีเพดานเวลา CPU ต่อคำขอ · ปิง 5,000 จุดในคำขอเดียว = เขียนฐาน 5,000 ครั้ง
+  //    เกินเพดานแล้ว Worker ถูกตัดกลางคัน = เขียนไปได้ครึ่งเดียวแล้วเงียบ (ไม่รู้ว่าอันไหนเข้าอันไหนไม่เข้า)
+  //    ปฏิเสธทั้งก้อนพร้อมบอกเพดานชัดๆ ดีกว่า — ฝั่งที่ส่งจะได้แบ่งก้อนมาเอง
+  //    ของจริง: 60 คัน ปิงนาทีละครั้ง = 60 จุด/ก้อน · 500 จึงเหลือเฟือ
+  if (pings.length > INGEST_MAX_PINGS) {
+    return json({ ok: false, reason: 'too-many-pings', max: INGEST_MAX_PINGS, got: pings.length,
+      hint: 'แบ่งส่งเป็นก้อนละไม่เกิน ' + INGEST_MAX_PINGS + ' จุด' }, 413);
+  }
 
   const thresholdM = Number(env.MOVE_THRESHOLD_M || 20);
   const repo = isMockMode(env) ? (await advanceMock(Date.now(), thresholdM), mockRepo) : makeD1Repo(env.DB);

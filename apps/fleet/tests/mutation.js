@@ -92,6 +92,12 @@ const MUTATIONS = [
     find: '  return n > maxSec ? maxSec : n;',
     replace: '  return n;' },
 
+  // ── เพดานขนาดก้อนปิง ──
+  { name: 'ถอดเพดานจำนวนปิงต่อคำขอ (Worker ถูกตัดกลางคัน = เขียนครึ่งเดียวแล้วเงียบ)',
+    file: 'src/worker/index.js',
+    find: '  if (pings.length > INGEST_MAX_PINGS) {',
+    replace: '  if (false) {' },
+
   // ── ด่านความปลอดภัย ──
   { name: '⚠️ ถอดด่าน INGEST_TOKEN (ใครก็ยิงปิงปลอมเข้าฐานได้)',
     file: 'src/worker/api.js',

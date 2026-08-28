@@ -298,6 +298,19 @@ async function main() {
     ok(!/AKfy|AIza|pk\.eyJ|sk\.eyJ|Bearer [A-Za-z0-9_\-]{8,}/.test(src), 'ไม่มี secret/API key ฝังใน worker');
   }
 
+  section('ingest: จำกัดขนาดก้อนปิง (กัน Worker ถูกตัดกลางคัน)');
+  {
+    const { readFile } = await import('node:fs/promises');
+    const src = await readFile(new URL('../src/worker/index.js', import.meta.url), 'utf8');
+    ok(/export const INGEST_MAX_PINGS = \d+;/.test(src), 'มีค่าเพดานจำนวนปิงต่อคำขอ');
+    ok(/pings\.length > INGEST_MAX_PINGS/.test(src), '⭐ ตรวจขนาดก้อนก่อนวนเขียนฐาน');
+    ok(/'too-many-pings'/.test(src) && /413/.test(src), 'เกินเพดาน → ตอบ 413 พร้อมเหตุผลชัด');
+    ok(/hint:.*แบ่งส่ง/.test(src), 'บอกวิธีแก้ให้ฝั่งที่ส่ง (แบ่งก้อน)');
+    const m = src.match(/export const INGEST_MAX_PINGS = (\d+);/);
+    const max = Number(m[1]);
+    ok(max >= 100 && max <= 1000, 'เพดานอยู่ในช่วงที่สมเหตุสมผล (ของจริง 60 คัน = 60 จุด/นาที)', max);
+  }
+
   section('mock feed: เวลาเพี้ยนต้องไม่ทำให้ state พังถาวร');
   {
     const { safeDt, makeInitialState, tick, toPings } = await import('../src/mock/feed.js');
