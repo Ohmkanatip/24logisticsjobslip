@@ -2,6 +2,28 @@
 // หมายเหตุบริบทโปรเจกต์แม่: V63.8 เลิกใช้ LINE "แจ้งเตือน" ไปแล้ว (กติกาข้อ 6 ห้ามต่อกลับ)
 // แต่ตัวนี้คือ "บอทรับรูปจากคนขับ" — คนละหน้าที่กับการแจ้งเตือน จึงไม่ขัดกติกานั้น
 
+// ── เพดานของ LINE Messaging API (ถ้าเกิน LINE ปฏิเสธทั้งข้อความ = คนขับไม่ได้รับอะไรเลย) ──
+// ⚠️ ของจริงที่พิสูจน์แล้ว 28 ส.ค. 2569: เบอร์ตู้ยาวผิดปกติจาก postback ที่ถูกดัดแปลง
+//    ทำให้ข้อความตอบยาว 5,063 ตัวอักษร → เกิน 5,000 → LINE ไม่ส่ง → คนขับเงียบสนิท ไม่รู้ว่าเกิดอะไร
+//    ตัดที่ต้นทางตรงนี้จุดเดียว ครอบทุก call site (ไม่ต้องไล่แก้ทีละที่ = ไม่มีวันลืม)
+export const LINE_TEXT_MAX = 5000;
+export const LINE_QUICKREPLY_MAX = 13;
+
+export function capMessages(messages) {
+  if (!Array.isArray(messages)) return messages;
+  return messages.map((m) => {
+    if (!m || typeof m !== 'object') return m;
+    const out = { ...m };
+    if (typeof out.text === 'string' && out.text.length > LINE_TEXT_MAX) {
+      out.text = out.text.slice(0, LINE_TEXT_MAX - 1) + '…';   // ตัดแล้วติด … ให้รู้ว่าถูกตัด
+    }
+    if (out.quickReply && Array.isArray(out.quickReply.items) && out.quickReply.items.length > LINE_QUICKREPLY_MAX) {
+      out.quickReply = { ...out.quickReply, items: out.quickReply.items.slice(0, LINE_QUICKREPLY_MAX) };
+    }
+    return out;
+  });
+}
+
 // 🎭 client ปลอมสำหรับเทส/dev — บันทึกทุก call ลง array ให้เทสตรวจได้
 export function createMockLineClient(opts = {}) {
   const calls = [];
@@ -9,11 +31,11 @@ export function createMockLineClient(opts = {}) {
     mock: true,
     calls,
     async replyMessage(replyToken, messages) {
-      calls.push({ fn: 'replyMessage', replyToken, messages });
+      calls.push({ fn: 'replyMessage', replyToken, messages: capMessages(messages) });
       return { ok: true, mock: true };
     },
     async pushMessage(to, messages) {
-      calls.push({ fn: 'pushMessage', to, messages });
+      calls.push({ fn: 'pushMessage', to, messages: capMessages(messages) });
       return { ok: true, mock: true };
     },
     async getMessageContent(messageId) {

@@ -74,6 +74,16 @@ const MUTATIONS = [
     find: "      if (!env || !env.OCR_PROVIDER) {",
     replace: '      if (true) {' },
 
+  // ── เพดานข้อความ LINE ──
+  { name: '⚠️ ถอดการตัดข้อความยาว (เกิน 5,000 = LINE ไม่ส่ง คนขับเงียบสนิท)',
+    file: 'src/line/client.js',
+    find: "    if (typeof out.text === 'string' && out.text.length > LINE_TEXT_MAX) {",
+    replace: '    if (false) {' },
+  { name: 'ถอดการตัดปุ่ม quick reply (เกิน 13 ปุ่ม = LINE ปฏิเสธทั้งข้อความ)',
+    file: 'src/line/client.js',
+    find: '    if (out.quickReply && Array.isArray(out.quickReply.items) && out.quickReply.items.length > LINE_QUICKREPLY_MAX) {',
+    replace: '    if (false) {' },
+
   // ── ด่านความปลอดภัยของ endpoint ที่เว็บ jobslip เรียก ──
   { name: '⚠️ ถอดด่าน PULL_TOKEN (ใครก็อ่าน/ติดธงผลเบอร์ตู้ได้)',
     file: 'src/worker/index.js', find: "  return (request.headers.get('authorization') || '') === 'Bearer ' + token;", replace: '  return true;' },

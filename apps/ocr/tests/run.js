@@ -570,6 +570,37 @@ async function main() {
     ok(validate('CSQU3054383').ok === true, 'เช็คดิจิตทำงานเหมือนเดิมไม่ว่าใช้ engine ไหน');
   }
 
+
+  // ══ เพดานของ LINE — เกินแล้วข้อความไม่ถูกส่ง คนขับเงียบสนิท (พิสูจน์แล้ว 28 ส.ค. 2569) ══
+  console.log('\n== เพดานข้อความ LINE ==');
+  {
+    const { capMessages, LINE_TEXT_MAX, LINE_QUICKREPLY_MAX, createMockLineClient: mkc } = await import('../src/line/client.js');
+
+    const long = capMessages([{ type: 'text', text: 'ก'.repeat(9000) }]);
+    ok(long[0].text.length === LINE_TEXT_MAX, '⭐ ข้อความยาวเกินถูกตัดพอดีเพดาน (' + LINE_TEXT_MAX + ')', long[0].text.length);
+    ok(long[0].text.endsWith('…'), 'ตัดแล้วติด … ให้รู้ว่าโดนตัด');
+    const shortMsg = capMessages([{ type: 'text', text: 'สั้น' }]);
+    ok(shortMsg[0].text === 'สั้น', 'ข้อความปกติไม่ถูกแตะ');
+
+    const manyBtn = capMessages([{ type: 'text', text: 'x',
+      quickReply: { items: Array.from({ length: 30 }, (_, i) => ({ type: 'action', i })) } }]);
+    ok(manyBtn[0].quickReply.items.length === LINE_QUICKREPLY_MAX,
+      '⭐ ปุ่มเกินถูกตัดเหลือ ' + LINE_QUICKREPLY_MAX + ' (LINE ปฏิเสธถ้าเกิน)', manyBtn[0].quickReply.items.length);
+
+    ok(capMessages(null) === null && capMessages('x') === 'x', 'input แปลกๆ ไม่ทำให้พัง');
+    ok(capMessages([null, 'ข้อความ', { type: 'text' }]).length === 3, 'สมาชิกที่ไม่ใช่ object ผ่านไปได้ไม่ throw');
+
+    // ⭐ เคสจริง: postback ถูกดัดแปลงให้เบอร์ยาว 5,000 ตัว → ข้อความตอบต้องยังส่งออกได้
+    const lc = mkc();
+    await handleEvent(
+      { type: 'postback', replyToken: 'rt', timestamp: 1,
+        postback: { data: 'action=confirm&container=' + 'A'.repeat(5000) }, source: { userId: 'U' } },
+      { lineClient: lc, engine: createMockEngine(''), writeback: { async fillContainer() { return { ok: true }; } } }
+    );
+    const txt = lc.calls.filter((c) => c.fn === 'replyMessage').pop().messages[0].text;
+    ok(txt.length <= LINE_TEXT_MAX, '⭐ เบอร์ยาวผิดปกติ → ข้อความตอบยังอยู่ในเพดาน ส่งถึงคนขับได้', txt.length);
+  }
+
   console.log('\nผ่าน ' + pass + ' · ตก ' + fail);
   process.exit(fail === 0 ? 0 : 1);
 }
