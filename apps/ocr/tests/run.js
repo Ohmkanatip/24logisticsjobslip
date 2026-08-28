@@ -138,7 +138,10 @@ async function main() {
     const reply = d.lineClient.calls.find((c) => c.fn === 'replyMessage');
     const msg = reply && reply.messages[0];
     // "CSQU3O54383" format ไม่ผ่าน (มี O ในโซนเลข) → extract ไม่จับ → ไม่มี candidate
-    ok(res.candidates.length === 0 && msg && msg.text.includes('ไม่เจอ'), 'ตัวอักษรปนโซนเลข → extract ไม่จับ บอกให้ถ่ายใหม่', res);
+    // ⚠️ เดิมล็อกไว้ว่า "ตัวอักษรปนโซนเลข = ยอมแพ้ บอกถ่ายใหม่" — ตอนนี้กู้ได้แล้ว (เจ้าของชี้หลักตำแหน่ง ISO 28 ส.ค.)
+    ok(res.ok === true && Array.isArray(res.nearFixes) && res.nearFixes.indexOf('CSQU3054383') >= 0,
+      '⭐ ตัวอักษรปนโซนเลข (CSQU3O54383) → กู้ด้วยตำแหน่ง+เช็คดิจิต เสนอ CSQU3054383', res);
+    ok(msg && /น่าจะเป็นเบอร์นี้/.test(msg.text), 'บอกคนขับว่าเป็นการเดา ให้กดยืนยันเอง');
   }
 
   // รูป → ไม่มีเบอร์เลย → reply บอกถ่ายใหม่
@@ -689,6 +692,51 @@ async function main() {
       { lineClient: lc2, engine: createMockEngine({ rawText: '1111111111 1' }), writeback: wb }
     );
     ok(!r2.nearFixes || !r2.nearFixes.length, '⭐ ซ่อมไม่ได้ = ไม่เสนอมั่ว (ตอบไม่เจอตามปกติ)');
+  }
+
+
+  // ══ แก้ตามตำแหน่ง ISO (เจ้าของชี้หลัก 28 ส.ค. 2569): อักษร 4 + เลข 7 → ตำแหน่งบอกชนิด · เช็คดิจิตชี้ขาด ══
+  console.log('\n== positionCandidates: ตำแหน่งบอกชนิด + เช็คดิจิตเป็นกรรมการ ==');
+  {
+    const { positionCandidates, normalizeByPosition } = await import('../src/iso6346/check.js');
+
+    // เคสที่คุยกับเจ้าของ: S ในโซนเลข เป็นได้ทั้ง 5 และ 8 — เช็คดิจิตต้องชี้ขาดได้
+    const amb = positionCandidates('CSQU30543S3');
+    ok(amb.ok && amb.candidates.length === 2, 'S ในโซนเลข → ลอง 2 ทาง (5 และ 8)', amb.candidates);
+    const good = amb.candidates.filter((c) => validate(c).ok);
+    ok(good.length === 1 && good[0] === 'CSQU3054383',
+      '⭐ เช็คดิจิต (สูตรยกกำลัง ISO) ชี้ขาดเหลือตัวเดียว: 8 ถูก · 5 ผิด', good);
+
+    // แก้หลายตำแหน่งพร้อมกัน (เดิมทำไม่ได้)
+    const multi = positionCandidates('C5QU3O54383');
+    ok(multi.ok && multi.candidates.some((c) => c === 'CSQU3054383'), '⭐ ผิด 2 ตัว (S→5 + 0→O) แก้ได้ทีเดียว');
+    ok(multi.fixed.length === 2, 'รายงานว่าแก้ตำแหน่งไหนบ้าง', multi.fixed);
+
+    // ตัวที่ไม่มีคู่หน้าตาคล้าย = บอกตรงๆ ว่าแก้ไม่ได้ ไม่เดามั่ว
+    const bad = positionCandidates('C3QU3054383');
+    ok(bad.ok === false && bad.reason === 'unfixable-char', '⭐ เลข 3 ในโซนอักษร ไม่มีตัวไหนหน้าตาเหมือน = ไม่เดา', bad.reason);
+
+    // เบอร์ที่ถูกอยู่แล้ว = ผ่านตรงๆ ไม่แตะ
+    const okAlready = positionCandidates('CSQU3054383');
+    ok(okAlready.ok && okAlready.candidates.length === 1 && okAlready.fixed.length === 0, 'เบอร์ถูกอยู่แล้วไม่ถูกแตะ');
+
+    // เพดานจำนวนทางเลือก — กันระเบิดเมื่อเพี้ยนหลายตัวที่กำกวมพร้อมกัน
+    const many = positionCandidates('0O10SSGGBB0'.slice(0,4) + 'SSGGBB0'.replace(/./g, 'S'));
+    ok(!many.ok || many.candidates.length <= 12, 'จำกัดทางเลือกไม่เกิน 12 (เสนอเยอะ = คนขับสับสน)');
+    ok(normalizeByPosition('C5QU3054383').value === 'CSQU3054383', 'normalizeByPosition คืนตัวเลือกแรก (compat เดิม)');
+
+    // วงจรเต็ม: เคส S ในโซนเลข ผ่าน webhook จริง → เสนอเบอร์ที่เช็คดิจิตยืนยันแล้ว
+    const { makeMemoryStagingRepo } = await import('../src/db/staging.js');
+    const { chooseWriteback } = await import('../src/writeback/index.js');
+    const repo = makeMemoryStagingRepo();
+    const lc = createMockLineClient();
+    const r = await handleEvent(
+      { type: 'message', replyToken: 'rt', timestamp: 1, message: { type: 'image', id: 'i' }, source: { userId: 'U1' } },
+      { lineClient: lc, engine: createMockEngine({ rawText: 'CSQU30543S3' }), writeback: chooseWriteback({ WRITEBACK_PROVIDER: 'd1' }, repo) }
+    );
+    ok(r.nearFixes && r.nearFixes.length === 1 && r.nearFixes[0] === 'CSQU3054383',
+      '⭐⭐ webhook เสนอเฉพาะตัวที่เช็คดิจิตยืนยัน (ไม่โยน 2 ทางให้คนขับงง)', r.nearFixes);
+    ok((await repo.listResults()).length === 0, 'ยังไม่เขียนฐานจนกว่าคนขับกดยืนยัน (กติกาเหล็กเดิม)');
   }
 
   console.log('\nผ่าน ' + pass + ' · ตก ' + fail);

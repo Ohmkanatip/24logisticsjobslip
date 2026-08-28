@@ -3,7 +3,7 @@
 //   1) เช็คดิจิตไม่ผ่าน = flag ให้ถ่ายใหม่/เลือกข้อเสนอซ่อม — ห้ามส่งเข้า writeback ตรงๆ
 //   2) คนขับต้องกดยืนยันเสมอ — ระบบไม่เขียนทับใบงานเงียบๆ
 // ทุก dependency ฉีดผ่าน deps = { lineClient, engine, writeback } เพื่อให้เทสง่าย
-import { validate } from '../iso6346/check.js';
+import { validate, positionCandidates } from '../iso6346/check.js';
 import { suggestRepairs } from '../iso6346/repair.js';
 import { extractCandidates, extractNearMisses } from '../ocr/extract.js';
 
@@ -56,7 +56,20 @@ export async function handleEvent(event, deps) {
     if (!candidates.length) {
       const near = extractNearMisses(ocr.rawText || '');
       const fixes = new Set();
-      for (const n of near) for (const f of suggestRepairs(n)) fixes.add(f);
+      for (const n of near) {
+        // ① วิธีตรงที่สุด: แก้ตาม "ตำแหน่ง" (ISO บังคับ อักษร 4 + เลข 7 → ตำแหน่งบอกว่าตัวนั้นต้องเป็นชนิดไหน)
+        //    แต่ตำแหน่งบอกได้แค่ "ต้องเป็นเลข" ไม่ได้บอกว่า "เลขอะไร" — ตัว S บนตู้สกปรกคล้ายทั้ง 5 และ 8
+        //    → ลองทุกทางที่รูปทรงเป็นไปได้ แล้วให้ **เช็คดิจิต (สูตรยกกำลังของ ISO) เป็นกรรมการชี้ขาด**
+        //    ปกติผ่านแค่ตัวเดียว = คำตอบชัด · ผ่านหลายตัว = เสนอให้คนขับเลือกทั้งหมด
+        const byPos = positionCandidates(n);
+        if (byPos.ok) {
+          const good = byPos.candidates.filter((c) => validate(c).ok);
+          if (good.length) { good.forEach((g) => fixes.add(g)); continue; }
+        }
+        // ② ถอยไปลองสลับทีละตัว — เผื่อ OCR ผิดแบบที่ไม่ใช่คู่หน้าตาคล้าย (ตำแหน่งช่วยไม่ได้)
+        const base = byPos.ok ? byPos.candidates[0] : n;
+        for (const f of suggestRepairs(base)) fixes.add(f);
+      }
       nearFixes = [...fixes];
       if (nearFixes.length) {
         await lineClient.replyMessage(event.replyToken, [{

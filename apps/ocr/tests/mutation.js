@@ -54,6 +54,16 @@ const MUTATIONS = [
     find: '    if (isValidFormat(n).ok) continue;              // รูปแบบถูกอยู่แล้ว = ไม่ใช่ near-miss',
     replace: '    if (false) continue;' },
 
+  // ── แก้ตามตำแหน่ง ISO ──
+  { name: '⚠️ ถอดการชี้ขาดด้วยเช็คดิจิต (โยนทุกทางให้คนขับเลือกเอง รวมตัวผิด)',
+    file: 'src/line/webhook.js',
+    find: '          const good = byPos.candidates.filter((c) => validate(c).ok);',
+    replace: '          const good = byPos.candidates;' },
+  { name: 'positionCandidates: S ในโซนเลขเหลือทางเดียว (เคส 8 หาไม่เจอ)',
+    file: 'src/iso6346/check.js',
+    find: "  S: ['5', '8'], G: ['6', '9'], T: ['7'], B: ['8', '6'], E: ['8'], C: ['0'] };",
+    replace: "  S: ['5'], G: ['6', '9'], T: ['7'], B: ['8', '6'], E: ['8'], C: ['0'] };" },
+
   // ── ด่านลายเซ็น LINE ──
   { name: '⚠️ verifySignature: ตอบผ่านทุกลายเซ็น (ใครก็ปลอม webhook ได้)',
     file: 'src/line/signature.js', find: '  return diff === 0;', replace: '  return true;' },
