@@ -3778,6 +3778,38 @@ async function loadRates(force){
     }
   }catch(e){}
 }
+/* ═══ V73 [sale_rates]: ตารางแม่ราคาขาย — โหลด/จับคู่แบบเดียวกับเรทค่าเที่ยว (matcher ตัวเดียวกัน คนละชุดแถว) ═══ */
+let saleRows=[], saleLoaded=false;
+async function loadSaleRates(force){
+  if(!ff('sale_rates')) return;
+  if(saleLoaded&&!force) return;
+  let ts=0;
+  try{ const c=localStorage.getItem('jobform_salerates'); if(c){ const j=JSON.parse(c); saleRows=j.rows||[]; ts=j.ts||0; if(saleRows.length) saleLoaded=true; } }catch(e){}
+  if(!force&&saleLoaded&&Date.now()-ts<3600000) return;
+  try{
+    const j=await callAct({act:'sratelist'});
+    if(j&&j.ok&&Array.isArray(j.rows)){
+      saleRows=j.rows; saleLoaded=true;
+      try{ localStorage.setItem('jobform_salerates',JSON.stringify({rows:saleRows,ts:Date.now()})); }catch(e){}
+    } // หลังบ้านยังไม่รู้จัก act นี้ = เงียบ ใช้ความจำบิลแบบเดิมต่อ
+  }catch(e){}
+}
+/* หาราคาขายจากตารางแม่ — latest-wins: หลายแถวตรงกัน เอาแถวล่าสุด (แถวใหม่อยู่ท้ายเสมอ เพราะ append-only) */
+function saleRateFor(rec){
+  if(!ff('sale_rates')||!saleRows.length) return null;
+  try{
+    const hits=(findRates(rec,saleRows)||{}).rows||[];
+    if(!hits.length) return null;
+    const row=hits[hits.length-1], price=ratePrice(row,rec.size);
+    return price>0?{price:price,row:row}:null;
+  }catch(e){ return null; }
+}
+/* เตือนเมื่อราคาที่กรอกต่างจากเรทแม่เกิน 10% — คืนข้อความเตือน หรือ '' ถ้าปกติ */
+function saleRateWarn(rec,typed){
+  const hit=saleRateFor(rec); if(!hit||!(typed>0)) return '';
+  const diff=Math.abs(typed-hit.price)/hit.price;
+  return diff>0.10?('⚠️ ต่างจากเรทแม่ '+hit.price.toLocaleString('th-TH')+' บาท ('+Math.round(diff*100)+'%) — เช็คก่อนว่าตั้งใจ'):'';
+}
 /* ราคาตามขนาดตู้ · ตู้ RF ใช้คอลัมน์ RF ไม่สนว่า 20 หรือ 40 (เจ้าของเคาะ 16 ส.ค.) */
 function ratePrice(row,size){
   const sz=String(size||'').toUpperCase();
@@ -3882,11 +3914,13 @@ function updateLoadSuggest(){
   }
   dl.innerHTML=opts.join('');
 }
-function findRates(rec){
+function findRates(rec,srcRows){
+  // V73: รับชุดแถวได้ — ไม่ส่ง = เรทค่าเที่ยว (เดิมเป๊ะ) · ส่ง saleRows = เรทราคาขาย (matcher เดียวกัน ไม่เขียนสูตรซ้ำ)
+  const pool=srcRows||rateRows;
   const why={cust:false,load:'',route:'',zoneIn:'',zoneOut:''};
   const cu=rNorm(rec.customer);
-  if(!cu||!rateRows.length) return {rows:[],why:why};
-  let rows=rateRows.filter(r=>rNorm(r.cust)===cu);
+  if(!cu||!pool.length) return {rows:[],why:why};
+  let rows=pool.filter(r=>rNorm(r.cust)===cu);
   if(!rows.length) return {rows:[],why:why};
   why.cust=true;
   const lp=rNorm(rec.loadPlace);
@@ -4357,10 +4391,21 @@ function rateFor(cust,load){
   const hit=bill2Meta.rates[cust+'|'+String(load||'').trim()]||bill2Meta.rates[cust+'|'];
   return (hit&&hit.trans)?hit:null;
 }
+function b2SaleRec(){ return {customer:$("b2_customer").value,loadPlace:$("b2_loadPlace").value,
+  yardIn:$("b2_yardIn").value,yardOut:$("b2_yardOut").value,size:$("b2_size").value}; }
 function b2RateApply(){
-  if(b2Num($("b2_trans").value)) return; // ไม่ทับเลขที่กรอกแล้ว
+  if(b2Num($("b2_trans").value)){ b2SaleWarnSync(); return; } // ไม่ทับเลขที่กรอกแล้ว — แค่เช็คว่าต่างจากเรทแม่ไหม
+  // V73 [sale_rates]: ตารางแม่ขึ้นก่อน → ความจำบิลล่าสุดเป็นตัวสำรอง (สวิตช์ปิด = ความจำบิลแบบเดิมเป๊ะ)
+  const sHit=saleRateFor(b2SaleRec());
+  if(sHit){ $("b2_trans").value=sHit.price; $("b2RateChip").textContent='💡 จากเรทราคาขาย'+(sHit.row.at?' ('+sHit.row.at+')':'')+' — แก้ได้'; b2Recalc(); return; }
   const hit=rateFor($("b2_customer").value,$("b2_loadPlace").value);
   if(hit){ $("b2_trans").value=hit.trans; $("b2RateChip").textContent='💡 เติมเรทล่าสุด'+(hit.when?' ('+thd(hit.when)+')':'')+'ให้แล้ว — แก้ได้'; b2Recalc(); }
+}
+/* V73: กรอกราคาต่างจากเรทแม่เกิน 10% → เตือนบนชิป (กันคีย์ผิดหลักพัน) */
+function b2SaleWarnSync(){
+  const w=saleRateWarn(b2SaleRec(),b2Num($("b2_trans").value));
+  if(w) $("b2RateChip").textContent=w;
+  else if(($("b2RateChip").textContent||'').indexOf('⚠️')===0) $("b2RateChip").textContent='';
 }
 function bill2FormOpen(rec){
   b2EditUid=rec?String(rec.uid):'';
@@ -5408,7 +5453,7 @@ document.querySelectorAll('#dPeriod button').forEach(b=>b.addEventListener('clic
 document.querySelectorAll('.views button').forEach(b=>b.addEventListener('click',()=>{ dashView=b.dataset.v; renderDash(); }));
 dashPageSync();
 payPageSync();
-setTimeout(()=>{ try{ loadRates(); }catch(e){} }, 2500);   // V63.7: เลื่อนโหลดเรท 2.5 วิ ไม่แย่งเน็ตกับล็อกอิน · ⚠️ ห้ามใช้ requestIdleCallback ส่งเลขเป็น arg ที่ 2 (ต้องเป็น {timeout:N}) — Chrome ใหม่ throw แล้วโค้ดผูกปุ่มทั้งหมดข้างล่างตายทั้งหน้า (เหตุการณ์ 19 ส.ค. 2026)
+setTimeout(()=>{ try{ loadRates(); }catch(e){} try{ loadSaleRates(); }catch(e){} }, 2500);   // V63.7: เลื่อนโหลดเรท 2.5 วิ ไม่แย่งเน็ตกับล็อกอิน · ⚠️ ห้ามใช้ requestIdleCallback ส่งเลขเป็น arg ที่ 2 (ต้องเป็น {timeout:N}) — Chrome ใหม่ throw แล้วโค้ดผูกปุ่มทั้งหมดข้างล่างตายทั้งหน้า (เหตุการณ์ 19 ส.ค. 2026)
 /* V63.3: ใบที่ค้าง "⟳ กำลังตรวจ" ถาวร (ปิดแท็บก่อนตัวตรวจเบื้องหลังทำงานจบ) → ปลดล็อกเป็น "ยังไม่ขึ้น" ให้ส่งซ้ำ/ตรวจได้ */
 try{ const _l=b2PendList(); if(_l.some(x=>x.busy)){ _l.forEach(x=>{ if(x.busy){ x.busy=0; x.sent=0; } }); b2PendSave(_l); } }catch(e){}                                    // โหลดตารางเรทไว้ล่วงหน้า (มีแคชในเครื่อง เปิดมาใช้ได้ทันที)
 $("goBill").addEventListener('click',()=>{ location.hash='bill'; });
@@ -5488,6 +5533,7 @@ $("btnB2Clear").addEventListener('click',()=>{ b2EditUid=''; bill2FormClear(fals
 $("btnB2Save").addEventListener('click',bill2Save);
 $("btnB2ExAdd").addEventListener('click',()=>{ b2Ex.push({n:'',v:''}); b2RenderEx(); const last=$("b2ExList").querySelector('.b2exrow:last-child input'); if(last) last.focus(); });
 ['b2_trans','b2_recv','b2_ret'].forEach(id=>$(id).addEventListener('input',b2Recalc));
+$("b2_trans").addEventListener('change',b2SaleWarnSync);   // V73 [sale_rates]: เตือนราคาต่างจากเรทแม่เกิน 10%
 $("b2_customer").addEventListener('change',b2RateApply);
 $("b2_loadPlace").addEventListener('change',b2RateApply);
 document.querySelectorAll('#b2Filter .fb').forEach(f=>f.addEventListener('click',()=>{ bill2Filter=f.dataset.f; document.querySelectorAll('#b2Filter .fb').forEach(x=>x.classList.toggle('on',x.dataset.f===bill2Filter)); $("b2Bulk").style.display='none'; if(bill2Filter==='recent') loadBill2Recent(); else loadBill2Queue();
@@ -6755,15 +6801,32 @@ async function qDispatchInit() {
     $("d_date").value = qState.carry.jobDate;
   if (!$("d_date").value) $("d_date").value = todayLocal();
   if (!$("d_trans").value) $("d_trans").value = ($("q_offer").value || '').replace(/,/g, '');
-  // V73 [dispatch_v2]: เข้าแท็บจ่ายงานตรงๆ (ไม่ผ่านตีราคา) ราคาไม่ว่างอีกต่อไป — เติมจากความจำบิลล่าสุดของลูกค้า
+  // V73: ลำดับเติมราคา — ① ราคาที่เพิ่งเสนอ (q_offer งานนี้โดยเฉพาะ ชนะเสมอ) ② ตารางแม่เรทราคาขาย ③ ความจำบิลล่าสุด
+  try { await loadSaleRates(); } catch (e) {}
+  if (ff('sale_rates') && !$("d_trans").value) {
+    const sHit = saleRateFor(qDisRec());
+    if (sHit) { $("d_trans").value = sHit.price;
+      const ch = $("d_trChip"); ch.style.display = ''; ch.textContent = '💡 จากเรทราคาขาย' + (sHit.row.at ? ' (' + sHit.row.at + ')' : '') + ' — แก้ได้'; }
+  }
+  // [dispatch_v2]: เข้าแท็บจ่ายงานตรงๆ (ไม่ผ่านตีราคา) ราคาไม่ว่างอีกต่อไป — เติมจากความจำบิลล่าสุดของลูกค้า
   if (ff('dispatch_v2') && !$("d_trans").value) {
     try { if (!bill2MetaLoaded) await loadBill2Meta(); } catch (e) {}
     const hit = rateFor($("q_cust").value, $("d_load").value);
     if (hit) { $("d_trans").value = hit.trans;
       const ch = $("d_trChip"); ch.style.display = ''; ch.textContent = '💡 ราคาจากบิลล่าสุด' + (hit.when ? ' (' + hit.when + ')' : '') + ' — แก้ได้'; }
   }
+  qDisWarnSync();
   await loadDrivers();
   qTripAuto();
+}
+/* V73 [sale_rates]: ข้อมูลงานปัจจุบันของหน้าจ่ายงาน (ไว้จับคู่เรทแม่) + เตือนราคาต่างเกิน 10% */
+function qDisRec() { return { customer: $("q_cust").value, loadPlace: $("d_load").value,
+  yardIn: $("d_yardIn").value, yardOut: $("d_yardOut").value, size: $("q_size").value }; }
+function qDisWarnSync() {
+  const w = saleRateWarn(qDisRec(), +(($("d_trans").value || '').replace(/,/g, '')) || 0);
+  const ch = $("d_trChip");
+  if (w) { ch.style.display = ''; ch.textContent = w; }
+  else if ((ch.textContent || '').indexOf('⚠️') === 0) { ch.style.display = 'none'; ch.textContent = ''; }
 }
 async function loadDrivers() {
   const box = $("dpDrvList");   // ⚠️ ห้ามใช้ชื่อ drvList — ชนกับรายชื่อคนขับในแดชบอร์ด (บทเรียน V59/V60)
@@ -7067,6 +7130,17 @@ $("qBack1").addEventListener('click', () => qStep(1));
 $("qBack2").addEventListener('click', () => qStep(2));
 $("qAgree").addEventListener('click', async () => {
   if (qState.qtNo) { try { await callAct({ act: 'qtstate', no: qState.qtNo, state: 'ลูกค้าตกลง' }); } catch (e) {} }
+  // V73 [sale_rates]: ลูกค้าตกลง = ราคานี้เป็นราคาจริงของเส้นทางนี้แล้ว → เก็บเข้าตารางแม่ (ที่มา = เลขใบเสนอราคา)
+  if (ff('sale_rates')) {
+    const agreed = +(($("qd_price").value || $("q_offer").value || '').replace(/,/g, '')) || 0;
+    if (agreed > 0 && $("q_cust").value.trim()) {
+      try {
+        await callAct({ act: 'srateadd', cust: $("q_cust").value, from: $("q_from").value, to: $("q_to").value,
+          size: $("q_size").value, pay: agreed, src: qState.qtNo ? ('ใบเสนอราคา ' + qState.qtNo) : 'ลูกค้าตกลง (ไม่มีเลขใบเสนอ)' });
+        saleLoaded = false; loadSaleRates(true);
+      } catch (e) {}
+    }
+  }
   qStep(3);
 });
 $("qPrint").addEventListener('click', () => {
@@ -7086,6 +7160,7 @@ $("dpDrvClear").addEventListener('click', () => { $("dpDrvQ").value = ''; render
 $("dGo").addEventListener('click', qDoDispatch);
 document.querySelectorAll('#ovTags .ovtag').forEach(b => b.addEventListener('click', () => b.classList.toggle('on')));
 ['d_load', 'd_yardIn', 'd_yardOut'].forEach(id => { const e = $(id); if (e) e.addEventListener('change', qTripAuto); });
+$("d_trans").addEventListener('change', qDisWarnSync);   // V73 [sale_rates]: กรอกราคาต่างจากเรทแม่เกิน 10% → เตือน
 $("d_trip").addEventListener('input', () => {
   const t = $("d_tpTag");
   if (t.className.indexOf('g') > -1) { t.className = 'qchip w'; t.textContent = '✏️ แก้เอง'; }
@@ -7111,6 +7186,7 @@ let drRows = [], drLoaded = false, drLastFetch = 0, drBusy = '';
 async function loadDrafts(force) {
   if (!force && drLoaded && Date.now() - drLastFetch < 15000) { renderDrafts(); return; }
   drLastFetch = Date.now();
+  try { await loadSaleRates(); } catch (e) {}   // V73: checkbox "จำราคา" ต้องรู้ว่าเส้นไหนมีเรทแม่แล้ว
   try {
     const j = await callAct({ act: 'drlist' });
     if (j && j.ok && Array.isArray(j.rows)) { drRows = j.rows; drLoaded = true; renderDrafts(); updateDraftMark(); }
@@ -7134,6 +7210,14 @@ function renderDrafts() {
   if (!rows.length) { $("drBody").innerHTML = '<div class="empty">ไม่พบร่างที่ค้นหา</div>'; return; }
   $("drBody").innerHTML = rows.map(r => {
     const total = b2RowTotal(r), u = escAttr(r.uid);
+    // V73 [sale_rates]: เส้นนี้ยังไม่มีเรทแม่ + มีราคา → เสนอเก็บเข้าตารางตอนยืนยัน (human-in-loop ไม่ learn เงียบ)
+    let remBox = '';
+    if (ff('sale_rates') && Number(r.c_trans) > 0
+        && !saleRateFor({ customer: r.customer, loadPlace: r.loadPlace, yardIn: r.yardIn, yardOut: r.yardOut, size: r.size })) {
+      remBox = '<label style="display:flex;align-items:center;gap:7px;margin-top:8px;font-size:13px;cursor:pointer">'
+        + '<input type="checkbox" class="drRem" data-uid="' + u + '" checked style="width:16px;height:16px;flex:none">'
+        + ' 💾 จำราคา ' + Number(r.c_trans).toLocaleString('th-TH') + ' เป็นเรทถาวรของเส้นนี้ (ยังไม่มีในตารางเรทราคาขาย)</label>';
+    }
     return '<div class="b3card" data-druid="' + u + '">'
       + '<div class="b3top"><b>' + escHtml(r.container || '(ยังไม่มีเบอร์ตู้)') + '</b>'
       + ' <span class="qchip">🗂 ร่าง</span></div>'
@@ -7143,6 +7227,7 @@ function renderDrafts() {
       + '<div class="b3sub">ค่าขนส่ง <b>' + (Number(total) || 0).toLocaleString('th-TH') + '</b> บาท'
       + (Number(r.tripPay) ? ' · ค่าเที่ยวคนขับ ' + Number(r.tripPay).toLocaleString('th-TH') : '')
       + (r.draftBy ? ' · จ่ายงานโดย ' + escHtml(r.draftBy) : '') + '</div>'
+      + remBox
       + '<div class="row2" style="margin-top:9px">'
       + '<button class="btn btn-ok bsm drOk" data-uid="' + u + '">✅ ยืนยัน → เข้าคิววางบิล</button>'
       // V73 [สวิตช์ draft_edit]: เติมเบอร์ตู้/Job.Ref/B/L ได้ตั้งแต่ยังเป็นร่าง — ไม่ต้องยืนยันตู้เปล่าเข้าคิวก่อนแล้วตามแก้
@@ -7152,10 +7237,12 @@ function renderDrafts() {
   }).join('');
 }
 async function drAct(uid, kind) {
-  if (drBusy) return; 
+  if (drBusy) return;
   const r = drRows.find(x => x.uid === uid) || {};
   const name = (r.container || '') + ' ' + (r.customer || '');
   if (kind === 'cancel' && !confirm('ยกเลิกร่างใบนี้?\n' + name + '\n\nใบจะไม่เข้าคิววางบิล (แถวยังอยู่ในชีท ไม่ได้ลบทิ้ง)')) return;
+  // V73 [sale_rates]: เก็บสถานะติ๊ก "จำราคา" ก่อน — render ใหม่แล้ว checkbox หาย
+  const rememberRate = kind !== 'cancel' && !!((document.querySelector('.drRem[data-uid="' + uid + '"]') || {}).checked);
   drBusy = uid;
   try {
     const j = await callAct({ act: kind === 'cancel' ? 'drcancel' : 'drconfirm', uid: uid });
@@ -7164,6 +7251,11 @@ async function drAct(uid, kind) {
       drRows = drRows.filter(x => x.uid !== uid); renderDrafts(); updateDraftMark();
       if (kind === 'cancel') flash('ยกเลิกร่างแล้ว', 'ok');
       else { flash('✅ ยืนยันแล้ว — ใบเข้าคิววางบิลเรียบร้อย', 'ok'); bill2LastFetch = 0; loadBill2Queue(); }
+      if (rememberRate && Number(r.c_trans) > 0) {   // ยิงหลังยืนยันสำเร็จเท่านั้น — ร่างที่ถูกปฏิเสธไม่กลายเป็นเรทแม่
+        try { callAct({ act: 'srateadd', cust: r.customer, load: r.loadPlace, from: r.yardIn, to: r.yardOut,
+          size: r.size, pay: Number(r.c_trans), src: 'ยืนยันร่าง ' + uid })
+          .then(() => { saleLoaded = false; loadSaleRates(true); }); } catch (e) {}
+      }
     } else if (/already-confirmed/.test(String(res))) {
       flash('ใบนี้มีคนยืนยันไปแล้ว', 'err'); loadDrafts(true);
     } else flash(qActErr(j), 'err');
