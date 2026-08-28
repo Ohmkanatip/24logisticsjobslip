@@ -640,6 +640,57 @@ async function main() {
     ok(/binding/i.test(example), 'อธิบายไว้ว่า D1 เป็น binding ใน wrangler ไม่ใช่ค่าใน .dev.vars');
   }
 
+
+  // ══ กู้เคส "AI อ่านตัวอักษรเป็นตัวเลข" — เคสที่ผิดบ่อยที่สุดในโลกจริง (28 ส.ค. 2569) ══
+  //   เดิม: extract รับเฉพาะ [A-Z]{4} → C5QU… หาไม่เจอ → บอทตอบ "ไม่เจอ" → suggestRepairs ไม่เคยถูกเรียก
+  //   = ฟีเจอร์เสนอตัวซ่อมตายสนิทในเส้นทางจริง (ผู้ตรวจอิสระทักไว้ถูก — ยืนยันด้วยหน้าลองเล่น)
+  console.log('\n== กู้เคสตัวอักษรถูกอ่านเป็นเลข ==');
+  {
+    const { extractNearMisses } = await import('../src/ocr/extract.js');
+
+    ok(extractNearMisses('C5QU3054383')[0] === 'C5QU3054383', 'จับ near-miss ได้ (S ถูกอ่านเป็น 5)');
+    ok(extractNearMisses('0OLU5500990')[0] === '0OLU5500990', 'จับ near-miss ได้ (O ถูกอ่านเป็น 0)');
+    ok(extractNearMisses('CSQU3054383').length === 0, '⭐ เบอร์ที่รูปแบบถูกอยู่แล้ว ไม่นับเป็น near-miss (ไปทางปกติ)');
+    ok(extractNearMisses('ตู้สกปรกอ่านไม่ออก').length === 0, 'ข้อความที่ไม่มีเบอร์เลย = ไม่มี near-miss');
+    ok(extractNearMisses('12345678901').length === 0, 'เลขล้วน 11 หลัก ไม่ใช่ near-miss (ไม่มีตัวอักษรเลย)');
+    ok(extractNearMisses(null).length === 0 && extractNearMisses(123).length === 0, 'input แปลกไม่ throw');
+
+    // วงจรเต็มผ่าน webhook จริง: อ่านผิด → บอทเสนอตัวที่ถูก → คนขับกดยืนยัน → เข้า staging
+    const { makeMemoryStagingRepo } = await import('../src/db/staging.js');
+    const { chooseWriteback } = await import('../src/writeback/index.js');
+    const repo = makeMemoryStagingRepo();
+    const wb = chooseWriteback({ WRITEBACK_PROVIDER: 'd1' }, repo);
+    const lc = createMockLineClient();
+    const r = await handleEvent(
+      { type: 'message', replyToken: 'rt', timestamp: 1, message: { type: 'image', id: 'i' }, source: { userId: 'U1' } },
+      { lineClient: lc, engine: createMockEngine({ rawText: 'C5QU3054383' }), writeback: wb }
+    );
+    ok(r.ok === true && r.nearFixes && r.nearFixes[0] === 'CSQU3054383',
+      '⭐⭐ AI อ่าน C5QU… → บอทเสนอ CSQU3054383 (เดิมตอบ "หาไม่เจอ" แล้วจบ)', r.nearFixes);
+    const msg = lc.calls.filter((c) => c.fn === 'replyMessage').pop().messages[0];
+    ok(/ตัวอักษรอาจถูกอ่านเป็นตัวเลข/.test(msg.text), 'บอกคนขับตรงๆ ว่าทำไมถึงเสนอตัวนี้');
+    const btns = (msg.quickReply.items || []).map((i) => i.action.data).join(' ');
+    ok(/container=CSQU3054383/.test(btns), 'มีปุ่มให้กดยืนยันเบอร์ที่ซ่อมได้');
+    ok((await repo.listResults()).length === 0, '⭐ ยังไม่เขียนอะไรลงฐาน — ต้องรอคนขับกดยืนยันก่อนเสมอ');
+
+    // กดยืนยัน → เข้า staging (ตรวจเช็คดิจิตซ้ำอีกชั้นตอน postback)
+    await handleEvent(
+      { type: 'postback', replyToken: 'rt2', timestamp: 2,
+        postback: { data: 'action=confirm&container=CSQU3054383' }, source: { userId: 'U1' } },
+      { lineClient: lc, engine: createMockEngine({ rawText: '' }), writeback: wb }
+    );
+    const staged = await repo.listResults();
+    ok(staged.length === 1 && staged[0].container_no === 'CSQU3054383', 'กดยืนยันแล้วเข้าตารางพักผลถูกต้อง');
+
+    // ⚠️ ห้ามเสนอมั่ว: near-miss ที่ซ่อมยังไงก็ไม่ผ่านเช็คดิจิต ต้องตอบ "ไม่เจอ" ตามปกติ
+    const lc2 = createMockLineClient();
+    const r2 = await handleEvent(
+      { type: 'message', replyToken: 'rt3', timestamp: 3, message: { type: 'image', id: 'i' }, source: { userId: 'U1' } },
+      { lineClient: lc2, engine: createMockEngine({ rawText: '1111111111 1' }), writeback: wb }
+    );
+    ok(!r2.nearFixes || !r2.nearFixes.length, '⭐ ซ่อมไม่ได้ = ไม่เสนอมั่ว (ตอบไม่เจอตามปกติ)');
+  }
+
   console.log('\nผ่าน ' + pass + ' · ตก ' + fail);
   process.exit(fail === 0 ? 0 : 1);
 }

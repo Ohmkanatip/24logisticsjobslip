@@ -38,7 +38,21 @@ const MUTATIONS = [
   { name: 'regex: ตัดขอบหน้า (จับเบอร์ที่ต่อท้ายคำอื่นมั่ว)',
     file: 'src/ocr/extract.js', find: '/(?<![A-Z0-9])[A-Z]{4}', replace: '/[A-Z]{4}' },
   { name: 'regex: ตัดขอบหลัง (จับเบอร์ที่มีอักขระต่อท้าย)',
-    file: 'src/ocr/extract.js', find: '(?![A-Z0-9])/g', replace: '/g' },
+    file: 'src/ocr/extract.js',
+    find: "const RX = /(?<![A-Z0-9])[A-Z]{4}[\\s\\-]*(?:[0-9][\\s\\-]*){6}[0-9](?![A-Z0-9])/g;",
+    replace: "const RX = /(?<![A-Z0-9])[A-Z]{4}[\\s\\-]*(?:[0-9][\\s\\-]*){6}[0-9]/g;" },
+  { name: 'near-miss: ยอมรับเลขล้วน (เลขอื่นในรูปถูกเสนอเป็นเบอร์ตู้)',
+    file: 'src/ocr/extract.js',
+    find: '    if (!/[A-Z]/.test(n.slice(0, 4))) continue;',
+    replace: '    if (false) continue;' },
+
+  // ── กู้เคสตัวอักษรถูกอ่านเป็นเลข ──
+  { name: '⚠️ ถอดด่านกู้ near-miss (C5QU→CSQU ใช้ไม่ได้ = ตัวซ่อมตายสนิทอีกครั้ง)',
+    file: 'src/line/webhook.js', find: '    if (!candidates.length) {', replace: '    if (false) {' },
+  { name: 'near-miss: ยอมรับเบอร์ที่รูปแบบถูกอยู่แล้ว (เสนอซ้ำซ้อนมั่ว)',
+    file: 'src/ocr/extract.js',
+    find: '    if (isValidFormat(n).ok) continue;              // รูปแบบถูกอยู่แล้ว = ไม่ใช่ near-miss',
+    replace: '    if (false) continue;' },
 
   // ── ด่านลายเซ็น LINE ──
   { name: '⚠️ verifySignature: ตอบผ่านทุกลายเซ็น (ใครก็ปลอม webhook ได้)',

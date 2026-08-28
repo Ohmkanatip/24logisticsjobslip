@@ -5,7 +5,7 @@
 // ทุก dependency ฉีดผ่าน deps = { lineClient, engine, writeback } เพื่อให้เทสง่าย
 import { validate } from '../iso6346/check.js';
 import { suggestRepairs } from '../iso6346/repair.js';
-import { extractCandidates } from '../ocr/extract.js';
+import { extractCandidates, extractNearMisses } from '../ocr/extract.js';
 
 // สร้าง quick reply ของ LINE: ปุ่มยืนยันต่อเบอร์ + ปุ่มถ่ายใหม่
 function buildQuickReply(confirmables, jobUid) {
@@ -49,6 +49,26 @@ export async function handleEvent(event, deps) {
     }
 
     const candidates = extractCandidates(ocr.rawText);
+    // ⭐ ถ้าไม่เจอเบอร์รูปแบบถูกเลย — ลองกู้จาก "เกือบใช่" (AI อ่านตัวอักษรเป็นเลข เช่น C5QU → CSQU)
+    //    เคสนี้พบบ่อยที่สุดในโลกจริง · เดิมตอบ "หาเบอร์ตู้ไม่เจอ" ทันที ทำให้ตัวซ่อมไม่เคยได้ทำงาน
+    //    ⚠️ ยังยึดกติกาเหล็ก: เสนอให้คนขับกดเลือกเท่านั้น ห้าม auto-ใช้ · postback ตรวจเช็คดิจิตซ้ำอีกชั้น
+    let nearFixes = [];
+    if (!candidates.length) {
+      const near = extractNearMisses(ocr.rawText || '');
+      const fixes = new Set();
+      for (const n of near) for (const f of suggestRepairs(n)) fixes.add(f);
+      nearFixes = [...fixes];
+      if (nearFixes.length) {
+        await lineClient.replyMessage(event.replyToken, [{
+          type: 'text',
+          text: 'ตัวอักษรอาจถูกอ่านเป็นตัวเลข (เช่น S↔5 · O↔0)\n'
+            + 'น่าจะเป็นเบอร์นี้: ' + nearFixes.join(' / ') + '\n\nถ้าใช่กด ✓ · ถ้าไม่ใช่กด ↻ ถ่ายใหม่',
+          quickReply: buildQuickReply(nearFixes, null)
+        }]);
+        return { ok: true, candidates: [], nearFixes };
+      }
+    }
+
     if (candidates.length === 0) {
       await lineClient.replyMessage(event.replyToken, [{
         type: 'text',
