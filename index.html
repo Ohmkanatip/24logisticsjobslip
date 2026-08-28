@@ -1498,7 +1498,9 @@
       <div class="three">
         <div class="field"><label>วันที่วิ่งงาน <span class="req">*</span></label><input type="date" id="b2_date"></div>
         <div class="field"><label>ลูกค้า (บริษัทคู่ค้าที่เรียกเก็บ) <span class="req">*</span></label><input id="b2_customer" list="dl_customer" placeholder="พิมพ์เพื่อค้นหา / เลือก" autocomplete="off"><span class="b2ratechip" id="b2RateChip"></span><div class="combo-tools" id="b2ct_customer"></div></div>
-        <div class="field"><label>เบอร์ตู้ <span class="req">*</span></label><input id="b2_container" class="mono" placeholder="เช่น SEKU9166866" autocomplete="off"></div>
+        <div class="field"><label>เบอร์ตู้ <span class="req">*</span>
+          <button type="button" id="b2OcrBtn" class="btn btn-ghost bsm" style="display:none;margin-left:8px" title="เบอร์ที่คนขับถ่ายรูปส่งมาทาง LINE และยืนยันแล้ว">📷 เบอร์จากคนขับ</button></label>
+          <input id="b2_container" class="mono" placeholder="เช่น SEKU9166866" autocomplete="off"></div>
       </div>
       <div class="three">
         <div class="field"><label>ขนาดตู้</label><input id="b2_size" list="dl_size" placeholder="เช่น 40RF" autocomplete="off"></div>
@@ -4616,6 +4618,8 @@ async function bill2Save(){
         if(j&&j.ok&&j.rec){ const rr=j.rec; okEdit=(String(rr.container||'')===d.container && b2Num(rr.c_trans)===d.c_trans && b2Num(rr.c_recv)===d.c_recv && b2Num(rr.c_return)===d.c_return && String(rr.jobref||'')===d.jobref); }
       }catch(e){}
       if(okEdit){ flash('✓ แก้บิลแล้ว — บันทึกก่อน–หลังเก็บในประวัติแก้ไข','ok'); b2EditUid=''; bill2FormClear(false); $("bill2Form").style.display='none';
+        // V73 [ocr_pull]: ถ้าเบอร์ตู้มาจากผล OCR ที่เลือกไว้ → ติดธงว่าใช้แล้ว (worker กันดึงซ้ำ atomic)
+        if(ocrPickId){ const pid=ocrPickId; ocrPickId=0; try{ callAct({act:'ocrpulled',id:pid}); }catch(e){} }
         if(!drEditBack()){ await bill2Fresh(); renderBill2(); } }   // V73: มาจากโหมดร่าง → พากลับโหมดร่าง
       else flash('⚠️ แก้ไม่สำเร็จ — ใบนี้อาจถูกพิมพ์ไปแล้ว หรือไม่ใช่บิลที่คุณจด (แอดมินแก้ได้ตลอด) · กด ⟳ ดูสถานะจริง','err');
       return;
@@ -5040,15 +5044,33 @@ async function openFlagPanel(){
     +'<div style="display:flex;gap:8px;align-items:center"><input type="month" id="ffLinkMonth" style="flex:1">'
     +'<button id="ffLinkGo" class="btn bsm" style="flex:none">จับคู่เดือนนี้</button></div>'
     +'<div id="ffLinkOut" style="font-size:12px;color:var(--ink-soft);margin-top:7px"></div></div>'
+    // V73 [ocr_pull]: ซิงก์คู่ LINE↔คนขับ (จากคอลัมน์ lineUserId แท็บคนขับ) ไปบอท OCR
+    +'<div id="ffOcrTool" style="display:none;border:1px dashed var(--line-strong);border-radius:11px;padding:11px 13px;margin-top:8px">'
+    +'<b style="font-size:13px">📡 ซิงก์ LINE↔คนขับ ไปบอท OCR</b>'
+    +'<div style="font-size:11.8px;color:var(--ink-soft);line-height:1.7;margin:4px 0 8px">กรอก lineUserId ในแท็บ "คนขับ" (คอลัมน์ 6) แล้วกดปุ่มนี้ — บอทจะรู้ว่ารูปตู้มาจากคนขับคนไหน</div>'
+    +'<div style="display:flex;gap:8px;align-items:center"><button id="ffOcrSync" class="btn bsm">ซิงก์เดี๋ยวนี้</button>'
+    +'<span id="ffOcrOut" style="font-size:12px;color:var(--ink-soft)"></span></div></div>'
     +'<button id="ffClose" style="width:100%;margin-top:14px;padding:11px;border-radius:9px;border:1px solid var(--line-strong);background:transparent;color:var(--ink);font-weight:700;cursor:pointer;font-family:inherit">ปิดหน้าต่าง</button></div>';
   document.body.appendChild(ov);
   const close=()=>{ const o=document.getElementById('ffOvl'); if(o) o.remove(); };
   ov.onclick=e=>{ if(e.target===ov) close(); };
   document.getElementById('ffClose').onclick=close;
   document.getElementById('ffLinkGo').onclick=ffLinkRun;
+  document.getElementById('ffOcrSync').onclick=ffOcrSyncRun;
   await loadFlags();
   ffRender();
   if(ff('job_link')){ const t=document.getElementById('ffLinkTool'); if(t) t.style.display='block'; }
+  if(ff('ocr_pull')){ const t2=document.getElementById('ffOcrTool'); if(t2) t2.style.display='block'; }
+}
+async function ffOcrSyncRun(){
+  const btn=document.getElementById('ffOcrSync'), out=document.getElementById('ffOcrOut');
+  btn.disabled=true; out.textContent='กำลังซิงก์…';
+  try{
+    const j=await callAct({act:'ocrsync'});
+    if(j&&j.ok) out.textContent='✓ ส่ง '+(j.sent||0)+' คน'+(j.fail?(' · พลาด '+j.fail):'')+((j.sent||j.fail)?'':' — ยังไม่มีใครกรอก lineUserId');
+    else out.textContent=(j&&j.result==='ocr-off')?'ยังไม่ได้ตั้ง OCR_BASE ในหลังบ้าน':qActErr(j);
+  }catch(e){ out.textContent='เชื่อมต่อไม่สำเร็จ'; }
+  btn.disabled=false;
 }
 async function ffLinkRun(){
   const btn=document.getElementById('ffLinkGo'), out=document.getElementById('ffLinkOut');
@@ -5567,6 +5589,7 @@ $("btnB2New").addEventListener('click',()=>{ b2EditUid=''; bill2FormOpen(null); 
 $("btnB2Close").addEventListener('click',()=>{ b2EditUid=''; $("bill2Form").style.display='none'; try{ drEditBack(); }catch(e){} });
 $("btnB2Clear").addEventListener('click',()=>{ b2EditUid=''; bill2FormClear(false); $("b2FormTitle").textContent='➕ จดบิลใหม่ — คีย์จากใบเสร็จ/ใบรับตู้ตัวจริง'; flash('ล้างฟอร์มบิลแล้ว','ok'); });
 $("btnB2Save").addEventListener('click',bill2Save);
+$("b2OcrBtn").addEventListener('click',()=>{ try{ drOcrOpen(); }catch(e){} });   // V73 [ocr_pull]
 $("btnB2ExAdd").addEventListener('click',()=>{ b2Ex.push({n:'',v:''}); b2RenderEx(); const last=$("b2ExList").querySelector('.b2exrow:last-child input'); if(last) last.focus(); });
 ['b2_trans','b2_recv','b2_ret'].forEach(id=>$(id).addEventListener('input',b2Recalc));
 $("b2_trans").addEventListener('change',b2SaleWarnSync);   // V73 [sale_rates]: เตือนราคาต่างจากเรทแม่เกิน 10%
@@ -7307,18 +7330,57 @@ $("drBody").addEventListener('click', e => {
   else if (ed) drEditOpen(ed.dataset.uid);
 });
 /* V73 [draft_edit]: เปิดฟอร์มบิลเดิมมาแก้ร่าง — ฟอร์มอยู่ในการ์ดคิว ต้องสลับโหมดไปก่อน แล้วบันทึกเสร็จพากลับมาโหมดร่าง */
-let drEditReturn = false;
+let drEditReturn = false, ocrPickId = 0;
 function drEditOpen(uid) {
   const r = drRows.find(x => x.uid === uid); if (!r) return;
-  drEditReturn = true;
+  drEditReturn = true; ocrPickId = 0;
   billMode = 'new'; billModeSync();
   bill2FormOpen(r);
   $("b2FormTitle").textContent = '✏️ แก้ร่าง — ' + (r.container || 'ยังไม่มีเบอร์ตู้') + ' · ' + (r.customer || '')
     + ' (ยังเป็นร่าง ไม่เข้าคิว/ไม่นับเงิน จนกว่าจะกดยืนยัน)';
+  // [ocr_pull]: ปุ่มดึงเบอร์จากคนขับ — โผล่เฉพาะตอนแก้ร่าง + สวิตช์เปิด (บิลปกติไม่เกี่ยว)
+  const ob = $("b2OcrBtn"); if (ob) { ob.style.display = ff('ocr_pull') ? '' : 'none'; ob.dataset.uid = uid; }
 }
 function drEditBack() {
   if (!drEditReturn) return false;
-  drEditReturn = false; billMode = 'draft'; billModeSync(); loadDrafts(true); return true;
+  drEditReturn = false; billMode = 'draft'; billModeSync(); loadDrafts(true);
+  const ob = $("b2OcrBtn"); if (ob) ob.style.display = 'none';
+  return true;
+}
+/* V73 [ocr_pull]: ดึงรายการเบอร์ตู้ที่คนขับยืนยันจาก LINE (ผ่าน proxy .gs — token ไม่อยู่ในเว็บ) */
+async function drOcrOpen() {
+  const uid = ($("b2OcrBtn") || {}).dataset ? $("b2OcrBtn").dataset.uid : '';
+  const r = drRows.find(x => x.uid === uid) || {};
+  flash('กำลังดึงเบอร์จากคนขับ…', 'ok');
+  let j = null;
+  try { j = await callAct({ act: 'ocrpull', driverId: r.driverId || '' }); } catch (e) {}
+  if (!j || !j.ok) {
+    const res = (j && j.result) || '';
+    flash(res === 'ocr-off' ? '⏳ ยังไม่ได้เชื่อมระบบ OCR (ต้องตั้ง OCR_BASE ในหลังบ้าน + worker ขึ้นก่อน)'
+      : res === 'flag-off' ? 'สวิตช์ ocr_pull ยังปิดอยู่' : qActErr(j), 'err');
+    return;
+  }
+  const rows = j.rows || [];
+  if (!rows.length) { flash('ยังไม่มีเบอร์ตู้จากคนขับรอดึง' + (r.driverId ? ' (ของคนขับใบนี้)' : ''), 'ok'); return; }
+  // ป๊อปอัพเลือก — โชว์เบอร์ + เวลา + คนยืนยัน · เลือกแล้วเติมช่อง รอกดบันทึกค่อยติดธง pulled
+  const old = document.getElementById('ocrOvl'); if (old) old.remove();
+  const ov = document.createElement('div'); ov.id = 'ocrOvl';
+  ov.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:9300;display:flex;align-items:center;justify-content:center;padding:18px';
+  ov.innerHTML = '<div style="background:var(--panel);color:var(--ink);border-radius:14px;max-width:420px;width:100%;padding:18px;box-shadow:var(--shadow);max-height:80vh;overflow:auto">'
+    + '<h3 style="margin:0 0 4px;font-size:16px">📷 เบอร์ตู้จากคนขับ</h3>'
+    + '<div style="font-size:12px;color:var(--ink-soft);margin-bottom:10px">คนขับถ่ายรูป+ยืนยันผ่าน LINE · เช็คดิจิต ISO ผ่านแล้วทุกเบอร์ · เลือกแล้วกด "บันทึกบิล" เพื่อยืนยัน</div>'
+    + rows.slice(0, 20).map(x => '<button class="btn btn-ghost ocrPick" data-id="' + Number(x.id) + '" data-c="' + escAttr(x.container_no) + '"'
+      + ' style="display:block;width:100%;text-align:left;margin-bottom:7px"><b class="mono">' + escHtml(x.container_no) + '</b>'
+      + '<span style="font-size:11.5px;color:var(--ink-soft)"> · ' + (x.ts ? new Date(Number(x.ts)).toLocaleString('th-TH') : '-')
+      + (x.driver_id ? ' · ' + escHtml(x.driver_id) : '') + '</span></button>').join('')
+    + '<button id="ocrClose" class="btn btn-ghost" style="width:100%;margin-top:6px">ปิด</button></div>';
+  document.body.appendChild(ov);
+  ov.onclick = e => { if (e.target === ov) ov.remove(); };
+  document.getElementById('ocrClose').onclick = () => ov.remove();
+  ov.querySelectorAll('.ocrPick').forEach(b => b.onclick = () => {
+    $("b2_container").value = b.dataset.c; ocrPickId = Number(b.dataset.id) || 0; ov.remove();
+    flash('ใส่เบอร์ ' + b.dataset.c + ' แล้ว — กด "บันทึกบิล" เพื่อยืนยัน (แล้วระบบติดธงว่าใช้ผลนี้แล้ว)', 'ok');
+  });
 }
 $("bmDraft").addEventListener('click', () => { billMode = 'draft'; billModeSync(true); });
 function b3Mode(m) { billMode = m; billModeSync(); }   // ให้หน้าจ่ายงานเรียกกระโดดมาโหมดร่างได้
