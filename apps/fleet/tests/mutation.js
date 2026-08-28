@@ -98,6 +98,20 @@ const MUTATIONS = [
     find: '  if (pings.length > INGEST_MAX_PINGS) {',
     replace: '  if (false) {' },
 
+  // ── แก้บั๊กรถคืบ: วัดจากจุด track ล่าสุด ──
+  { name: 'ถอดการวัดจากจุด track ล่าสุด (รถคืบช้าๆ หายจากเส้นทางอีก)',
+    file: 'src/worker/ingest.js',
+    find: '  const baseLat = Number.isFinite(prev.last_track_lat) ? prev.last_track_lat : prev.lat;',
+    replace: '  const baseLat = prev.lat;' },
+  { name: 'trip_daily: ไม่ตัดจุดกระโดดผิดปกติ (สัญญาณเพี้ยนลากระยะทางพุ่ง)',
+    file: 'src/worker/tripDaily.js',
+    find: '    if (!Number.isFinite(d) || d > maxJumpKm) continue;',
+    replace: '    if (!Number.isFinite(d)) continue;' },
+  { name: 'cartrack: แถวเสียพาทั้งชุดล้ม (คันดีหายตามคันเสีย)',
+    file: 'src/cartrack/adapter.js',
+    find: "    if (!r || typeof r !== 'object') { skipped++; continue; }",
+    replace: "    if (false) { skipped++; continue; }" },
+
   // ── สำรองข้อมูล: ต้องลบเฉพาะที่อัปขึ้นไปจริง ──
   { name: '⚠️⚠️ archive กลับไปลบตาม cutoff (ปิงที่แทรกกลางทางหายถาวร)',
     file: 'src/archive/r2Archive.js',

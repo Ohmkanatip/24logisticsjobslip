@@ -42,8 +42,13 @@ node tests/mutation.js     # หรือ npm run mutation
 - **threshold รถขยับ** — ค่าเริ่มต้น 20 เมตร (env `MOVE_THRESHOLD_M`)
 - สร้าง D1/R2 จริง + เติม `database_id` ใน `wrangler.jsonc`
 
+## ✅ งาน "พร้อมเสียบ key" ครบแล้ว (28 ส.ค. 2569 บ่าย · เทส 183 → 201 เคส · mutation 25 ตัว)
+- **adapter แผนที่ 3 ค่าย clientConfig เป็นของจริง** — ใส่ `MAP_API_KEY` แล้วได้ URL โหลดสคริปต์จริงทันที (Longdo/Google/Mapbox) · ไม่มี key = ตอบ `no-key` พร้อมวิธีสมัคร · มีเทสล็อกว่า `MAP_SERVER_KEY` ไม่มีทางหลุดฝั่ง client · **ตัววาดในหน้าเว็บยังเป็น Leaflet** (ตัววาดของค่ายอื่นจะเขียนตอนมี key ให้ทดสอบจริง — ไม่เขียนโค้ดที่ทดสอบไม่ได้)
+- **ตัวดึง Cartrack (`src/cartrack/adapter.js`)** — `normalizeCartrackPayload()` แปลง payload หลายรูปแบบ field + จับคู่ device↔ทะเบียนผ่าน deviceMap + แถวเสียถูกข้ามไม่พาทั้งชุดล้ม (เทสจริง) · `fetchLatestPings()` ยัง stub ซื่อสัตย์ **รอ credentials จากการโทร Cartrack — endpoint จริงต่างตามสัญญา ห้ามเดา**
+- **`trip_daily` มีโค้ดจริงแล้ว** — `computeTripDaily()` สรุประยะทาง/จำนวนทริปรายวันต่อคัน (ตัดจุดกระโดด >30 กม./ปิง กันสัญญาณเพี้ยนลากระยะพุ่ง · ช่วงหาย >45 นาที = ทริปใหม่) · scheduled รันตี 1 ไทยสรุปของเมื่อวาน (cron คอมเมนต์รอเปิดใน wrangler) · upsert ซ้ำวันเดิมไม่งอกแถว
+- **แก้บั๊กรถคืบช้าๆ ที่เคยจดค้างไว้แล้ว** — เพิ่ม `last_track_lat/lng` ใน `gps_live` (migration 0003) · movement filter วัดจาก**จุด track ล่าสุดที่เขียนจริง** ไม่ใช่ปิงล่าสุด → รถคืบครั้งละ 15 ม. สะสมเกิน threshold ถูกบันทึกแล้ว (เดิมหายทั้งช่วง) · COALESCE กันปิงที่ไม่เขียน track ไปทับจุดจำ
+
 ## ข้อจำกัดที่รู้แล้ว (จดไว้ ไม่ใช่ลืม)
-- **รถคืบช้าๆ ต่ำกว่า threshold ต่อปิงที่ speed=0** จะไม่ถูกบันทึก track แม้ขยับสะสมไกล — เพราะวัดระยะจากปิงก่อนหน้า (gps_live) ไม่ใช่จุด track ล่าสุดที่เขียน · เคสจริงเกิดยาก (speed>0 ก็เขียนแล้ว) · ถ้าเจอจริงค่อยเก็บพิกัด track ล่าสุดเพิ่มใน gps_live
 - **budget level 'warn' ยังไม่มีช่องทางแจ้งเตือน** (ติดมากับ response ของ ingest เท่านั้น) — ช่องทางแจ้ง (อีเมล/อื่นๆ) รอเคาะพร้อมตอนต่อ Cartrack จริง
 - `POST /api/fleet/ingest` มีด่าน `INGEST_TOKEN` แล้ว (ว่าง = โหมดทดลองไม่ตรวจ) — **ก่อนใช้จริงต้องตั้งเสมอ**
 - `GET /api/fleet/mapconfig` บอกหน้าเว็บว่า env เลือก provider อะไร — แก้ `MAP_PROVIDER` ตัวเดียวหน้าแผนที่รู้ทันที (adapter ที่วาดได้จริงตอนนี้มีแค่ leaflet · ตัวอื่น fallback พร้อมแจ้งบนแบนเนอร์)

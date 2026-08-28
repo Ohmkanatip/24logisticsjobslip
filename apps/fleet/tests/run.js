@@ -202,8 +202,12 @@ async function main() {
   for (const [nm, ad] of [['longdo', longdoAdapter], ['google', googleAdapter], ['mapbox', mapboxAdapter]]) {
     const g = ad.geocode({}, 'ลาดกระบัง');
     ok(g.ok === false && g.reason === 'not-implemented', `stub ${nm}.geocode ตอบ not-implemented ตรงๆ`);
-    const c = ad.clientConfig({});
-    ok(c.ok === false && c.reason === 'not-implemented', `stub ${nm}.clientConfig ไม่แกล้งตอบสำเร็จ`);
+    // V72.7: clientConfig เป็นของจริงแล้ว (พร้อมเสียบ key) — ไม่มี key = บอกตรงๆ · มี key = ใช้ได้เลย
+    const noKey = ad.clientConfig({});
+    ok(noKey.ok === false && noKey.reason === 'no-key' && noKey.hint, `${nm}: ไม่มี key = บอก no-key พร้อมวิธีสมัคร`);
+    const withKey = ad.clientConfig({ MAP_API_KEY: 'test-key-123', MAP_SERVER_KEY: 'SERVER-SECRET' });
+    ok(withKey.ok === true && (withKey.jsUrl || withKey.accessToken), `⭐ ${nm}: มี key = ได้ config จริง (url โหลดสคริปต์)`);
+    ok(!JSON.stringify(withKey).includes('SERVER-SECRET'), `⭐ ${nm}: MAP_SERVER_KEY ไม่มีทางหลุดไป client`);
   }
 
   // ========== mock feed ==========
@@ -296,6 +300,87 @@ async function main() {
     ok(src.includes('export default'), 'เป็น module worker (export default fetch)');
     // จับเฉพาะ token จริงที่ hardcode (Bearer ตามด้วยตัวอักษรยาวๆ) — 'Bearer ' + env.X และคอมเมนต์ <token> ไม่นับ
     ok(!/AKfy|AIza|pk\.eyJ|sk\.eyJ|Bearer [A-Za-z0-9_\-]{8,}/.test(src), 'ไม่มี secret/API key ฝังใน worker');
+  }
+
+  section('แก้บั๊ก "รถคืบช้าๆ ไม่ถูกบันทึก" — วัดจากจุด track ล่าสุดที่เขียนจริง');
+  {
+    const { processPing } = await import('../src/worker/ingest.js');
+    const repo = makeMemoryRepo();
+    // รถคืบครั้งละ ~15 ม. ที่ speed=0 (ต่ำกว่า threshold 20 ม. ทุกก้าว) รวม 6 ก้าว ≈ 90 ม.
+    const step = 0.000135;   // ≈ 15 เมตรต่อก้าว (ละติจูด)
+    let prev = null;
+    let wrote = 0;
+    for (let i = 0; i <= 6; i++) {
+      const ping = { vehicle_id: '71-3760', lat: 13.0 + step * i, lng: 100.0, ts: 1756000000000 + i * 60000, speed_kmh: 0 };
+      const r = await processPing(repo, prev, ping, {});
+      if (r.wroteTrack) wrote++;
+      prev = (await repo.getLiveAll())[0];
+    }
+    const tracks = await repo.selectTrackOlderThan(Number.MAX_SAFE_INTEGER);
+    ok(wrote >= 2 && tracks.length >= 2,
+      '⭐⭐ รถคืบสะสมเกิน threshold → ถูกบันทึกเพิ่ม (เดิม: ได้แค่จุดแรกจุดเดียวตลอดกาล)', { wrote, tracks: tracks.length });
+    const live = (await repo.getLiveAll())[0];
+    ok(Number.isFinite(live.last_track_lat), 'gps_live จำจุด track ล่าสุดไว้ (last_track_lat)');
+    // ยิงปิงคืบอีกก้าวเดียว (~15 ม. < threshold = ไม่เขียน track) — จุด track ล่าสุดต้องไม่ขยับตาม
+    await processPing(repo, live, { vehicle_id: '71-3760', lat: live.lat + step, lng: 100.0, ts: 1756000900000, speed_kmh: 0 }, {});
+    const after = (await repo.getLiveAll())[0];
+    ok(after.lat !== after.last_track_lat && after.last_track_lat === live.last_track_lat,
+      '⭐ ปิงที่ไม่ได้เขียน track: ตำแหน่งสดขยับ แต่จุด track ล่าสุดคงเดิม (COALESCE)', { lat: after.lat, last: after.last_track_lat });
+  }
+
+  section('ตัวแปลง payload ของ Cartrack (พร้อมเสียบ key)');
+  {
+    const { normalizeCartrackPayload, fetchLatestPings } = await import('../src/cartrack/adapter.js');
+    // รูปแบบ field หลากหลายที่ Cartrack ใช้ — ต้องแปลงได้หมด
+    const r1 = normalizeCartrackPayload([
+      { registration: '71-3760', latitude: 13.08, longitude: 100.89, timestamp: 1756000000000, speed: 55, bearing: 90 },
+      { plate: '82-1234', lat: 13.1, lng: 100.8, ts: 1756000060000, speed_kmh: 0 },
+    ]);
+    ok(r1.pings.length === 2 && r1.skipped === 0, 'แปลงได้ทั้ง 2 รูปแบบ field', r1.pings.map((p) => p.vehicle_id));
+    ok(r1.pings[0].speed_kmh === 55 && r1.pings[0].heading === 90, 'speed/heading มาครบ');
+    // device id → ทะเบียน ผ่าน deviceMap
+    const r2 = normalizeCartrackPayload({ data: [{ device_id: 'DEV-9', latitude: 13, longitude: 100, timestamp: 1756000000000 }] }, { 'DEV-9': '71-3760' });
+    ok(r2.pings[0].vehicle_id === '71-3760', 'จับคู่ device → ทะเบียนผ่าน deviceMap');
+    // แถวเสียถูกข้าม ไม่พาทั้งชุดล้ม
+    const r3 = normalizeCartrackPayload([null, 'ขยะ', { latitude: NaN, longitude: 100, timestamp: 1 },
+      { registration: '71-3760', latitude: 13, longitude: 100, timestamp: 1756000000000 }]);
+    ok(r3.pings.length === 1 && r3.skipped === 3, '⭐ แถวเสีย 3 แถวถูกข้ามพร้อมนับไว้ — คันดีไม่หายตาม', r3);
+    ok(normalizeCartrackPayload(null).pings.length === 0, 'payload null ไม่ throw');
+    // fetch ยังเป็น stub ซื่อสัตย์
+    ok((await fetchLatestPings({})).reason === 'no-credentials', 'ไม่มี credentials = บอกตรงๆ');
+    ok((await fetchLatestPings({ CARTRACK_API_URL: 'x', CARTRACK_API_KEY: 'y' })).reason === 'not-implemented',
+      'มี credentials แต่ endpoint จริงยังไม่ยืนยัน = not-implemented ไม่เดา');
+  }
+
+  section('trip_daily: สรุประยะทางรายวัน (เก็บถาวร)');
+  {
+    const { distanceKmOf, computeTripDaily } = await import('../src/worker/tripDaily.js');
+    const D = 1756000000000;
+    // เส้นตรง 3 จุด ห่างกันจุดละ ~11.1 กม. (0.1 องศาละติจูด)
+    const rows = [
+      { vehicle_id: 'A', lat: 13.0, lng: 100, ts: D },
+      { vehicle_id: 'A', lat: 13.1, lng: 100, ts: D + 600000 },
+      { vehicle_id: 'A', lat: 13.2, lng: 100, ts: D + 1200000 },
+    ];
+    const km = distanceKmOf(rows);
+    ok(km > 21 && km < 23, 'ระยะทาง ~22.2 กม. คำนวณถูก', km);
+    ok(distanceKmOf([rows[0], { ...rows[1], lat: 20 }]) === 0, '⭐ จุดกระโดดไกลผิดปกติ (สัญญาณเพี้ยน) ไม่ถูกนับ');
+    ok(distanceKmOf([rows[0], { ...rows[1], lat: NaN }]) === 0, 'พิกัดเสียไม่นับ ไม่ throw');
+
+    const day = computeTripDaily([...rows, { vehicle_id: 'B', lat: 14, lng: 100, ts: D },
+      { vehicle_id: 'B', lat: 14.05, lng: 100, ts: D + 4 * 3600000 }], '2026-08-27');
+    ok(day.length === 2 && day[0].vehicle_id === 'A', 'แยกรายคัน เรียงทะเบียน');
+    ok(day[1].trips === 2, 'ช่วงขาดหาย > 45 นาที = นับเป็นทริปใหม่', day[1]);
+
+    // ผ่าน repo (รันซ้ำวันเดิมต้องไม่งอกแถว)
+    const repo = makeMemoryRepo();
+    for (const r of rows) await repo.insertTrack(r);
+    const got = await repo.selectTrackBetween(D - 1000, D + 86400000);
+    ok(got.length === 3, 'selectTrackBetween ดึงช่วงเวลาได้ถูก');
+    ok((await repo.upsertTripDaily(day)) === 2 && (await repo.upsertTripDaily(day)) === 2, 'upsert ซ้ำวันเดิมไม่งอกแถว (idempotent)');
+    let threw = false;
+    try { await repo.selectTrackBetween('abc', D); } catch (e) { threw = true; }
+    ok(threw, 'ช่วงเวลาเป็นข้อความ = throw (กันเคสเดียวกับ cutoff กวาดทั้งตาราง)');
   }
 
   section('เหตุการณ์ชนกัน (concurrency) — สำรองข้อมูลต้องไม่ลบของที่ยังไม่ได้อัป');

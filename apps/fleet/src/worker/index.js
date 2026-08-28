@@ -7,6 +7,7 @@ import { makeMemoryRepo, makeD1Repo } from '../db/repo.js';
 import { processPing } from './ingest.js';
 import { makeInitialState, tick, toPings } from '../mock/feed.js';
 import { archiveOldTracks } from '../archive/r2Archive.js';
+import { computeTripDaily } from './tripDaily.js';
 import { ingestAuthorized, mapConfigOf } from './api.js';
 
 // เก็บ track สดใน D1 กี่วันก่อน archive ขึ้น R2 (ตามสเปก 60 วัน)
@@ -14,6 +15,10 @@ const TRACK_KEEP_DAYS = 60;
 
 // จำนวนปิงสูงสุดต่อ 1 คำขอ — กัน Worker ถูกตัดกลางคันเพราะ CPU เกินเพดาน (ดูคอมเมนต์ใน ingestHandler)
 export const INGEST_MAX_PINGS = 500;
+
+// cron ของงานตามเวลา (ตรงกับที่คอมเมนต์ไว้ใน wrangler.jsonc — เปิดตอน setup จริง)
+export const TRIP_DAILY_CRON = '0 18 * * *';   // 18:00 UTC = ตี 1 เวลาไทย สรุปของเมื่อวาน
+export const ARCHIVE_CRON = '0 21 1 * *';      // วันที่ 1 ของเดือน 04:00 เวลาไทย
 
 // สถานะ mock ระดับโมดูล — อยู่ได้ตลอดอายุ isolate (พอสำหรับโหมดทดลอง ไม่ใช่ของจริง)
 let mockState = null;
@@ -153,13 +158,29 @@ export default {
     }
   },
 
-  // ตัวเรียก job สำรอง R2 (ตัวตรวจอิสระเจอว่า archiveOldTracks ไม่มีคนเรียก 28 ส.ค. 2569)
-  // ทำงานก็ต่อเมื่อเปิด cron ใน wrangler.jsonc (ตอนนี้คอมเมนต์ไว้ — ห้าม deploy จนเจ้าของเคาะ)
-  // โหมด mock ไม่มี D1/R2 จริง = ข้ามเงียบๆ ไม่พัง
+  // งานตามเวลา — แยกหน้าที่ตาม cron ที่ยิงเข้ามา (เปิดใน wrangler.jsonc ตอน setup จริง)
+  // โหมด mock ไม่มี D1 จริง = ข้ามเงียบๆ ไม่พัง
   async scheduled(event, env, ctx) {
-    if (isMockMode(env) || !env.DB || !env.ARCHIVE) return;
-    const cutoffTs = Date.now() - TRACK_KEEP_DAYS * 24 * 60 * 60 * 1000;
+    if (isMockMode(env) || !env.DB) return;
     const repo = makeD1Repo(env.DB);
-    ctx.waitUntil(archiveOldTracks(repo, env.ARCHIVE, cutoffTs));
+    const cron = (event && event.cron) || '';
+
+    // ① สรุประยะทางรายวัน (ตี 1 ตามเวลาไทย = 18:00 UTC วันก่อน) — สรุปของ "เมื่อวาน"
+    if (cron === TRIP_DAILY_CRON || !cron) {
+      const now = new Date();
+      const y = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+      const day = y.toISOString().slice(0, 10);
+      const from = Date.parse(day + 'T00:00:00.000Z');
+      ctx.waitUntil((async () => {
+        const rows = await repo.selectTrackBetween(from, from + 86400000);
+        await repo.upsertTripDaily(computeTripDaily(rows, day));
+      })());
+    }
+
+    // ② สำรองขึ้น R2 แล้วลบของเก่ากว่า 60 วัน (ต้องมี R2 binding)
+    if ((cron === ARCHIVE_CRON || !cron) && env.ARCHIVE) {
+      const cutoffTs = Date.now() - TRACK_KEEP_DAYS * 24 * 60 * 60 * 1000;
+      ctx.waitUntil(archiveOldTracks(repo, env.ARCHIVE, cutoffTs));
+    }
   },
 };

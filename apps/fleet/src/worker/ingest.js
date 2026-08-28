@@ -50,7 +50,12 @@ export function shouldWriteTrack(prev, ping, thresholdM) {
   const th = safeThreshold(thresholdM);                                // กันค่าเพี้ยนแม้ถูกเรียกตรงๆ
   if (!prev) return { write: true, reason: 'first-point' };            // จุดแรกของคัน = เขียนไว้ก่อน
   if (Number(ping.speed_kmh) > 0) return { write: true, reason: 'speed' }; // มีความเร็ว = ขยับแน่ (สตริงเพี้ยน = ไม่นับ)
-  const distM = haversineM(prev.lat, prev.lng, ping.lat, ping.lng);
+  // ⚠️ วัดจาก "จุด track ล่าสุดที่ถูกเขียนจริง" ไม่ใช่ปิงล่าสุด (บั๊กที่จดค้างไว้ — แก้ 28 ส.ค. 2569)
+  //    เดิม: รถคืบครั้งละ 15 ม. ที่ speed=0 → ทุกปิงห่างจากปิงก่อน < 20 ม. = ไม่เขียนสักครั้ง
+  //    ทั้งที่ขยับสะสมไปหลายร้อยเมตรแล้ว — เส้นทางหายทั้งช่วงแบบเงียบๆ
+  const baseLat = Number.isFinite(prev.last_track_lat) ? prev.last_track_lat : prev.lat;
+  const baseLng = Number.isFinite(prev.last_track_lng) ? prev.last_track_lng : prev.lng;
+  const distM = haversineM(baseLat, baseLng, ping.lat, ping.lng);
   if (!Number.isFinite(distM)) return { write: false, reason: 'bad-distance', distM: null }; // พิกัดใช้ไม่ได้
   if (distM > th) return { write: true, reason: 'moved', distM };
   return { write: false, reason: 'parked', distM };                    // รถจอด — ไม่บันทึกซ้ำ
@@ -80,6 +85,7 @@ export async function processPing(repo, prev, ping, opts = {}) {
   }
 
   // mitigation ข้อ 2: gps_live เป็น UPSERT เสมอ — 1 แถว/คัน
+  // เขียน track รอบนี้ = จำจุดนี้เป็น "จุด track ล่าสุด" · ไม่เขียน = ส่ง null (COALESCE คงค่าเดิมไว้)
   await repo.upsertLive({
     vehicle_id: ping.vehicle_id,
     lat: ping.lat,
@@ -87,6 +93,8 @@ export async function processPing(repo, prev, ping, opts = {}) {
     speed_kmh: ping.speed_kmh ?? 0,
     heading: ping.heading ?? 0,
     updated_at: ping.ts,
+    last_track_lat: wroteTrack ? ping.lat : null,
+    last_track_lng: wroteTrack ? ping.lng : null,
   });
 
   return { ok: true, wroteTrack, budget, reason: decision.reason };

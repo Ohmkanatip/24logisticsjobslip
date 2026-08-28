@@ -17,7 +17,12 @@ CREATE TABLE IF NOT EXISTS gps_live (
   speed_kmh  REAL NOT NULL DEFAULT 0,    -- ความเร็ว กม./ชม.
   heading    REAL NOT NULL DEFAULT 0,    -- ทิศหัวรถ (องศา 0-360)
   updated_at INTEGER NOT NULL            -- epoch millis ของปิงล่าสุด
-);
+,
+  -- จุด track ล่าสุดที่ "ถูกเขียนจริง" — ใช้วัดระยะสะสมของ movement filter
+  -- ⚠️ ถ้าวัดจากปิงล่าสุด (ซึ่งอัปเดตทุกปิง): รถคืบช้าๆ ครั้งละ < threshold ที่ speed=0
+  --    จะไม่มีวันถูกบันทึก track แม้ขยับสะสมไปไกลแล้ว (บั๊กที่จดค้างไว้ 28 ส.ค. 2569 — แก้แล้ว)
+  last_track_lat REAL,
+  last_track_lng REAL);
 
 -- ประวัติเส้นทาง — เขียนเฉพาะตอนรถขยับ (mitigation ข้อ 1) · เก่ากว่า 60 วันย้ายขึ้น R2 แล้วลบ (src/archive/r2Archive.js)
 CREATE TABLE IF NOT EXISTS gps_track (

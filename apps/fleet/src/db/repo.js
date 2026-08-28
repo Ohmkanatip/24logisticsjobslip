@@ -39,6 +39,8 @@ function liveRowShape(row = {}) {
     speed_kmh: nul(row.speed_kmh),
     heading: nul(row.heading),
     updated_at: nul(row.updated_at),
+    last_track_lat: nul(row.last_track_lat),
+    last_track_lng: nul(row.last_track_lng),
   };
 }
 
@@ -67,13 +69,18 @@ export function makeD1Repo(db) {
   return {
     // UPSERT ตำแหน่งล่าสุด — 1 แถว/คันเสมอ (mitigation ข้อ 2 ของเพดานเขียน 100k/วัน)
     async upsertLive(row) {
+      // last_track_* ใช้ COALESCE: ปิงที่ไม่ได้เขียน track จะไม่ลบจุด track ล่าสุดทิ้ง
       await db.prepare(
-        `INSERT INTO gps_live (vehicle_id, lat, lng, speed_kmh, heading, updated_at)
-         VALUES (?, ?, ?, ?, ?, ?)
+        `INSERT INTO gps_live (vehicle_id, lat, lng, speed_kmh, heading, updated_at, last_track_lat, last_track_lng)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?)
          ON CONFLICT(vehicle_id) DO UPDATE SET
            lat = excluded.lat, lng = excluded.lng, speed_kmh = excluded.speed_kmh,
-           heading = excluded.heading, updated_at = excluded.updated_at`
-      ).bind(row.vehicle_id, row.lat, row.lng, row.speed_kmh, row.heading, row.updated_at).run();
+           heading = excluded.heading, updated_at = excluded.updated_at,
+           last_track_lat = COALESCE(excluded.last_track_lat, gps_live.last_track_lat),
+           last_track_lng = COALESCE(excluded.last_track_lng, gps_live.last_track_lng)`
+      ).bind(row.vehicle_id, row.lat, row.lng, row.speed_kmh, row.heading, row.updated_at,
+        row.last_track_lat === undefined ? null : row.last_track_lat,
+        row.last_track_lng === undefined ? null : row.last_track_lng).run();
     },
 
     // เพิ่มจุดลงประวัติเส้นทาง (คนเรียกต้องผ่าน movement filter ใน ingest.js มาก่อน)
@@ -110,6 +117,26 @@ export function makeD1Repo(db) {
         `SELECT id, vehicle_id, lat, lng, ts FROM gps_track WHERE ts < ? ORDER BY ts`
       ).bind(cutoffTs).all();
       return rs.results || [];
+    },
+
+    // แถว track ในช่วงเวลา [fromTs, toTs) — ใช้สรุป trip_daily รายวัน
+    async selectTrackBetween(fromTs, toTs) {
+      assertCutoff(fromTs); assertCutoff(toTs);
+      const rs = await db.prepare(
+        `SELECT id, vehicle_id, lat, lng, ts FROM gps_track WHERE ts >= ? AND ts < ? ORDER BY ts`
+      ).bind(fromTs, toTs).all();
+      return rs.results || [];
+    },
+
+    // เก็บสรุปรายวัน (ทับได้ — รันซ้ำวันเดิมไม่งอกแถว)
+    async upsertTripDaily(rows) {
+      for (const r of rows) {
+        await db.prepare(
+          `INSERT INTO trip_daily (vehicle_id, day, distance_km, trips) VALUES (?, ?, ?, ?)
+           ON CONFLICT(vehicle_id, day) DO UPDATE SET distance_km = excluded.distance_km, trips = excluded.trips`
+        ).bind(r.vehicle_id, r.day, r.distance_km, r.trips).run();
+      }
+      return rows.length;
     },
 
     // ลบเฉพาะแถวที่ระบุ id — archive ใช้ตัวนี้ (ลบเฉพาะที่อัปขึ้น R2 สำเร็จจริงเท่านั้น)
@@ -149,6 +176,7 @@ export function makeD1Repo(db) {
 export function makeMemoryRepo(seedVehicles = []) {
   // active ต้องกลายเป็น 0/1 เหมือนที่ SQLite เก็บ (true → 1) ไม่งั้น listVehicles กรองไม่ตรงกับ D1
   const vehicles = (seedVehicles || []).map((v) => ({ ...v, active: activeFlag(v && v.active) }));
+  const tripDaily = new Map();   // สรุปรายวัน (vehicle|day → แถว)
   const live = new Map();   // vehicle_id → แถวล่าสุด
   const track = [];         // ประวัติเส้นทาง
   let nextId = 1;
@@ -156,6 +184,12 @@ export function makeMemoryRepo(seedVehicles = []) {
   return {
     async upsertLive(row) {
       const r = liveRowShape(row); // เก็บเฉพาะคอลัมน์จริง — คีย์แปลกปลอมไม่ติดไปเหมือนของเก่า
+      const old = live.get(r.vehicle_id);
+      // COALESCE แบบเดียวกับ D1: ปิงที่ไม่ได้เขียน track ไม่ลบจุด track ล่าสุดทิ้ง
+      if (old) {
+        if (r.last_track_lat === null) r.last_track_lat = old.last_track_lat;
+        if (r.last_track_lng === null) r.last_track_lng = old.last_track_lng;
+      }
       live.set(r.vehicle_id, r);
     },
 
@@ -182,6 +216,17 @@ export function makeMemoryRepo(seedVehicles = []) {
       assertCutoff(cutoffTs);
       return track.filter((r) => Number.isFinite(r.ts) && r.ts < cutoffTs)
         .sort((a, b) => a.ts - b.ts).map((r) => ({ ...r }));
+    },
+
+    async selectTrackBetween(fromTs, toTs) {
+      assertCutoff(fromTs); assertCutoff(toTs);
+      return track.filter((r) => Number.isFinite(r.ts) && r.ts >= fromTs && r.ts < toTs)
+        .sort((a, b) => a.ts - b.ts).map((r) => ({ ...r }));
+    },
+
+    async upsertTripDaily(rows) {
+      for (const r of rows) tripDaily.set(r.vehicle_id + '|' + r.day, { ...r });
+      return rows.length;
     },
 
     async deleteTrackByIds(ids) {
