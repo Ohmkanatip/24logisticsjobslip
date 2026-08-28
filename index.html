@@ -1331,7 +1331,7 @@
       <div class="dcard"><div class="dcard-b">
         <div class="q2">
           <div class="field"><label>ค่าเที่ยวที่คนขับได้ <span class="qchip" id="d_tpTag">—</span></label><input id="d_trip" inputmode="numeric"></div>
-          <div class="field"><label>ราคาที่เก็บลูกค้า (ค่าขนส่ง)</label><input id="d_trans" inputmode="numeric"></div>
+          <div class="field"><label>ราคาที่เก็บลูกค้า (ค่าขนส่ง) <span class="qchip" id="d_trChip" style="display:none">—</span></label><input id="d_trans" inputmode="numeric"></div>
         </div>
         <div id="d_tpSave" style="display:none" class="tpsave">
           <div><b>🆕 พื้นที่นี้ยังไม่มีในตารางเรท — บันทึกเก็บไว้เลยไหม?</b>
@@ -1553,6 +1553,8 @@
         <button class="btn btn-primary" id="btnB2Save">บันทึกบิล</button>
         <button class="btn btn-ghost" id="btnB2Clear">ล้างฟอร์ม</button>
         <button class="btn btn-ghost" id="btnB2Close">ปิดฟอร์ม</button>
+        <label style="display:inline-flex;align-items:center;gap:7px;margin-left:6px;cursor:pointer;font-size:13.5px" title="บันทึกแล้วคง วันที่/ลูกค้า/เส้นทาง/เรท ไว้ คีย์ใบถัดไปของชุดเดียวกันได้เลย ไม่ต้องพิมพ์ซ้ำ">
+          <input type="checkbox" id="b2KeepBatch" style="width:17px;height:17px;flex:none"> จดต่อชุดเดิม</label>
       </div>
     </div>
     <!-- V58.1: บิลที่จดจากเครื่องนี้ + ปุ่มตรวจกับชีท (ตาข่ายกันข้อมูลหาย แบบเดียวกับหน้าจด · ห้ามถอด) -->
@@ -4348,12 +4350,17 @@ function b2Recalc(){
   b2Ex.forEach(e=>{ s+=b2Num(e.v); });
   $("b2Total").textContent=b2Money(s);
 }
+/* V73: ความจำราคาลูกค้า (บิลใบล่าสุดต่อ ลูกค้า|สถานที่โหลด) — helper กลางใช้ร่วมหน้าจดบิล + หน้าจ่ายงาน ห้ามก๊อปสูตร */
+function rateFor(cust,load){
+  cust=String(cust||'').trim(); if(!cust) return null;
+  if(!bill2Meta||!bill2Meta.rates) return null;
+  const hit=bill2Meta.rates[cust+'|'+String(load||'').trim()]||bill2Meta.rates[cust+'|'];
+  return (hit&&hit.trans)?hit:null;
+}
 function b2RateApply(){
   if(b2Num($("b2_trans").value)) return; // ไม่ทับเลขที่กรอกแล้ว
-  const cust=$("b2_customer").value.trim(); if(!cust) return;
-  const load=$("b2_loadPlace").value.trim();
-  const hit=bill2Meta.rates[cust+'|'+load]||bill2Meta.rates[cust+'|'];
-  if(hit&&hit.trans){ $("b2_trans").value=hit.trans; $("b2RateChip").textContent='💡 เติมเรทล่าสุด'+(hit.when?' ('+thd(hit.when)+')':'')+'ให้แล้ว — แก้ได้'; b2Recalc(); }
+  const hit=rateFor($("b2_customer").value,$("b2_loadPlace").value);
+  if(hit){ $("b2_trans").value=hit.trans; $("b2RateChip").textContent='💡 เติมเรทล่าสุด'+(hit.when?' ('+thd(hit.when)+')':'')+'ให้แล้ว — แก้ได้'; b2Recalc(); }
 }
 function bill2FormOpen(rec){
   b2EditUid=rec?String(rec.uid):'';
@@ -4533,7 +4540,8 @@ async function bill2Save(){
   const d=bill2Collect();
   if(!d.date){ flash('กรุณาระบุวันที่วิ่งงาน','err'); return; }
   if(!d.customer){ flash('กรุณาระบุลูกค้า','err'); return; }
-  if(!d.container){ flash('กรุณาระบุเบอร์ตู้','err'); return; }
+  // V73: แก้ "ร่าง" ไม่บังคับเบอร์ตู้ — ร่างเกิดก่อนรู้เบอร์ตู้ได้ (เดี๋ยว OCR/คนขับส่งมาค่อยเติม) · บิลจริงบังคับเหมือนเดิม
+  if(!d.container&&!(typeof drEditReturn!=='undefined'&&drEditReturn&&b2EditUid)){ flash('กรุณาระบุเบอร์ตู้','err'); return; }
   const btn=$("btnB2Save"); if(btn.disabled) return; btn.disabled=true;
   const url=endpoint();
   let hold=false; // จดบิลใหม่ = ไม่รอผล ปลดปุ่มเองใน 0.7 วิ (กันกดรัวใบซ้ำ) — finally จะไม่ไปปลดก่อนเวลา
@@ -4548,7 +4556,8 @@ async function bill2Save(){
       try{ const j=await callAct({act:'bone',uid:uid});
         if(j&&j.ok&&j.rec){ const rr=j.rec; okEdit=(String(rr.container||'')===d.container && b2Num(rr.c_trans)===d.c_trans && b2Num(rr.c_recv)===d.c_recv && b2Num(rr.c_return)===d.c_return && String(rr.jobref||'')===d.jobref); }
       }catch(e){}
-      if(okEdit){ flash('✓ แก้บิลแล้ว — บันทึกก่อน–หลังเก็บในประวัติแก้ไข','ok'); b2EditUid=''; bill2FormClear(false); $("bill2Form").style.display='none'; await bill2Fresh(); renderBill2(); }
+      if(okEdit){ flash('✓ แก้บิลแล้ว — บันทึกก่อน–หลังเก็บในประวัติแก้ไข','ok'); b2EditUid=''; bill2FormClear(false); $("bill2Form").style.display='none';
+        if(!drEditBack()){ await bill2Fresh(); renderBill2(); } }   // V73: มาจากโหมดร่าง → พากลับโหมดร่าง
       else flash('⚠️ แก้ไม่สำเร็จ — ใบนี้อาจถูกพิมพ์ไปแล้ว หรือไม่ใช่บิลที่คุณจด (แอดมินแก้ได้ตลอด) · กด ⟳ ดูสถานะจริง','err');
       return;
     }
@@ -4566,8 +4575,10 @@ async function bill2Save(){
     const dupQ=bill2Rows.some(r=>b2Norm(r.container)===b2Norm(d.container));
     try{ b2Post(Object.assign({_bsave:1,uid:uid},d)); }catch(e){}
     flash('บันทึกบิลแล้ว ✓ จดใบต่อไปได้เลย — ระบบส่งขึ้นชีทให้เอง'+(dupQ?' · ⚠️ ตู้นี้มีบิลอยู่ในคิวแล้ว เช็คว่าไม่จดซ้ำ':''),'ok');
-    bill2FormClear(false); $("b2_date").value=todayLocal();   // V63.3: เจ้าของขอ 17 ส.ค. — บันทึกแล้วฟอร์มว่างทั้งใบ พร้อมจดใบใหม่
-    $("b2_customer").focus();
+    // V73: ติ๊ก "จดต่อชุดเดิม" = คง วันที่/ลูกค้า/เส้นทาง/เรท ไว้คีย์ใบถัดไป (โค้ด keepBatch มีตั้งแต่ V58.1 แต่ไม่เคยมีใครเรียก)
+    const keepB=!!($("b2KeepBatch")&&$("b2KeepBatch").checked);
+    bill2FormClear(keepB); if(!keepB) $("b2_date").value=todayLocal();   // V63.3: ค่าเริ่มต้นยังล้างทั้งใบเหมือนเดิม
+    (keepB?$("b2_container"):$("b2_customer")).focus();
     hold=true; setTimeout(()=>{ btn.disabled=false; },700); // กันกดรัวได้ใบซ้ำ — จังหวะเดียวกับหน้าจด
     b2SessAdd(uid,d);            // ขึ้นรายการ "บิลที่จดจากเครื่องนี้" ทันที (สถานะ ⟳ กำลังตรวจ)
     b2VerifyInBackground(uid,d);
@@ -5472,7 +5483,7 @@ $("b3Lump").addEventListener('click',lumpPayDialog);
 document.querySelectorAll('#b3Filter .fb').forEach(f=>f.addEventListener('click',()=>{ debtFilter=f.dataset.f; renderDebt(); }));
 $("b3Q").addEventListener('input',e=>{ debtQ=e.target.value.trim(); renderDebt(); });
 $("btnB2New").addEventListener('click',()=>{ b2EditUid=''; bill2FormOpen(null); });
-$("btnB2Close").addEventListener('click',()=>{ b2EditUid=''; $("bill2Form").style.display='none'; });
+$("btnB2Close").addEventListener('click',()=>{ b2EditUid=''; $("bill2Form").style.display='none'; try{ drEditBack(); }catch(e){} });
 $("btnB2Clear").addEventListener('click',()=>{ b2EditUid=''; bill2FormClear(false); $("b2FormTitle").textContent='➕ จดบิลใหม่ — คีย์จากใบเสร็จ/ใบรับตู้ตัวจริง'; flash('ล้างฟอร์มบิลแล้ว','ok'); });
 $("btnB2Save").addEventListener('click',bill2Save);
 $("btnB2ExAdd").addEventListener('click',()=>{ b2Ex.push({n:'',v:''}); b2RenderEx(); const last=$("b2ExList").querySelector('.b2exrow:last-child input'); if(last) last.focus(); });
@@ -6739,8 +6750,18 @@ async function qtSaveDoc() {
 async function qDispatchInit() {
   $("qJobSum").textContent = [$("q_cust").value, $("q_size").value,
     ($("q_from").value || '') + ' → ' + ($("q_to").value || '')].filter(Boolean).join(' · ');
+  // V73 [dispatch_v2]: มาจากใบขอราคา = ใช้ "วันที่ลูกค้าต้องการรถ" ไม่ใช่วันนี้ (เดิมทิ้งข้อมูลที่ลูกค้ากรอกมาแล้ว)
+  if (!$("d_date").value && ff('dispatch_v2') && qState.carry && /^\d{4}-\d{2}-\d{2}$/.test(qState.carry.jobDate))
+    $("d_date").value = qState.carry.jobDate;
   if (!$("d_date").value) $("d_date").value = todayLocal();
   if (!$("d_trans").value) $("d_trans").value = ($("q_offer").value || '').replace(/,/g, '');
+  // V73 [dispatch_v2]: เข้าแท็บจ่ายงานตรงๆ (ไม่ผ่านตีราคา) ราคาไม่ว่างอีกต่อไป — เติมจากความจำบิลล่าสุดของลูกค้า
+  if (ff('dispatch_v2') && !$("d_trans").value) {
+    try { if (!bill2MetaLoaded) await loadBill2Meta(); } catch (e) {}
+    const hit = rateFor($("q_cust").value, $("d_load").value);
+    if (hit) { $("d_trans").value = hit.trans;
+      const ch = $("d_trChip"); ch.style.display = ''; ch.textContent = '💡 ราคาจากบิลล่าสุด' + (hit.when ? ' (' + hit.when + ')' : '') + ' — แก้ได้'; }
+  }
   await loadDrivers();
   qTripAuto();
 }
@@ -6782,8 +6803,16 @@ function renderDrivers() {
     box.querySelectorAll('.drow').forEach(x => x.classList.remove('pick'));
     el.classList.add('pick'); qState.pick = el.dataset.drv;
     $("ovBox").style.display = (qState.pick === qState.rankTop) ? 'none' : 'block';
+    qFillTruckFromPick();
     qTripAuto();
   });
+  qFillTruckFromPick();   // คนแนะนำถูกเลือกตั้งต้นอยู่แล้ว — เติมทะเบียนให้เลย
+}
+/* V73 [dispatch_v2]: เลือกคนขับแล้วเติมทะเบียนรถของคนนั้นให้ (drrank ส่ง plate มาอยู่แล้ว — เดิมทิ้งแล้วให้พิมพ์เอง) */
+function qFillTruckFromPick() {
+  if (!ff('dispatch_v2') || $("d_truck").value.trim()) return;
+  const d = (qState.drv || []).find(x => x.name === qState.pick);
+  if (d && d.plate && d.plate !== '-') $("d_truck").value = d.plate;
 }
 /* ⚠️ ต้องกันเครื่องหมาย ' ด้วย (แก้ 25 ส.ค. 2569) — การ์ดใบขอราคาวางข้อมูลไว้ในแอตทริบิวต์ที่ครอบด้วย '...'
    ข้อมูลนี้มาจากฟอร์มขอราคาสาธารณะ (ลูกค้ากรอกเอง ไม่ต้องล็อกอิน) ถ้าไม่กัน ' จะหลุดออกนอกช่องแล้วฝังคำสั่งได้
@@ -6802,12 +6831,14 @@ function qTripAuto() {
     const hits = (findRates(rec) || {}).rows || [];
     if (hits.length === 1) {
       $("d_trip").value = ratePrice(hits[0], rec.size);
+      qState.tripRef = rateLabel(hits[0]);   // V73: จำว่าใช้เรทไหน — ตามไปลงคอลัมน์ "เรทที่ใช้" ของบิล (เดิมทิ้ง ชีทว่างตลอด)
       tag.className = 'qchip g'; tag.textContent = '✅ ดึงจากแท็บเรทค่าเที่ยว';
       $("d_tpSave").style.display = 'none';
     } else if (hits.length > 1) {
+      qState.tripRef = '';
       tag.className = 'qchip'; tag.textContent = 'เจอ ' + hits.length + ' เรท — เลือกเองในหน้าจดบิล';
-    } else { tag.className = 'qchip w'; tag.textContent = '🆕 พื้นที่ใหม่ — กรอกเอง'; }
-  } catch (e) { tag.className = 'qchip'; tag.textContent = 'กรอกเอง'; }
+    } else { qState.tripRef = ''; tag.className = 'qchip w'; tag.textContent = '🆕 พื้นที่ใหม่ — กรอกเอง'; }
+  } catch (e) { qState.tripRef = ''; tag.className = 'qchip'; tag.textContent = 'กรอกเอง'; }
 }
 async function qDoDispatch() {
   const btn = $("dGo"); if (btn.disabled) return;
@@ -6821,11 +6852,20 @@ async function qDoDispatch() {
   }
   btn.disabled = true; btn.textContent = 'กำลังจ่ายงาน…';
   const uid = 'B' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+  // V73: ส่งคีย์ร่วมไปด้วย — driverId (ไม่ใช่แค่ชื่อ) · เรทที่ใช้ · เลขใบเสนอราคา → ลงคอลัมน์ 41-44 ของแท็บบิล
+  // (.gs เก่าที่ยังไม่รู้จักคีย์พวกนี้จะทิ้งเงียบ ไม่พัง — deploy เว็บก่อนได้)
+  const pickObj = (qState.drv || []).find(x => x.name === qState.pick) || {};
+  const carryNote = (ff('dispatch_v2') && qState.carry)
+    ? [qState.carry.cargo ? 'สินค้า: ' + qState.carry.cargo : '',
+       qState.carry.qty ? 'จำนวน: ' + qState.carry.qty : '',
+       qState.carry.note || ''].filter(Boolean).join(' · ') : '';
   const body = { _drsave: true, uid: uid, date: $("d_date").value, customer: $("q_cust").value,
     container: $("d_cont").value, size: $("q_size").value, truck: $("d_truck").value, driver: qState.pick,
     yardIn: $("d_yardIn").value, loadPlace: $("d_load").value, yardOut: $("d_yardOut").value,
     c_trans: +(($("d_trans").value || '').replace(/,/g, '')) || 0,
     tripPay: +(($("d_trip").value || '').replace(/,/g, '')) || 0,
+    driverId: pickObj.id || '', tripRef: qState.tripRef || '', quoteNo: qState.qtNo || '',
+    note: carryNote,
     route: ($("q_from").value || '') + '-' + ($("q_to").value || ''), reason: reason };
   // ⚠️ V73: เดิมเรียก postAct ที่ไม่มีตัวตน (ReferenceError ถูก catch กลืน) = จ่ายงานไม่เคยลงชีทแต่ขึ้น ✅ หลอก
   try { await b2Post(body); } catch (e) {}
@@ -6911,6 +6951,9 @@ function renderRfq() {
         $("q_cust").value = r.company || ''; $("q_from").value = r.origin || ''; $("q_to").value = r.dest || '';
         $("q_size").value = r.size || ''; if (r.jobType) $("q_jtype").value = r.jobType;
         $("qd_contact").value = r.contact || ''; $("qd_phone").value = r.phone || r.email || '';
+        // V73 [dispatch_v2]: เก็บของที่ลูกค้ากรอกมาแล้ว ไม่ทิ้ง — วันที่ต้องการรถ/สินค้า/จำนวน/หมายเหตุ ตามไปถึงขั้นจ่ายงาน
+        qState.carry = { jobDate: r.jobDate || '', cargo: r.cargo || '', qty: r.qty || '', note: r.note || '' };
+        if (ff('dispatch_v2') && r.qty && parseInt(r.qty, 10) > 0) $("qd_qty").value = parseInt(r.qty, 10);
         $("qFromRfq").textContent = '📥 ดึงจากใบขอราคาของ ' + (r.company || '');
         qKmLookup();
       }, 60);
@@ -7102,6 +7145,8 @@ function renderDrafts() {
       + (r.draftBy ? ' · จ่ายงานโดย ' + escHtml(r.draftBy) : '') + '</div>'
       + '<div class="row2" style="margin-top:9px">'
       + '<button class="btn btn-ok bsm drOk" data-uid="' + u + '">✅ ยืนยัน → เข้าคิววางบิล</button>'
+      // V73 [สวิตช์ draft_edit]: เติมเบอร์ตู้/Job.Ref/B/L ได้ตั้งแต่ยังเป็นร่าง — ไม่ต้องยืนยันตู้เปล่าเข้าคิวก่อนแล้วตามแก้
+      + (ff('draft_edit') ? '<button class="btn btn-ghost bsm drEdit" data-uid="' + u + '">✏️ แก้ร่าง</button>' : '')
       + '<button class="btn btn-ghost bsm drNo" data-uid="' + u + '" style="color:var(--warn)">✖ ยกเลิกร่าง</button>'
       + '</div></div>';
   }).join('');
@@ -7128,10 +7173,25 @@ async function drAct(uid, kind) {
 $("drReload").addEventListener('click', () => loadDrafts(true));
 $("drSearch").addEventListener('input', renderDrafts);
 $("drBody").addEventListener('click', e => {
-  const ok = e.target.closest('.drOk'), no = e.target.closest('.drNo');
+  const ok = e.target.closest('.drOk'), no = e.target.closest('.drNo'), ed = e.target.closest('.drEdit');
   if (ok) drAct(ok.dataset.uid, 'confirm');
   else if (no) drAct(no.dataset.uid, 'cancel');
+  else if (ed) drEditOpen(ed.dataset.uid);
 });
+/* V73 [draft_edit]: เปิดฟอร์มบิลเดิมมาแก้ร่าง — ฟอร์มอยู่ในการ์ดคิว ต้องสลับโหมดไปก่อน แล้วบันทึกเสร็จพากลับมาโหมดร่าง */
+let drEditReturn = false;
+function drEditOpen(uid) {
+  const r = drRows.find(x => x.uid === uid); if (!r) return;
+  drEditReturn = true;
+  billMode = 'new'; billModeSync();
+  bill2FormOpen(r);
+  $("b2FormTitle").textContent = '✏️ แก้ร่าง — ' + (r.container || 'ยังไม่มีเบอร์ตู้') + ' · ' + (r.customer || '')
+    + ' (ยังเป็นร่าง ไม่เข้าคิว/ไม่นับเงิน จนกว่าจะกดยืนยัน)';
+}
+function drEditBack() {
+  if (!drEditReturn) return false;
+  drEditReturn = false; billMode = 'draft'; billModeSync(); loadDrafts(true); return true;
+}
 $("bmDraft").addEventListener('click', () => { billMode = 'draft'; billModeSync(true); });
 function b3Mode(m) { billMode = m; billModeSync(); }   // ให้หน้าจ่ายงานเรียกกระโดดมาโหมดร่างได้
 
