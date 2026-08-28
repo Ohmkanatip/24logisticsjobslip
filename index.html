@@ -6724,7 +6724,8 @@ async function qtSaveDoc() {
     km: +($("qd_km").value || 0) || 0, size: $("q_size").value, jobType: $("q_jtype").value,
     price: +(($("qd_price").value || '').replace(/,/g, '')) || 0, qty: +($("qd_qty").value || 1) || 1,
     vat: $("qd_vat").checked, wht: $("qd_wht").checked, valid: +($("qd_valid").value || 30) || 30 };
-  try { await postAct(body); } catch (e) {}
+  // ⚠️ V73: เดิมเรียก postAct ที่ไม่มีตัวตน (ReferenceError ถูก catch กลืน) = ใบเสนอราคาไม่เคยลงชีทเลย
+  try { await b2Post(body); } catch (e) {}
   try {   // อ่านเลขที่ล่าสุดกลับมาโชว์บนเอกสาร (POST no-cors อ่านผลไม่ได้)
     const j = await callAct({ act: 'qtlist' });
     if (j && j.ok && j.rows && j.rows.length) {
@@ -6826,10 +6827,27 @@ async function qDoDispatch() {
     c_trans: +(($("d_trans").value || '').replace(/,/g, '')) || 0,
     tripPay: +(($("d_trip").value || '').replace(/,/g, '')) || 0,
     route: ($("q_from").value || '') + '-' + ($("q_to").value || ''), reason: reason };
-  try { await postAct(body); } catch (e) {}
-  flash('✅ จ่ายงานแล้ว — สร้างร่างบิลรอไว้ (ไปยืนยันที่หน้าวางบิล โหมด 🗂 ร่าง)', 'ok');
+  // ⚠️ V73: เดิมเรียก postAct ที่ไม่มีตัวตน (ReferenceError ถูก catch กลืน) = จ่ายงานไม่เคยลงชีทแต่ขึ้น ✅ หลอก
+  try { await b2Post(body); } catch (e) {}
+  // POST เป็น no-cors อ่านคำตอบไม่ได้ → ตรวจของจริง: ร่างต้องโผล่ใน drlist ก่อนถึงบอกสำเร็จ (ห้ามแจ้ง ✅ ล่วงหน้า)
+  let saved = false;
+  for (let i = 0; i < 3 && !saved; i++) {
+    await new Promise(r => setTimeout(r, 800 + i * 600));
+    try {
+      const j = await callAct({ act: 'drlist' });
+      if (j && j.ok && Array.isArray(j.rows)) {
+        drRows = j.rows; drLoaded = true; drLastFetch = Date.now(); updateDraftMark();
+        saved = j.rows.some(r => r.uid === uid);
+      }
+    } catch (e) {}
+  }
   btn.disabled = false; btn.textContent = '🚚 จ่ายงาน → สร้างร่างบิล';
-  setTimeout(() => { location.hash = 'bill'; try { b3Mode('draft'); } catch (e) {} }, 900);
+  if (saved) {
+    flash('✅ จ่ายงานแล้ว — สร้างร่างบิลรอไว้ (ไปยืนยันที่หน้าวางบิล โหมด 🗂 ร่าง)', 'ok');
+    setTimeout(() => { location.hash = 'bill'; try { b3Mode('draft'); } catch (e) {} }, 600);
+  } else {
+    flash('⚠️ ยังไม่เห็นร่างในชีท — เปิดหน้าวางบิล โหมด 🗂 ร่าง เช็คก่อน ถ้าไม่มีจริงค่อยกดจ่ายงานซ้ำ (ระบบกันใบซ้ำให้)', 'err');
+  }
 }
 
 /* ---------- ใบขอราคา ---------- */
