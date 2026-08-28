@@ -601,6 +601,45 @@ async function main() {
     ok(txt.length <= LINE_TEXT_MAX, '⭐ เบอร์ยาวผิดปกติ → ข้อความตอบยังอยู่ในเพดาน ส่งถึงคนขับได้', txt.length);
   }
 
+
+  // ══ ด่านกันเอกสารเพี้ยน — ตัวแปรใหม่ที่โค้ดอ่าน ต้องถูกจดไว้ ไม่งั้นตอน deploy จะลืมตั้ง ══
+  console.log('\n== เอกสารต้องตรงกับโค้ด ==');
+  {
+    const { readFile, readdir } = await import('node:fs/promises');
+    const base = new URL('../', import.meta.url);
+    async function walk(dir) {
+      const out = [];
+      for (const e of await readdir(new URL(dir, base), { withFileTypes: true })) {
+        if (e.isDirectory()) out.push(...await walk(dir + e.name + '/'));
+        else if (e.name.endsWith('.js')) out.push(dir + e.name);
+      }
+      return out;
+    }
+    const files = await walk('src/');
+    const used = new Set();
+    for (const f of files) {
+      const t = await readFile(new URL(f, base), 'utf8');
+      for (const m of t.matchAll(/env\.([A-Z][A-Z0-9_]+)/g)) used.add(m[1]);
+    }
+    ok(used.size > 0, 'สแกนเจอตัวแปร env ที่โค้ดใช้', [...used].join(' '));
+
+    const example = await readFile(new URL('.dev.vars.example', base), 'utf8');
+    const wrangler = await readFile(new URL('wrangler.jsonc', base), 'utf8');
+    const missing = [...used].filter((v) => !example.includes(v) && !wrangler.includes(v));
+    ok(missing.length === 0,
+      '⭐ ทุกตัวแปรที่โค้ดอ่าน ต้องถูกจดใน .dev.vars.example หรือ wrangler.jsonc', missing);
+
+    const documented = [...example.matchAll(/^([A-Z][A-Z0-9_]+)=/gm)].map((m) => m[1]);
+    for (const v of documented.filter((x) => !used.has(x))) {
+      const lines = example.split('\n');
+      const i = lines.findIndex((l) => l.startsWith(v + '='));
+      const above = lines.slice(Math.max(0, i - 3), i).join(' ');
+      ok(/ยังไม่ได้ใช้/.test(above), 'ตัวแปร ' + v + ' ที่โค้ดยังไม่อ่าน ต้องติดป้าย [ยังไม่ได้ใช้]', above.slice(0, 80));
+    }
+    // เอกสารต้องบอกด้วยว่า DB เป็น binding ไม่ใช่ตัวแปรลับ (ไม่งั้นคนตั้งใน .dev.vars แล้วงง)
+    ok(/binding/i.test(example), 'อธิบายไว้ว่า D1 เป็น binding ใน wrangler ไม่ใช่ค่าใน .dev.vars');
+  }
+
   console.log('\nผ่าน ' + pass + ' · ตก ' + fail);
   process.exit(fail === 0 ? 0 : 1);
 }

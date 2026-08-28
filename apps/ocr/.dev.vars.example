@@ -5,6 +5,7 @@
 OCR_PROVIDER=mock
 
 # คีย์ของ OCR engine จริง — ยังไม่เคาะว่าใช้เจ้าไหน ปล่อยว่างไว้ก่อน
+# [ยังไม่ได้ใช้] รอ implement engine จริง (gemini/qwen/vision/typhoon ยังเป็น stub)
 OCR_API_KEY=
 
 # จากหน้า LINE Developers Console (Messaging API channel ของ "บอทรับรูปจากคนขับ")
@@ -18,3 +19,7 @@ PULL_TOKEN=
 # โดเมนเว็บ jobslip ที่อนุญาตให้ดึงผล OCR ข้ามโดเมนได้ (CORS) — ไม่ตั้ง = ไม่ปล่อย CORS เลย
 # ของจริงใส่: https://ohmkanatip.github.io
 ALLOW_ORIGIN=
+
+# ── หมายเหตุ: D1 ไม่ได้ตั้งที่นี่ ──
+# เป็น "binding" ตั้งใน wrangler.jsonc: binding "DB" → ตาราง ocr_results (env.DB)
+# ไม่มี env.DB = ใช้ตารางในหน่วยความจำแทน (หายเมื่อ Worker รีสตาร์ท — พอสำหรับ dev เท่านั้น)
