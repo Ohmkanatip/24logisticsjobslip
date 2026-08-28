@@ -739,6 +739,60 @@ async function main() {
     ok((await repo.listResults()).length === 0, 'ยังไม่เขียนฐานจนกว่าคนขับกดยืนยัน (กติกาเหล็กเดิม)');
   }
 
+  // ═══ V73: ผูก LINE userId ↔ driverId — driver_id ใน staging เลิกเป็น NULL ═══
+  console.log('\n== V73: line_bindings — LINE↔driverId ==');
+  const { makeMemoryStagingRepo } = await import('../src/db/staging.js');
+  const { chooseWriteback } = await import('../src/writeback/index.js');
+  {
+    const repo = makeMemoryStagingRepo();
+    ok((await repo.upsertBinding({ lineUserId: 'U1', driverId: 'D003', name: 'สมชาย', ts: 1000 })).ok, 'upsertBinding เพิ่มได้');
+    const b1 = await repo.getBinding('U1');
+    ok(b1 && b1.driver_id === 'D003' && b1.name === 'สมชาย', 'getBinding คืนถูก', b1);
+    await repo.upsertBinding({ lineUserId: 'U1', driverId: 'D007', name: 'สมชาย (ย้ายรหัส)', ts: 2000 });
+    const b2 = await repo.getBinding('U1');
+    ok(b2 && b2.driver_id === 'D007', 'upsert ซ้ำ = ทับของเดิม (sync ล่าสุดชนะ)', b2 && b2.driver_id);
+    ok((await repo.getBinding('Uxx')) === null, 'ไม่เคยผูก = null');
+    ok(!(await repo.upsertBinding({ lineUserId: '', driverId: 'D1' })).ok, 'ข้อมูลไม่ครบ = ปฏิเสธ');
+  }
+  {
+    // ยืนยันเบอร์ → driver_id ต้องติดไปกับแถว staging (เดิม NULL ตลอด — ตัวกรอง ?driverId ใช้ไม่ได้จริง)
+    const repo = makeMemoryStagingRepo();
+    await repo.upsertBinding({ lineUserId: 'U9', driverId: 'D010', name: 'สมหมาย', ts: 1 });
+    const deps = {
+      lineClient: createMockLineClient(), engine: createMockEngine({ rawText: 'x' }),
+      writeback: chooseWriteback({ WRITEBACK_PROVIDER: 'd1' }, repo),
+      resolveDriver: async (uid) => { const b = await repo.getBinding(uid); return b ? b.driver_id : null; },
+    };
+    const r = await handleEvent({ type: 'postback', replyToken: 'rt', timestamp: 5,
+      postback: { data: 'action=confirm&container=CSQU3054383' }, source: { userId: 'U9' } }, deps);
+    ok(r.ok && r.written, 'ยืนยันผ่าน');
+    const rows = await repo.listResults({ driverId: 'D010' });
+    ok(rows.length === 1 && rows[0].container_no === 'CSQU3054383' && rows[0].driver_id === 'D010',
+      '⭐ แถว staging มี driver_id จริง — เว็บกรองตามคนขับได้แล้ว', rows[0]);
+    // คนขับที่ยังไม่ถูกผูก / resolveDriver พัง → การยืนยันต้องไม่ล้ม (driver_id = null เฉยๆ)
+    const r2 = await handleEvent({ type: 'postback', replyToken: 'rt', timestamp: 6,
+      postback: { data: 'action=confirm&container=TRLU4965122' }, source: { userId: 'Uใหม่' } },
+      { ...deps, resolveDriver: async () => { throw new Error('db-down'); } });
+    ok(r2.ok && r2.written, '⭐ resolveDriver พัง = ยืนยันยังผ่าน (ห้ามล้มเพราะหา id ไม่ได้)');
+    const all = await repo.listResults({});
+    ok(all.some((x) => x.container_no === 'TRLU4965122' && x.driver_id === null), 'แถวนั้น driver_id = null ไม่ใช่หาย');
+  }
+  {
+    // endpoint POST /api/ocr/bind — ด่าน token + ตรวจ body
+    console.log('\n== V73: POST /api/ocr/bind ==');
+    const envReal = { LINE_CHANNEL_SECRET: 's', PULL_TOKEN: 'tok' };
+    const mk = (body, auth) => new Request('http://localhost/api/ocr/bind', {
+      method: 'POST', body: JSON.stringify(body || {}),
+      headers: auth ? { authorization: auth } : {},
+    });
+    ok((await worker.fetch(mk({ lineUserId: 'U1', driverId: 'D1' }, 'Bearer wrong-token'), envReal, {})).status === 401, 'token ผิด = 401');
+    ok((await worker.fetch(mk({ lineUserId: 'U1' }, 'Bearer tok'), envReal, {})).status === 400, 'body ไม่ครบ = 400');
+    const okRes = await worker.fetch(mk({ lineUserId: 'U1', driverId: 'D001', name: 'สมชาย' }, 'Bearer tok'), envReal, {});
+    ok(okRes.status === 200 && (await okRes.json()).ok, 'ผูกสำเร็จ = 200');
+    const envNoTok = { LINE_CHANNEL_SECRET: 's' };   // ของจริงแต่ลืมตั้ง PULL_TOKEN
+    ok((await worker.fetch(mk({ lineUserId: 'U1', driverId: 'D1' }), envNoTok, {})).status === 503, 'ของจริงลืมตั้ง token = 503 ไม่เปิดโล่ง');
+  }
+
   console.log('\nผ่าน ' + pass + ' · ตก ' + fail);
   process.exit(fail === 0 ? 0 : 1);
 }

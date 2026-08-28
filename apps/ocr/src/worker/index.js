@@ -93,13 +93,19 @@ export default {
       }
 
       // ประกอบ dependencies: มี access token จริงถึงใช้ client จริง (ซึ่งยังเป็น stub ซื่อสัตย์)
+      const repoForBind = stagingRepoOf(env);
       const deps = {
         lineClient: (env && env.LINE_CHANNEL_ACCESS_TOKEN) ? createLineClient(env) : createMockLineClient(),
         engine: chooseEngine(env),
         // ⚠️ ค่าเริ่มต้นเป็น 'd1' (ทางที่เจ้าของเคาะ) ไม่ใช่ 'mock'
         //    เดิม: ลืมตั้ง WRITEBACK_PROVIDER = การยืนยันของคนขับหล่นลง mock ที่ไม่มีใครอ่าน แล้วหายเงียบ
         //    ตอนนี้: ต้องตั้ง 'mock' เองอย่างจงใจเท่านั้นถึงจะเข้าโหมดทิ้ง
-        writeback: chooseWriteback(env, writebackProviderOf(env) === 'd1' ? stagingRepoOf(env) : undefined)
+        writeback: chooseWriteback(env, writebackProviderOf(env) === 'd1' ? repoForBind : undefined),
+        // V73: แปลง LINE userId → driverId จากตารางผูก — พังก็คืน null (การยืนยันต้องไม่ล้มเพราะหา id ไม่ได้)
+        resolveDriver: async (userId) => {
+          try { const b = await repoForBind.getBinding(userId); return b ? b.driver_id : null; }
+          catch (_e) { return null; }
+        }
       };
 
       const events = Array.isArray(payload.events) ? payload.events : [];
@@ -128,6 +134,19 @@ export default {
         jobUid: url.searchParams.get('jobUid') || undefined,
       });
       return json({ ok: true, mock: isMock, results: rows }, 200, env);
+    }
+    // V73: POST /api/ocr/bind {lineUserId, driverId, name} → ผูก LINE↔คนขับ (.gs ยิงมา sync จากแท็บ "คนขับ")
+    if (request.method === 'POST' && url.pathname === '/api/ocr/bind') {
+      const authB = pullAuthorized(request, env);
+      if (authB !== true) return json({ ok: false, reason: authB === 'missing-pull-token' ? 'server-misconfigured' : 'unauthorized' },
+        authB === 'missing-pull-token' ? 503 : 401, env);
+      const bodyB = await request.json().catch(() => null);
+      if (!bodyB || !bodyB.lineUserId || !bodyB.driverId) return json({ ok: false, reason: 'bad-body', hint: 'ต้องมี {lineUserId, driverId}' }, 400, env);
+      const rB = await stagingRepoOf(env).upsertBinding({
+        lineUserId: String(bodyB.lineUserId), driverId: String(bodyB.driverId),
+        name: bodyB.name ? String(bodyB.name) : null, ts: bodyB.ts || Date.now(),
+      });
+      return json(rB, rB.ok ? 200 : 400, env);
     }
     // POST /api/ocr/pulled {id, by} → เว็บบอกว่าเอาไปใช้แล้ว (ติดธง ไม่ลบแถว — ไว้สาวย้อน)
     if (request.method === 'POST' && url.pathname === '/api/ocr/pulled') {

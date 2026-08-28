@@ -106,3 +106,9 @@ node tests/mutation.js     # หรือ npm run mutation
 3. สร้าง LINE Official Account + Messaging API channel ใหม่ (ของเดิมเลิกใช้ไปแล้ว)
 4. วิธีจับคู่รูป↔ใบงานในเฟส ① (ก่อนมี LIFF)
 5. deploy — ห้ามจนกว่าข้อ 1-3 จะเคาะครบ
+
+## V73 (28 ส.ค. 2569): ผูก LINE ↔ driverId — driver_id เลิกเป็น NULL
+- ตาราง D1 ใหม่ `line_bindings` (line_user_id PK → driver_id/name/bound_at) · repo 2 ชั้นมี `upsertBinding`/`getBinding` ทั้งคู่
+- `POST /api/ocr/bind {lineUserId, driverId, name}` (Bearer PULL_TOKEN) — **master ตัวจริงคือแท็บ "คนขับ" ในชีท (คอลัมน์ lineUserId ที่ 6)** ฝั่ง .gs act `ocrsync` เป็นคนยิงมา sync
+- webhook ตอน confirm: `deps.resolveDriver(userId)` → driverId ติดไปกับแถว staging → `GET /api/ocr/results?driverId=D001` กรองได้จริง · resolveDriver พัง = ยืนยันยังผ่าน (driver_id = null)
+- เทส 191 เคส · mutation 28/28 (เพิ่มด่าน "สายไฟ driverId ถูกตัด" + "bind ไม่เช็ค token")

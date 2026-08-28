@@ -13,3 +13,12 @@ CREATE TABLE IF NOT EXISTS ocr_results (
   pulled_at INTEGER
 );
 CREATE INDEX IF NOT EXISTS idx_ocr_results_status ON ocr_results(status, driver_id);
+
+-- V73: ตารางผูก LINE userId ↔ driverId (D001…) — ตัวปลดล็อกให้ driver_id ใน ocr_results ไม่เป็น NULL อีกต่อไป
+-- master ตัวจริงอยู่ที่แท็บ "คนขับ" ในชีท (คอลัมน์ lineUserId) · ตารางนี้เป็นสำเนาที่ .gs ยิงมา sync ผ่าน POST /api/ocr/bind
+CREATE TABLE IF NOT EXISTS line_bindings (
+  line_user_id TEXT PRIMARY KEY,
+  driver_id TEXT NOT NULL,          -- D001…
+  name TEXT,                        -- ชื่อคนขับ (ไว้ debug/แสดงผล)
+  bound_at INTEGER                  -- เวลา sync ล่าสุด (ms)
+);

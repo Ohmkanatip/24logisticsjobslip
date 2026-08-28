@@ -1,0 +1,59 @@
+-- โครงตารางระบบติดตามรถ (Cloudflare D1 = SQLite)
+-- ⚠️ ไฟล์นี้คือภาพรวมล่าสุดของ schema · ตัวที่ใช้รันจริงคือ src/db/migrations/ ตามลำดับเลข
+-- เพดาน D1 free: เขียน 100,000 แถว/วัน → ดู mitigation ใน src/worker/ingest.js
+
+-- ทะเบียนรถ + คนขับประจำคัน (แถวน้อย แก้ไม่บ่อย)
+CREATE TABLE IF NOT EXISTS vehicles (
+  id          TEXT PRIMARY KEY,          -- ทะเบียนรถ เช่น '71-3760'
+  driver_name TEXT,                      -- ชื่อคนขับประจำคัน
+  active      INTEGER NOT NULL DEFAULT 1 -- 1 = ยังวิ่งอยู่ · 0 = ปลดระวาง/ขายแล้ว (soft delete ไม่ลบแถว)
+);
+
+-- ตำแหน่งล่าสุดของแต่ละคัน — UPSERT ทับแถวเดิมเสมอ (mitigation ข้อ 2: 1 แถว/คัน ไม่งอกตามเวลา)
+CREATE TABLE IF NOT EXISTS gps_live (
+  vehicle_id TEXT PRIMARY KEY,           -- อ้าง vehicles.id
+  lat        REAL NOT NULL,
+  lng        REAL NOT NULL,
+  speed_kmh  REAL NOT NULL DEFAULT 0,    -- ความเร็ว กม./ชม.
+  heading    REAL NOT NULL DEFAULT 0,    -- ทิศหัวรถ (องศา 0-360)
+  updated_at INTEGER NOT NULL            -- epoch millis ของปิงล่าสุด
+,
+  -- จุด track ล่าสุดที่ "ถูกเขียนจริง" — ใช้วัดระยะสะสมของ movement filter
+  -- ⚠️ ถ้าวัดจากปิงล่าสุด (ซึ่งอัปเดตทุกปิง): รถคืบช้าๆ ครั้งละ < threshold ที่ speed=0
+  --    จะไม่มีวันถูกบันทึก track แม้ขยับสะสมไปไกลแล้ว (บั๊กที่จดค้างไว้ 28 ส.ค. 2569 — แก้แล้ว)
+  last_track_lat REAL,
+  last_track_lng REAL);
+
+-- ประวัติเส้นทาง — เขียนเฉพาะตอนรถขยับ (mitigation ข้อ 1) · เก่ากว่า 60 วันย้ายขึ้น R2 แล้วลบ (src/archive/r2Archive.js)
+CREATE TABLE IF NOT EXISTS gps_track (
+  id         INTEGER PRIMARY KEY AUTOINCREMENT,
+  vehicle_id TEXT NOT NULL,              -- อ้าง vehicles.id
+  lat        REAL NOT NULL,
+  lng        REAL NOT NULL,
+  ts         INTEGER NOT NULL            -- epoch millis ของปิง
+);
+-- index หลักของการดูเส้นทางย้อนหลังรายคัน + การเลือกช่วงเวลาไป archive
+CREATE INDEX IF NOT EXISTS idx_track ON gps_track (vehicle_id, ts);
+-- index บน ts อย่างเดียว — ใช้โดย countTrackWritesOn (WHERE ts >= ? AND ts < ?)
+-- ถ้าไม่มี = สแกนทั้งตารางทุกปิง กินโควตาอ่าน D1 หมดวัน (ดู migrations/0002)
+CREATE INDEX IF NOT EXISTS idx_track_ts ON gps_track (ts);
+
+-- งานที่จ่ายให้รถแต่ละคัน (เชื่อมกับระบบใบงานภายหลัง — ตอนนี้เก็บเองก่อน)
+CREATE TABLE IF NOT EXISTS job_assignment (
+  job_id       TEXT,                     -- เลขงาน/uid จากระบบใบงาน
+  vehicle_id   TEXT,                     -- อ้าง vehicles.id
+  container_no TEXT,                     -- เบอร์ตู้
+  origin       TEXT,                     -- ต้นทาง
+  destination  TEXT,                     -- ปลายทาง
+  status       TEXT,                     -- สถานะงาน เช่น assigned / running / done
+  assigned_at  INTEGER                   -- epoch millis ตอนจ่ายงาน
+);
+
+-- สรุประยะทาง/จำนวนเที่ยวต่อคันต่อวัน — ⭐ เก็บถาวร ไม่ลบ (แถวน้อย ใช้ทำ KPI/กำไรต่อเที่ยวย้อนหลังได้ตลอด)
+CREATE TABLE IF NOT EXISTS trip_daily (
+  vehicle_id  TEXT NOT NULL,             -- อ้าง vehicles.id
+  day         TEXT NOT NULL,             -- 'YYYY-MM-DD' (UTC)
+  distance_km REAL NOT NULL DEFAULT 0,   -- ระยะทางรวมของวัน
+  trips       INTEGER NOT NULL DEFAULT 0,-- จำนวนเที่ยวของวัน
+  PRIMARY KEY (vehicle_id, day)
+);

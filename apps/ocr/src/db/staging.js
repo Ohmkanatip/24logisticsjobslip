@@ -10,6 +10,7 @@
 
 export function makeMemoryStagingRepo() {
   const rows = [];
+  const bindings = [];   // V73: line_user_id ↔ driver_id
   let nextId = 1;
   return {
     // เพิ่มผลที่ยืนยันแล้ว — คืน id ของแถว
@@ -47,6 +48,18 @@ export function makeMemoryStagingRepo() {
       r.pulled_by = pulledBy || null;
       r.pulled_at = ts || null;
       return { ok: true };
+    },
+    // ── V73: ผูก LINE userId ↔ driverId (สำเนาจากแท็บ "คนขับ" — .gs ยิงมา sync) ──
+    async upsertBinding({ lineUserId, driverId, name, ts }) {
+      if (!lineUserId || !driverId) return { ok: false, reason: 'bad-binding' };
+      const i = bindings.findIndex((b) => b.line_user_id === lineUserId);
+      const row = { line_user_id: lineUserId, driver_id: driverId, name: name || null, bound_at: ts || null };
+      if (i > -1) bindings[i] = row; else bindings.push(row);
+      return { ok: true };
+    },
+    async getBinding(lineUserId) {
+      const b = bindings.find((x) => x.line_user_id === lineUserId);
+      return b ? { ...b } : null;
     },
   };
 }
@@ -88,6 +101,20 @@ export function makeD1StagingRepo(db) {
       const row = await db.prepare('SELECT status, pulled_by FROM ocr_results WHERE id = ?').bind(Number(id)).first();
       if (!row) return { ok: false, reason: 'not-found' };
       return { ok: false, reason: 'already-pulled', pulledBy: row.pulled_by };
+    },
+    // ── V73: ผูก LINE userId ↔ driverId — SQL ต้องให้ผลเท่ากับ memory เป๊ะ (มีเทสเทียบ interface) ──
+    async upsertBinding({ lineUserId, driverId, name, ts }) {
+      if (!lineUserId || !driverId) return { ok: false, reason: 'bad-binding' };
+      const r = await db.prepare(
+        `INSERT INTO line_bindings (line_user_id, driver_id, name, bound_at) VALUES (?, ?, ?, ?)
+         ON CONFLICT(line_user_id) DO UPDATE SET driver_id = excluded.driver_id, name = excluded.name, bound_at = excluded.bound_at`
+      ).bind(lineUserId, driverId, name || null, ts || null).run();
+      if (r && r.success === false) return { ok: false, reason: 'd1-upsert-failed' };
+      return { ok: true };
+    },
+    async getBinding(lineUserId) {
+      const row = await db.prepare('SELECT * FROM line_bindings WHERE line_user_id = ?').bind(lineUserId).first();
+      return row || null;
     },
   };
 }

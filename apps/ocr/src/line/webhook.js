@@ -152,10 +152,18 @@ export async function handleEvent(event, deps) {
         }]);
         return { ok: false, reason: 'check-digit-failed', written: false };
       }
+      // V73: แปลง LINE userId → driverId (D001…) ผ่านตารางผูกที่ .gs ยิงมา sync
+      // ไม่เจอ = ปล่อย null (คนขับยังไม่ถูกผูก) — ห้ามล้มทั้งการยืนยันเพราะแค่หา id ไม่ได้
+      const userId = (event.source && event.source.userId) || null;
+      let driverId = null;
+      if (userId && deps.resolveDriver) {
+        try { driverId = await deps.resolveDriver(userId); } catch (_e) { driverId = null; }
+      }
       const w = await writeback.fillContainer({
         jobUid,
         containerNo: v.normalized,
-        confirmedBy: (event.source && event.source.userId) || null,
+        confirmedBy: userId,
+        driverId,                     // ตัวที่ทำให้ GET /api/ocr/results?driverId=D001 ใช้ได้จริง (เดิม NULL ตลอด)
         ts: event.timestamp || null   // เวลาจาก LINE event — ชั้นนี้ไม่แตะ Date.now (กติกาบ้าน)
       });
       if (!w || !w.ok) {

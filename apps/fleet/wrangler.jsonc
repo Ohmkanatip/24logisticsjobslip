@@ -1,0 +1,40 @@
+{
+  // ⚠️ โครง config รอเท่านั้น — ห้าม deploy จนกว่าเจ้าของจะเคาะ (map provider จริง + สร้าง D1/R2 จริง)
+  "name": "fleet-24logistics",
+  "main": "src/worker/index.js",
+  "compatibility_date": "2026-08-01",
+
+  // ให้ wrangler แปลงไฟล์ .html เป็น text module (worker import หน้า map ได้ตรงๆ)
+  "rules": [
+    { "type": "Text", "globs": ["**/*.html"] }
+  ],
+
+  "vars": {
+    // provider แผนที่เริ่มต้น = leaflet (OSM ไม่ต้องมี key)
+    "MAP_PROVIDER": "leaflet",
+    // ระยะขั้นต่ำ (เมตร) ที่ถือว่า "รถขยับ" ถึงจะเขียน gps_track — mitigation ข้อ 1 ของเพดาน D1 100k เขียน/วัน
+    "MOVE_THRESHOLD_M": "20"
+  },
+
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "fleet-24logistics",
+      // ⚠️ ต้องเติมตอน setup จริง: สร้างด้วย `wrangler d1 create fleet-24logistics` แล้วเอา id มาใส่
+      "database_id": ""
+    }
+  ],
+
+  // job สำรอง R2 (scheduled handler มีแล้วใน worker) — เปิดใช้ตอน setup จริงโดยลบคอมเมนต์บล็อกนี้
+  // ⚠️ ก่อนเปิด: เจ้าของต้องเคาะ cadence (แนะนำเดือนละครั้ง วันที่ 1 ตี 4) — ดู CLAUDE.md
+  // "triggers": { "crons": ["0 21 1 * *", "0 18 * * *"] },
+  //   "0 21 1 * *" = สำรอง R2 วันที่ 1 ของเดือน 04:00 ไทย · "0 18 * * *" = สรุป trip_daily ตี 1 ไทย ทุกวัน
+
+  "r2_buckets": [
+    {
+      "binding": "ARCHIVE",
+      // ⚠️ ต้องสร้าง bucket ตอน setup จริง: `wrangler r2 bucket create fleet-archive-24logistics`
+      "bucket_name": "fleet-archive-24logistics"
+    }
+  ]
+}

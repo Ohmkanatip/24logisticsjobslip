@@ -22,6 +22,12 @@ const abs = (f) => join(ROOT, f);
 // ── รายการบั๊กที่จะแกล้งฝัง — เลือกเฉพาะ "หัวใจของความถูกต้อง" ──
 // find ต้องเจอ 1 ที่พอดี ไม่งั้นถือว่า mutation เสีย (MUTATION-BROKEN) ต้องมาแก้รายการนี้
 const MUTATIONS = [
+  // ── V73: สายไฟ LINE↔driverId — ถูกตัดแล้วเทสต้องจับได้ (บทเรียน suggestRepairs: มีฟังก์ชัน ≠ ถูกต่อสายจริง) ──
+  { name: 'webhook ไม่ส่ง driverId เข้า staging (กลับไปเป็น NULL ตลอดแบบบั๊กเดิม)',
+    file: 'src/line/webhook.js', find: '        driverId,', replace: '        driverId: null,' },
+  { name: 'bind endpoint ไม่เช็ค token (ใครก็ผูกคนขับมั่วได้)',
+    file: 'src/worker/index.js', find: "      const authB = pullAuthorized(request, env);", replace: '      const authB = true;' },
+
   // ── เช็คดิจิต ISO 6346 — หัวใจของทั้งระบบ (อ่านผิดแล้วเบอร์ตู้ผิดเข้าใบงาน) ──
   { name: 'ตารางค่าตัวอักษร: A = 10 → 11 (ค่าเดียวเพี้ยน ทั้งตารางเลื่อน)',
     file: 'src/iso6346/check.js', find: '  A: 10, B: 12,', replace: '  A: 11, B: 12,' },
