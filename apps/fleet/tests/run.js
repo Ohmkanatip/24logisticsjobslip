@@ -298,6 +298,49 @@ async function main() {
     ok(!/AKfy|AIza|pk\.eyJ|sk\.eyJ|Bearer [A-Za-z0-9_\-]{8,}/.test(src), 'ไม่มี secret/API key ฝังใน worker');
   }
 
+  section('เอกสารต้องตรงกับโค้ด (กันลืมจดตัวแปรใหม่ตอน deploy)');
+  {
+    const { readFile, readdir } = await import('node:fs/promises');
+    const base = new URL('../', import.meta.url);
+
+    // ไล่อ่านทุกไฟล์ใน src/ หาว่าโค้ดอ่านค่า env อะไรบ้าง
+    async function walk(dir) {
+      const out = [];
+      for (const e of await readdir(new URL(dir, base), { withFileTypes: true })) {
+        if (e.isDirectory()) out.push(...await walk(dir + e.name + '/'));
+        else if (e.name.endsWith('.js')) out.push(dir + e.name);
+      }
+      return out;
+    }
+    const files = await walk('src/');
+    const used = new Set();
+    for (const f of files) {
+      const t = await readFile(new URL(f, base), 'utf8');
+      for (const m of t.matchAll(/env\.([A-Z][A-Z0-9_]+)/g)) used.add(m[1]);
+    }
+    ok(used.size > 0, 'สแกนเจอตัวแปร env ที่โค้ดใช้', [...used].join(' '));
+
+    const example = await readFile(new URL('.dev.vars.example', base), 'utf8');
+    const wrangler = await readFile(new URL('wrangler.jsonc', base), 'utf8');
+    // binding (DB/ARCHIVE) ประกาศใน wrangler เป็นค่า ไม่ใช่คีย์ — เช็คว่ามีชื่อปรากฏก็พอ
+    const missing = [...used].filter((v) => !example.includes(v) && !wrangler.includes(v));
+    ok(missing.length === 0,
+      '⭐ ทุกตัวแปรที่โค้ดอ่าน ต้องถูกจดใน .dev.vars.example หรือ wrangler.jsonc (ไม่งั้นตอน deploy จะลืมตั้ง)',
+      missing);
+
+    // ตัวที่จดไว้แต่โค้ดยังไม่อ่าน ต้องติดป้าย [ยังไม่ได้ใช้] ให้ชัด — กันคนตั้งค่าแล้วนึกว่ามีผล
+    const documented = [...example.matchAll(/^([A-Z][A-Z0-9_]+)=/gm)].map((m) => m[1]);
+    const notUsedYet = documented.filter((v) => !used.has(v));
+    for (const v of notUsedYet) {
+      const line = example.split('\n').findIndex((l) => l.startsWith(v + '='));
+      const above = example.split('\n').slice(Math.max(0, line - 3), line).join(' ');
+      ok(/ยังไม่ได้ใช้/.test(above), 'ตัวแปร ' + v + ' ที่โค้ดยังไม่อ่าน ต้องติดป้าย [ยังไม่ได้ใช้]', above.slice(0, 80));
+    }
+
+    // R2_BUCKET เคยถูกจดผิด (ไม่มีโค้ดไหนอ่าน) — ล็อกไม่ให้กลับมา
+    ok(!/^R2_BUCKET=/m.test(example), '⭐ ไม่มี R2_BUCKET ในไฟล์ตัวอย่างแล้ว (เป็น binding ARCHIVE ใน wrangler ไม่ใช่ตัวแปรลับ)');
+  }
+
   section('ingest: จำกัดขนาดก้อนปิง (กัน Worker ถูกตัดกลางคัน)');
   {
     const { readFile } = await import('node:fs/promises');

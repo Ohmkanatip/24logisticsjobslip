@@ -1,23 +1,32 @@
 # ตัวอย่างไฟล์ตัวแปรลับสำหรับรันในเครื่อง — ก๊อปเป็น .dev.vars แล้วค่อยเติมค่าจริง
 # ⚠️ ห้าม commit ค่าจริงเด็ดขาด (ไฟล์นี้มีแต่ค่าว่าง = ปลอดภัย)
+#
+# 📌 อ่านก่อน: ตัวไหนติดป้าย [ยังไม่ได้ใช้] = โค้ดยังไม่อ่านค่านี้ ตั้งไปก็ยังไม่มีผล
+#    (ตรวจแล้ว 28 ส.ค. 2569 — มีเทสด่าน "env ที่โค้ดใช้ต้องอยู่ในไฟล์นี้" กันลืมจดตัวใหม่)
 
 # provider แผนที่: leaflet (ไม่ต้องมี key) / longdo / google / mapbox
 MAP_PROVIDER=leaflet
 
 # key ฝั่ง client (ฝังในหน้าเว็บได้ เช่น key แสดงแผนที่ที่จำกัดโดเมนแล้ว)
+# ใช้จริงแล้ว: chooseProvider ดูค่านี้ว่าจะใช้ provider ที่ขอได้ไหม (ไม่มี key = ถอยมา leaflet)
 MAP_API_KEY=
 
-# key ฝั่ง server (geocode / distance matrix) — ⚠️ ห้ามหลุดไป client เด็ดขาด ใช้ใน Worker เท่านั้น
+# [ยังไม่ได้ใช้] key ฝั่ง server (geocode / distance matrix) — รอ adapter จริงของ longdo/google/mapbox
+# ⚠️ ตอน implement: ห้ามหลุดไป client เด็ดขาด ใช้ใน Worker เท่านั้น (มีเทสด่าน mapconfig กันไว้แล้ว)
 MAP_SERVER_KEY=
 
-# ที่อยู่ API ของ Cartrack (ยังไม่มี — ปล่อยว่างไว้ ระบบจะเข้าโหมด mock เอง)
+# [ยังไม่ได้ใช้] ที่อยู่ API ของ Cartrack — รอ implement ตัวดึงข้อมูลจริง
 CARTRACK_API_URL=
 
-# API key ของ Cartrack — ไม่มีค่า = โหมด mock ทั้งระบบ (mock feed + memory repo)
+# API key ของ Cartrack — ใช้จริงแล้วในฐานะ "สวิตช์โหมด": ไม่มีค่า = โหมด mock ทั้งระบบ
 CARTRACK_API_KEY=
-
-# ชื่อ R2 bucket สำหรับสำรอง gps_track ที่เก่ากว่า 60 วัน
-R2_BUCKET=
 
 # โทเคนกันคนนอกยิงปิงปลอมเข้า /api/fleet/ingest — ก่อนใช้จริงต้องตั้งเสมอ (ว่าง = โหมดทดลองในเครื่อง ไม่ตรวจ)
 INGEST_TOKEN=
+
+# ── หมายเหตุ: D1 กับ R2 ไม่ได้ตั้งที่นี่ ──
+# ทั้งคู่เป็น "binding" ตั้งใน wrangler.jsonc ไม่ใช่ตัวแปรลับ:
+#   binding "DB"      → ฐานข้อมูล D1  (env.DB)
+#   binding "ARCHIVE" → R2 bucket     (env.ARCHIVE)
+# ⚠️ เดิมไฟล์นี้เขียนว่า R2_BUCKET= ซึ่ง **ผิด** — ไม่มีโค้ดตรงไหนอ่านชื่อนั้นเลย
+#    ตั้งไปก็ไม่มีผล ต้องไปตั้ง bucket_name ใน wrangler.jsonc แทน
