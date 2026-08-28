@@ -56,7 +56,9 @@ export async function archiveOldTracks(repo, r2, cutoffTs) {
     keys.push(key);
   }
 
-  // อัปครบแล้วค่อยลบจากฐาน
-  const deleted = await repo.deleteTrackOlderThan(cutoffTs);
+  // อัปครบแล้วค่อยลบ — **ลบเฉพาะ id ที่อยู่ในไฟล์ที่อัปขึ้นไปจริง** ไม่ใช่เหมาลบตาม cutoff
+  // ⚠️ ปิงเก่าที่แทรกเข้ามาระหว่างอัป จะไม่ถูกลบ — รอบสำรองรอบหน้าค่อยเก็บไป (ช้ากว่าแต่ไม่หาย)
+  const ids = rows.map((r) => r.id).filter((id) => id !== undefined && id !== null);
+  const deleted = await repo.deleteTrackByIds(ids);
   return { ok: true, archived: rows.length, deleted, keys };
 }

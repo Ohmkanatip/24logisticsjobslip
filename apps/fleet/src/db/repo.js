@@ -112,7 +112,24 @@ export function makeD1Repo(db) {
       return rs.results || [];
     },
 
-    // ลบแถว track ที่เก่ากว่า cutoff — เรียกหลังอัปขึ้น R2 สำเร็จแล้วเท่านั้น
+    // ลบเฉพาะแถวที่ระบุ id — archive ใช้ตัวนี้ (ลบเฉพาะที่อัปขึ้น R2 สำเร็จจริงเท่านั้น)
+    // ⚠️ ทำไมไม่ลบด้วย cutoff: ระหว่างอัปขึ้น R2 (ช้าเป็นวินาที) มีปิงเก่าแทรกเข้ามาได้
+    //    (คนขับอยู่ที่อับสัญญาณ เครื่องเก็บไว้ส่งย้อนหลัง — GPS ทำแบบนี้เป็นปกติ)
+    //    ลบด้วย cutoff = กวาดแถวที่เพิ่งแทรกไปด้วย ทั้งที่ยังไม่ถูกอัป = หายถาวร (พิสูจน์แล้ว 28 ส.ค. 2569)
+    async deleteTrackByIds(ids) {
+      if (!Array.isArray(ids) || ids.length === 0) return 0;
+      const CHUNK = 500;   // กันชนเพดานจำนวนตัวแปรต่อคำสั่งของ SQLite
+      let n = 0;
+      for (let i = 0; i < ids.length; i += CHUNK) {
+        const part = ids.slice(i, i + CHUNK);
+        const marks = part.map(() => '?').join(',');
+        const rs = await db.prepare('DELETE FROM gps_track WHERE id IN (' + marks + ')').bind(...part).run();
+        n += (rs && rs.meta ? rs.meta.changes : 0) || 0;
+      }
+      return n;
+    },
+
+    // ลบแถว track ที่เก่ากว่า cutoff — เก็บไว้ใช้ล้างข้อมูลแบบเหมา (archive ไม่ใช้แล้ว)
     async deleteTrackOlderThan(cutoffTs) {
       assertCutoff(cutoffTs);
       const rs = await db.prepare(`DELETE FROM gps_track WHERE ts < ?`).bind(cutoffTs).run();
@@ -165,6 +182,16 @@ export function makeMemoryRepo(seedVehicles = []) {
       assertCutoff(cutoffTs);
       return track.filter((r) => Number.isFinite(r.ts) && r.ts < cutoffTs)
         .sort((a, b) => a.ts - b.ts).map((r) => ({ ...r }));
+    },
+
+    async deleteTrackByIds(ids) {
+      if (!Array.isArray(ids) || ids.length === 0) return 0;
+      const want = new Set(ids);
+      const before = track.length;
+      for (let i = track.length - 1; i >= 0; i--) {
+        if (want.has(track[i].id)) track.splice(i, 1);
+      }
+      return before - track.length;
     },
 
     async deleteTrackOlderThan(cutoffTs) {

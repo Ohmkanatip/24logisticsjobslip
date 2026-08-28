@@ -298,6 +298,46 @@ async function main() {
     ok(!/AKfy|AIza|pk\.eyJ|sk\.eyJ|Bearer [A-Za-z0-9_\-]{8,}/.test(src), 'ไม่มี secret/API key ฝังใน worker');
   }
 
+  section('เหตุการณ์ชนกัน (concurrency) — สำรองข้อมูลต้องไม่ลบของที่ยังไม่ได้อัป');
+  {
+    // ⭐⭐ บั๊กข้อมูลหายถาวรที่เจอ 28 ส.ค. 2569:
+    //    archive ทำงาน 3 ขั้น: เลือกแถวเก่า → อัปขึ้น R2 (ช้าเป็นวินาที) → ลบ
+    //    ถ้าลบด้วย cutoff: ปิงเก่าที่แทรกเข้ามาระหว่างอัป จะถูกลบไปด้วย ทั้งที่ไม่เคยถูกอัป
+    //    เกิดจริงแน่นอน: คนขับอยู่ที่อับสัญญาณ เครื่อง GPS เก็บไว้แล้วส่งย้อนหลังทีเดียว
+    const repo = makeMemoryRepo();
+    const old = Date.UTC(2026, 3, 10), cutoff = Date.UTC(2026, 5, 28);
+    await repo.insertTrack({ vehicle_id: 'a', lat: 1, lng: 1, ts: old });
+
+    const r2Slow = { puts: 0, async put() { await new Promise((r) => setTimeout(r, 20)); this.puts++; } };
+    const running = archiveOldTracks(repo, r2Slow, cutoff);
+    await new Promise((r) => setTimeout(r, 5));
+    // ปิงเก่าแทรกเข้ามากลางทาง (ts เก่ากว่า cutoff)
+    await repo.insertTrack({ vehicle_id: 'ปิงย้อนหลัง', lat: 2, lng: 2, ts: old + 100 });
+    const res = await running;
+
+    const left = await repo.selectTrackOlderThan(Number.MAX_SAFE_INTEGER);
+    ok(res.archived === 1 && res.deleted === 1, '⭐ ลบเท่าที่อัปขึ้นไปจริงเป๊ะ (archived = deleted)', res);
+    ok(left.length === 1 && left[0].vehicle_id === 'ปิงย้อนหลัง',
+      '⭐⭐ ปิงที่แทรกเข้ามาระหว่างอัป ต้องยังอยู่ในฐาน (รอบสำรองหน้าค่อยเก็บ) — ห้ามหาย');
+
+    // รอบถัดไปต้องเก็บตัวที่ค้างไปได้
+    const r2 = { puts: [], async put(k) { this.puts.push(k); } };
+    const res2 = await archiveOldTracks(repo, r2, cutoff);
+    ok(res2.archived === 1 && (await repo.selectTrackOlderThan(Number.MAX_SAFE_INTEGER)).length === 0,
+      'รอบสำรองรอบหน้าเก็บตัวที่ค้างไปครบ');
+
+    // deleteTrackByIds ต้องมีทั้ง 2 repo และทำงานเหมือนกัน
+    const mem = makeMemoryRepo();
+    ok(typeof mem.deleteTrackByIds === 'function', 'memory repo มี deleteTrackByIds');
+    await mem.insertTrack({ vehicle_id: 'x', lat: 1, lng: 1, ts: 1 });
+    await mem.insertTrack({ vehicle_id: 'y', lat: 1, lng: 1, ts: 2 });
+    const rows = await mem.selectTrackOlderThan(Number.MAX_SAFE_INTEGER);
+    ok((await mem.deleteTrackByIds([rows[0].id])) === 1, 'ลบตาม id ได้ 1 แถว');
+    ok((await mem.deleteTrackByIds([])) === 0 && (await mem.deleteTrackByIds(null)) === 0,
+      'ส่ง list ว่าง/null = ไม่ลบอะไร ไม่ throw');
+    ok((await mem.selectTrackOlderThan(Number.MAX_SAFE_INTEGER)).length === 1, 'อีกแถวยังอยู่');
+  }
+
   section('เอกสารต้องตรงกับโค้ด (กันลืมจดตัวแปรใหม่ตอน deploy)');
   {
     const { readFile, readdir } = await import('node:fs/promises');

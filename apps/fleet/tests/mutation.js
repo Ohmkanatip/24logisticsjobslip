@@ -98,6 +98,12 @@ const MUTATIONS = [
     find: '  if (pings.length > INGEST_MAX_PINGS) {',
     replace: '  if (false) {' },
 
+  // ── สำรองข้อมูล: ต้องลบเฉพาะที่อัปขึ้นไปจริง ──
+  { name: '⚠️⚠️ archive กลับไปลบตาม cutoff (ปิงที่แทรกกลางทางหายถาวร)',
+    file: 'src/archive/r2Archive.js',
+    find: '  const deleted = await repo.deleteTrackByIds(ids);',
+    replace: '  const deleted = await repo.deleteTrackOlderThan(cutoffTs);' },
+
   // ── ด่านความปลอดภัย ──
   { name: '⚠️ ถอดด่าน INGEST_TOKEN (ใครก็ยิงปิงปลอมเข้าฐานได้)',
     file: 'src/worker/api.js',
