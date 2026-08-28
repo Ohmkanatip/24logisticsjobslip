@@ -709,6 +709,26 @@
     .nvtop{font-size:13.5px;padding:8px 11px}
     .nvmenu{left:auto;right:0;min-width:min(300px,90vw)}
   }
+  /* ══ V72.6 มือถือ: แถบหัวเหลือแถวเดียว + เมนู ⚙️ ห้ามตกขอบจอ (เจ้าของส่งภาพ 28 ส.ค.) ══
+     ต้นเหตุเดิม: .gearmenu ใช้ position:absolute;right:0 = กางไป "ทางซ้ายของปุ่ม"
+     พอจอแคบแล้วปุ่มถูกดันไปอยู่ซ้าย เมนูกว้าง 262px เลยหลุดออกนอกจอ กดอะไรไม่ได้เลย
+     แก้: บนมือถือใช้ position:fixed ผูกกับ "ขอบจอ" แทนปุ่ม → ไม่ว่าปุ่มอยู่ตรงไหนก็ไม่ตกขอบ */
+  @media(max-width:640px){
+    /* ปุ่มหัวเหลือไอคอน — ซ่อนเฉพาะตัวหนังสือ ไม่แตะ id/ฟังก์ชัน */
+    .topbar-right #themeLabel{display:none}
+    .topbar-right #themeBtn,.topbar-right #gearBtn{padding:7px 10px;font-size:15px}
+    .topbar-right #gearBtn{font-size:0}                 /* ซ่อนคำว่า "ตั้งค่า" เหลือ ⚙️ */
+    .topbar-right #gearBtn::after{content:'⚙️';font-size:15px}
+    #userChip{max-width:38vw;overflow:hidden}
+    #userChip b{display:inline-block;max-width:20vw;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;vertical-align:bottom}
+    /* ปุ่มออกจากระบบย้ายเข้าไปในเมนู ⚙️ (ปุ่มอันตราย ไม่ควรกดโดนง่ายบนมือถือ) */
+    .topbar-right #logoutBtn{display:none}
+    .gearmenu #gmLogout{display:flex!important}
+    /* เมนูกางเต็มความกว้างจอ ผูกกับ viewport ไม่ผูกกับปุ่ม */
+    .gearwrap{position:static}
+    .gearmenu{position:fixed;left:10px;right:10px;top:calc(var(--headh,64px) + 4px);
+      min-width:0;width:auto;max-height:72vh;overflow:auto}
+  }
   /* V66.2: หน้าเต็มจอเป็นแผ่นลอย (position:fixed) — ต้องเริ่มใต้แถบหัว+เมนู ไม่งั้นภาพซ้อนกัน
      --headh คำนวณจาก JS ทุกครั้งที่ขนาดจอเปลี่ยน (แถบขึ้นบรรทัดใหม่บนมือถือ ความสูงไม่เท่ากัน) */
   .topbar,.mainnav{position:relative;z-index:8100}
@@ -782,6 +802,18 @@
 .um-b{border:none;border-radius:7px;padding:5px 11px;font-family:inherit;font-size:12px;font-weight:600;cursor:pointer;margin:1px}
 .um-b.ap{background:#1f9d55;color:#fff}.um-b.rj{background:#d64550;color:#fff}.um-b.gh{background:#eef1f5;color:#555}
 .um-sel{font-family:inherit;font-size:12px;padding:4px 6px;border-radius:6px;border:1px solid var(--line,#ccc);background:var(--paper,#fff);color:var(--ink)}
+  /* V72.6: จัดกลุ่ม + ค้นหา + ป้ายแถวซ้ำ — รายชื่อไม่บวมตามจำนวนคนที่เข้ามาใหม่ */
+  .um-tools{display:flex;gap:9px;align-items:center;flex-wrap:wrap;margin-bottom:9px}
+  .um-q{flex:1 1 200px;min-width:0;font-family:inherit;font-size:13px;padding:7px 11px;border-radius:8px;
+    border:1px solid var(--line,#ccc);background:var(--field,#fff);color:var(--ink)}
+  .um-need{font-size:12px;font-weight:700;color:var(--warn);background:var(--accent-soft);border:1px solid var(--warn);
+    border-radius:99px;padding:3px 11px;white-space:nowrap}
+  .um-sec{background:var(--field);font-size:12.5px;font-weight:700;color:var(--ink);padding:7px 10px!important}
+  .um-sec.need{color:var(--warn)}
+  .um-cnt{display:inline-block;background:var(--primary);color:var(--primary-fg);border-radius:99px;
+    padding:0 8px;font-size:11px;margin-left:5px}
+  .um-dup{font-size:10.5px;font-weight:700;color:var(--warn);border:1px solid var(--warn);
+    border-radius:5px;padding:0 6px;white-space:nowrap}
 .um-empty{padding:22px;text-align:center;color:var(--ink-soft,#888)}
 </style>
 </head>
@@ -879,6 +911,8 @@
           <button type="button" class="theme-btn" id="appBtn" title="รหัสเข้าใช้งานระบบ">🔑 รหัส</button>
           <button type="button" class="theme-btn" id="adminBtn" title="โหมดแอดมิน (แก้ไขใบได้)">แอดมิน</button>
           <button type="button" class="theme-btn" id="ffBtn" title="เปิด/ปิดฟีเจอร์ใหม่ (แอดมินเท่านั้น)" style="display:none">🎛 สวิตช์ระบบ</button>
+          <!-- V72.6: ออกจากระบบสำหรับมือถือ (คอมยังใช้ปุ่มบนแถบหัวเหมือนเดิม · CSS คุมว่าอันไหนโผล่) -->
+          <button type="button" class="theme-btn" id="gmLogout" title="ออกจากระบบ" style="display:none">🚪 ออกจากระบบ</button>
           <div class="endpoint" id="epWrap" style="display:none">
             <span class="dot" id="epDot"></span>
             <label for="epUrl" style="color:var(--ink-soft)">Sheet URL:</label>
@@ -924,7 +958,7 @@
       <button type="button" class="nvtop" id="nvMoneyTop">💰 เงิน <span class="ca">▾</span></button>
       <div class="nvmenu">
         <div class="nvi" id="goPay" role="button" tabindex="0" style="display:none"><span class="ic">🧑‍✈️</span><span><span class="t">เงินคนขับ (ค่าเที่ยว)</span><span class="d">รวมรายคน · แจกแจงรายเที่ยว · พิมพ์ไปจ่ายเงินได้</span></span></div>
-        <div class="nvi" id="goDash" role="button" tabindex="0"><span class="ic">📊</span><span><span class="t">ภาพรวมเงิน &amp; ต้นทุน <span class="nvlock">แอดมิน</span></span><span class="d">เงินรอเก็บ · เกินกำหนด · ต้นทุนที่ไม่ได้อยู่ในบิล</span></span></div>
+        <div class="nvi" id="goDash" role="button" tabindex="0"><span class="ic">📊</span><span><span class="t">ภาพรวมเงิน &amp; ต้นทุน</span><span class="d">เงินรอเก็บ · เกินกำหนด · ต้นทุนที่ไม่ได้อยู่ในบิล</span></span></div>
       </div>
     </div>
 
@@ -2689,7 +2723,7 @@ async function loadDash(force){
   }catch(e){ flash('เชื่อมต่อไม่สำเร็จ — กด ⟳ รีเฟรช','err'); }
 }
 function dashCacheLoad(){
-  if(!adminToken) return false;   // V63.6: แดชบอร์ด = แอดมินเท่านั้น ไม่โชว์แคชให้คนอื่น
+  // V72.6: แดชบอร์ดเปิดให้ทุกคนที่ล็อกอินแล้ว — แคชจึงโชว์ได้ (เดิม V63.6 ล็อกไว้แอดมินเท่านั้น)
   try{ const c=JSON.parse(localStorage.getItem(DASHCACHE)||'null');
     if(c&&c.d&&c.p===dashPeriod){ dashData=c.d; return true; }
   }catch(e){}
@@ -5058,7 +5092,9 @@ function updateAdminUI(){
   const vis=adminToken?'':'none';
   ['btnAudit','btnEditLog'].forEach(id=>{ const b=$(id); if(b) b.style.display=vis; }); // เครื่องมือตรวจสอบ = แอดมินเท่านั้น
   // V63.6 (เจ้าของเคาะ 17 ส.ค.): แดชบอร์ดภาพรวมเงิน = แอดมินเท่านั้น · หน้าเงินคนขับ = ทุกคนที่ล็อกอิน
-  const gd=$("goDash"); if(gd) gd.style.display=adminToken?'flex':'none';
+  // V72.6: เจ้าของเคาะให้ "ทุกคนดูภาพรวมได้" (กลับการตัดสินใจ V63.6b ที่เคยล็อกเป็นแอดมิน)
+  // เห็นได้ = ทุกคนที่ล็อกอิน · แต่ปุ่มที่แตะเงินจริง (รับเงิน/ถอน/ลบถาวร) ยังเป็นของแอดมินเหมือนเดิม
+  const gd=$("goDash"); if(gd) gd.style.display='flex';
   const gp=$("goPay"); if(gp) gp.style.display='flex';
   // V66: เมนูตีราคา/ใบขอราคา — แอดมินเห็นเสมอ (v65Cards อยู่คนละ script block ต้องกันไว้)
   try{ if(typeof v65Cards==='function') v65Cards(); }catch(e){}
@@ -6390,6 +6426,8 @@ recalc();
     var chip=elx('<div id="userChip" class="theme-btn" style="cursor:default;display:inline-flex;align-items:center;gap:7px"><span style="font-size:13px"><b>'+(me.name||'')+'</b> <span style="color:var(--ink-soft,#888);font-size:11px">'+(me.role==='admin'?'แอดมิน':'พนักงาน')+'</span></span></div>');
     var out=elx('<button class="theme-btn" id="logoutBtn" title="ออกจากระบบ">ออกจากระบบ</button>');
     out.onclick=doLogout;
+    // V72.6: ปุ่มออกจากระบบในเมนู ⚙️ สำหรับมือถือ (CSS คุมว่าอันไหนโผล่ — คอมใช้ปุ่มบนแถบหัวเหมือนเดิม)
+    var gml=document.getElementById('gmLogout'); if(gml) gml.onclick=doLogout;
     bar.insertBefore(out,bar.firstChild);
     bar.insertBefore(chip,bar.firstChild);
   }
@@ -6432,7 +6470,30 @@ recalc();
       if(!j||!j.ok){ body.innerHTML='<div class="um-empty">โหลดไม่สำเร็จ — เฉพาะแอดมิน</div>'; return; }
       var us=j.users||[];
       if(!us.length){ body.innerHTML='<div class="um-empty">ยังไม่มีผู้ใช้</div>'; return; }
-      var rows=us.map(function(u){
+      /* V72.6: รวมแถวซ้ำของอีเมลเดียวกันให้เหลือแถวเดียว (เจ้าของเจอคนละ 2 แถว 28 ส.ค.)
+         ในชีทมีแถวซ้ำจริง (ตัวหนึ่ง active อีกตัว pending) เพราะ setUser_ เดิมแก้แค่แถวแรกที่เจอ
+         เลือก "สถานะที่ดีที่สุด" เสมอ = ใช้งานได้ > รออนุมัติ > ปิดสิทธิ์ · แอดมินชนะพนักงาน
+         → ไม่มีทางที่การรวมแถวจะทำให้ใครถูกลดสิทธิ์ (คนที่เพิ่งเข้ามาไม่ถูกเตะออก) */
+      var rank=function(u){ return (u.status==='active'?200:u.status==='pending'?100:0)+(u.role==='admin'?10:0); };
+      var byEmail={};
+      us.forEach(function(u){
+        var k=String(u.email||'').toLowerCase(); if(!k) return;
+        if(!byEmail[k]||rank(u)>rank(byEmail[k])){ u.__dup=(byEmail[k]?(byEmail[k].__dup||1)+1:1); byEmail[k]=u; }
+        else { byEmail[k].__dup=(byEmail[k].__dup||1)+1; }
+      });
+      us=Object.keys(byEmail).map(function(k){ return byEmail[k]; });
+      window.__umAll=us;
+      renderUserRows(us);
+    }catch(e){ body.innerHTML='<div class="um-empty">โหลดไม่สำเร็จ</div>'; }
+  }
+  /* วาดรายชื่อ — จัดกลุ่มตามสถานะ (รออนุมัติขึ้นบนสุด) + ค้นหา + พับกลุ่มปิดสิทธิ์ */
+  function renderUserRows(us,q){
+    var body=document.getElementById('umBody'); if(!body) return;
+    q=String(q||'').trim().toLowerCase();
+    var hit=function(u){ return !q || (String(u.name||'')+' '+String(u.email||'')).toLowerCase().indexOf(q)>=0; };
+    var g={pending:[],active:[],off:[]};
+    us.filter(hit).forEach(function(u){ g[u.status==='pending'?'pending':u.status==='active'?'active':'off'].push(u); });
+      var rowOf=function(u){
         var badge='<span class="um-st '+u.status+'">'+(u.status==='pending'?'รออนุมัติ':u.status==='active'?'ใช้งานได้':'ปิดสิทธิ์')+'</span>';
         var role='<select class="um-sel" data-role data-email="'+u.email+'"><option value="staff"'+(u.role==='staff'?' selected':'')+'>พนักงาน</option><option value="admin"'+(u.role==='admin'?' selected':'')+'>แอดมิน</option></select>';
         var act='';
@@ -6440,12 +6501,26 @@ recalc();
         else if(u.status==='active'){ act='<button class="um-b gh" data-a="disabled" data-e="'+u.email+'">ปิดสิทธิ์</button>'; }
         else { act='<button class="um-b ap" data-a="active" data-e="'+u.email+'">เปิดใหม่</button>'; }
         if(window.__me && u.email===String(window.__me.email||'').toLowerCase()){ role='<span style="color:var(--ink-soft,#888)">'+(u.role==='admin'?'แอดมิน':'พนักงาน')+'</span>'; act='<span style="color:var(--ink-soft,#888)">— ตัวเอง —</span>'; }
-        return '<tr><td><b>'+(u.name||'-')+'</b><br><span style="color:var(--ink-soft,#888);font-size:11px">'+u.email+'</span></td><td style="font-size:12px">'+(u.requestedAt||'')+'</td><td>'+badge+'</td><td>'+role+'</td><td>'+act+'</td></tr>';
-      }).join('');
-      body.innerHTML='<table class="um-tb"><thead><tr><th>ผู้ใช้</th><th>ขอเมื่อ</th><th>สถานะ</th><th>สิทธิ์</th><th>จัดการ</th></tr></thead><tbody>'+rows+'</tbody></table>';
-      body.querySelectorAll('.um-b').forEach(function(b){ b.onclick=function(){ setUserRow(b.getAttribute('data-e'),{status:b.getAttribute('data-a')}); }; });
-      body.querySelectorAll('select[data-role]').forEach(function(s){ s.onchange=function(){ setUserRow(s.getAttribute('data-email'),{role:s.value}); }; });
-    }catch(e){ body.innerHTML='<div class="um-empty">โหลดไม่สำเร็จ</div>'; }
+        var dup=(u.__dup>1)?'<span class="um-dup" title="ในชีทมี '+u.__dup+' แถวของอีเมลนี้ — กดอนุมัติ/ปิดสิทธิ์ 1 ครั้ง ระบบจะแก้ให้ครบทุกแถว">ซ้ำ '+u.__dup+' แถว</span>':'';
+        return '<tr><td><b>'+(u.name||'-')+'</b> '+dup+'<br><span style="color:var(--ink-soft,#888);font-size:11px">'+u.email+'</span></td><td style="font-size:12px">'+(u.requestedAt||'')+'</td><td>'+badge+'</td><td>'+role+'</td><td>'+act+'</td></tr>';
+      };
+    var sec=function(icon,label,list,cls){
+      if(!list.length) return '';
+      return '<tr><td colspan="5" class="um-sec '+(cls||'')+'">'+icon+' '+label+' <span class="um-cnt">'+list.length+'</span></td></tr>'+list.map(rowOf).join('');
+    };
+    var head='<div class="um-tools"><input id="umQ" class="um-q" placeholder="🔍 ค้นชื่อ / อีเมล" value="'+escAttr(q)+'">'
+      +(g.pending.length?'<span class="um-need">⏳ รออนุมัติ '+g.pending.length+' คน</span>':'')+'</div>';
+    var tb='<table class="um-tb"><thead><tr><th>ผู้ใช้</th><th>ขอเมื่อ</th><th>สถานะ</th><th>สิทธิ์</th><th>จัดการ</th></tr></thead><tbody>'
+      + sec('⏳','รออนุมัติ',g.pending,'need')
+      + sec('✅','ใช้งานได้',g.active)
+      + sec('🚫','ปิดสิทธิ์แล้ว',g.off)
+      + (g.pending.length+g.active.length+g.off.length?'':'<tr><td colspan="5" class="um-empty">ไม่พบผู้ใช้ที่ตรงกับที่ค้น</td></tr>')
+      +'</tbody></table>';
+    body.innerHTML=head+tb;
+    var qi=document.getElementById('umQ');
+    if(qi){ qi.oninput=function(){ renderUserRows(window.__umAll||[],qi.value); var el=document.getElementById('umQ'); if(el){ el.focus(); el.setSelectionRange(el.value.length,el.value.length); } }; }
+    body.querySelectorAll('.um-b').forEach(function(b){ b.onclick=function(){ setUserRow(b.getAttribute('data-e'),{status:b.getAttribute('data-a')}); }; });
+    body.querySelectorAll('select[data-role]').forEach(function(s){ s.onchange=function(){ setUserRow(s.getAttribute('data-email'),{role:s.value}); }; });
   }
   async function setUserRow(email,patch){
     try{
