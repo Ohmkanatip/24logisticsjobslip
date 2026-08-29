@@ -2694,6 +2694,9 @@ function billModeSync(jump){
   if(bt) bt.style.display=isTrash?'block':'none';
   if(bh) bh.style.display=isHist?'block':'none';
   if(bd) bd.style.display=isDraft?'block':'none';
+  // V73.5: เปลี่ยนโหมด = ออกจากบริบทแก้ร่างเสมอ — ธง drEditReturn/ผล OCR ที่เลือกค้าง ห้ามรั่วไปใบอื่น
+  // (typeof guard: billModeSync ถูกเรียกตอน boot ก่อนบล็อกสคริปต์ที่ประกาศ drEditReturn จะรัน)
+  try{ if(typeof drEditReset==='function') drEditReset(); }catch(e){}
   $("bmDraft").classList.toggle('on',isDraft);
   $("bmNew").classList.toggle('on',isNew);
   $("bmDebt").classList.toggle('on',isDebt);
@@ -3810,14 +3813,21 @@ async function loadSaleRates(force){
     } // หลังบ้านยังไม่รู้จัก act นี้ = เงียบ ใช้ความจำบิลแบบเดิมต่อ
   }catch(e){}
 }
-/* หาราคาขายจากตารางแม่ — latest-wins: หลายแถวตรงกัน เอาแถวล่าสุด (แถวใหม่อยู่ท้ายเสมอ เพราะ append-only) */
+/* หาราคาขายจากตารางแม่ — latest-wins "ต่อเส้นทางเดียวกัน" เท่านั้น
+   V73.5 (รีวิวจับได้): ถ้าที่ตรงเงื่อนไขเป็นคนละเส้นทาง/คนละสถานที่โหลด = กำกวม ห้ามเดา (กติกาเดียวกับเรทค่าเที่ยว V63)
+   เส้นทางเดียวกันแต่หลายแถว = ประวัติราคา (append-only) → เอาแถวล่าสุด */
 function saleRateFor(rec){
   if(!ff('sale_rates')||!saleRows.length) return null;
   try{
     const hits=(findRates(rec,saleRows)||{}).rows||[];
     if(!hits.length) return null;
-    const row=hits[hits.length-1], price=ratePrice(row,rec.size);
-    return price>0?{price:price,row:row}:null;
+    const keyOf=r=>[r.cust,r.sub,r.load,r.from,r.to].map(x=>rNorm(x)).join('|');
+    const latest={};
+    hits.forEach(r=>{ latest[keyOf(r)]=r; });   // แถวหลังทับแถวหน้า = ล่าสุดของเส้นนั้น
+    const groups=Object.values(latest).map(r=>({row:r,price:ratePrice(r,rec.size)})).filter(g=>g.price>0);
+    if(!groups.length) return null;
+    if(groups.length>1&&new Set(groups.map(g=>g.price)).size>1) return null;   // คนละเส้น คนละราคา = ให้คนตัดสิน
+    return groups[groups.length-1];
   }catch(e){ return null; }
 }
 /* เตือนเมื่อราคาที่กรอกต่างจากเรทแม่เกิน 10% — คืนข้อความเตือน หรือ '' ถ้าปกติ */
@@ -4441,7 +4451,8 @@ function bill2FormOpen(rec){
     $("b2_trans").value=b2Num(rec.c_trans)||''; $("b2_recv").value=b2Num(rec.c_recv)||''; $("b2_ret").value=b2Num(rec.c_return)||'';
     $("b2_note").value=rec.note||'';
     b2Ex=b2ParseEx(rec.extras);
-  } else { bill2FormClear(false); $("b2_date").value=todayLocal(); }  // กด ➕ จดบิลใหม่ = ฟอร์มว่างสะอาดเสมอ (เดิมค้างข้อมูลใบก่อนไว้ ต้องมานั่งลบเอง)
+  } else { bill2FormClear(false); $("b2_date").value=todayLocal();
+    try{ if(typeof drEditReset==='function') drEditReset(); }catch(e){} }  // กด ➕ จดบิลใหม่ = ฟอร์มว่างสะอาด + ล้างบริบทแก้ร่าง (V73.5)
   b2RenderEx();
   $("bill2Form").scrollIntoView({behavior:'smooth',block:'start'});
   $("b2_customer").focus();
@@ -4618,8 +4629,10 @@ async function bill2Save(){
         if(j&&j.ok&&j.rec){ const rr=j.rec; okEdit=(String(rr.container||'')===d.container && b2Num(rr.c_trans)===d.c_trans && b2Num(rr.c_recv)===d.c_recv && b2Num(rr.c_return)===d.c_return && String(rr.jobref||'')===d.jobref); }
       }catch(e){}
       if(okEdit){ flash('✓ แก้บิลแล้ว — บันทึกก่อน–หลังเก็บในประวัติแก้ไข','ok'); b2EditUid=''; bill2FormClear(false); $("bill2Form").style.display='none';
-        // V73 [ocr_pull]: ถ้าเบอร์ตู้มาจากผล OCR ที่เลือกไว้ → ติดธงว่าใช้แล้ว (worker กันดึงซ้ำ atomic)
-        if(ocrPickId){ const pid=ocrPickId; ocrPickId=0; try{ callAct({act:'ocrpulled',id:pid}); }catch(e){} }
+        // V73 [ocr_pull]: ติดธงว่าใช้แล้ว "เฉพาะเมื่อเบอร์ที่บันทึกจริงตรงกับที่เลือกจากรายการ" (V73.5 —
+        // เลือกแล้วเปลี่ยนใจพิมพ์เบอร์อื่นก่อนบันทึก = ผล OCR ต้องไม่ถูกติดธงทิ้ง เบอร์คนขับจะหายเงียบ)
+        if(ocrPickId&&d.container===ocrPickNo){ const pid=ocrPickId; ocrPickId=0; ocrPickNo=''; try{ callAct({act:'ocrpulled',id:pid}); }catch(e){} }
+        else { ocrPickId=0; ocrPickNo=''; }
         if(!drEditBack()){ await bill2Fresh(); renderBill2(); } }   // V73: มาจากโหมดร่าง → พากลับโหมดร่าง
       else flash('⚠️ แก้ไม่สำเร็จ — ใบนี้อาจถูกพิมพ์ไปแล้ว หรือไม่ใช่บิลที่คุณจด (แอดมินแก้ได้ตลอด) · กด ⟳ ดูสถานะจริง','err');
       return;
@@ -5587,7 +5600,7 @@ document.querySelectorAll('#b3Filter .fb').forEach(f=>f.addEventListener('click'
 $("b3Q").addEventListener('input',e=>{ debtQ=e.target.value.trim(); renderDebt(); });
 $("btnB2New").addEventListener('click',()=>{ b2EditUid=''; bill2FormOpen(null); });
 $("btnB2Close").addEventListener('click',()=>{ b2EditUid=''; $("bill2Form").style.display='none'; try{ drEditBack(); }catch(e){} });
-$("btnB2Clear").addEventListener('click',()=>{ b2EditUid=''; bill2FormClear(false); $("b2FormTitle").textContent='➕ จดบิลใหม่ — คีย์จากใบเสร็จ/ใบรับตู้ตัวจริง'; flash('ล้างฟอร์มบิลแล้ว','ok'); });
+$("btnB2Clear").addEventListener('click',()=>{ b2EditUid=''; bill2FormClear(false); try{ drEditReset(); }catch(e){} $("b2FormTitle").textContent='➕ จดบิลใหม่ — คีย์จากใบเสร็จ/ใบรับตู้ตัวจริง'; flash('ล้างฟอร์มบิลแล้ว','ok'); });
 $("btnB2Save").addEventListener('click',bill2Save);
 $("b2OcrBtn").addEventListener('click',()=>{ try{ drOcrOpen(); }catch(e){} });   // V73 [ocr_pull]
 $("btnB2ExAdd").addEventListener('click',()=>{ b2Ex.push({n:'',v:''}); b2RenderEx(); const last=$("b2ExList").querySelector('.b2exrow:last-child input'); if(last) last.focus(); });
@@ -6553,7 +6566,8 @@ recalc();
     window.idToken=''; window.__me=null;
     try{ setSession('',0); }catch(e){}   // ทิ้งบัตรผ่านของเครื่องนี้ด้วย
     // V63.6: ล้างแคชข้อมูลธุรกิจในเครื่องด้วย (เดิมเหลือบิล/ใบงาน/เรท/แดชบอร์ด — เครื่องหลุดมือเปิด DevTools อ่านได้)
-    ['jobform_user','jobform_admin','jobform_b2cache','jobform_dashcache','jobform_rates','jobform_v3','jobform_billmode']
+    // V73.5: + jobform_salerates (ตารางแม่ราคาขาย — รีวิว adversarial จับได้ว่า key ใหม่ไม่ถูกเพิ่มเข้ารายการล้าง)
+    ['jobform_user','jobform_admin','jobform_b2cache','jobform_dashcache','jobform_rates','jobform_salerates','jobform_v3','jobform_billmode']
       .forEach(k=>{ try{ localStorage.removeItem(k); }catch(e){} });
     // jobform_log / b2pending = ตาข่ายกันข้อมูลหาย (กติกาข้อ 5) — V63.8.1: "ไม่ลบตอน logout อีกต่อไป"
     // บทเรียน 19 ส.ค. 2026: ป้าย "ส่งแล้ว" อาจเป็นป้ายหลอก (POST no-cors อ่านคำตอบไม่ได้ — server ปฏิเสธก็ยังติ๊ก sent)
@@ -6930,11 +6944,14 @@ function renderDrivers() {
   });
   qFillTruckFromPick();   // คนแนะนำถูกเลือกตั้งต้นอยู่แล้ว — เติมทะเบียนให้เลย
 }
-/* V73 [dispatch_v2]: เลือกคนขับแล้วเติมทะเบียนรถของคนนั้นให้ (drrank ส่ง plate มาอยู่แล้ว — เดิมทิ้งแล้วให้พิมพ์เอง) */
+/* V73 [dispatch_v2]: เลือกคนขับแล้วเติมทะเบียนรถของคนนั้นให้ (drrank ส่ง plate มาอยู่แล้ว — เดิมทิ้งแล้วให้พิมพ์เอง)
+   V73.5 (รีวิวจับได้): เปลี่ยนคนขับแล้วทะเบียนต้องเปลี่ยนตาม — ทับได้เฉพาะค่าที่ระบบเติมเอง ค่าที่คนพิมพ์ไม่แตะ */
 function qFillTruckFromPick() {
-  if (!ff('dispatch_v2') || $("d_truck").value.trim()) return;
+  if (!ff('dispatch_v2')) return;
+  const cur = $("d_truck").value.trim();
+  if (cur && cur !== (qState.truckAutoVal || '')) return;   // คนพิมพ์เอง = ไม่ยุ่ง
   const d = (qState.drv || []).find(x => x.name === qState.pick);
-  if (d && d.plate && d.plate !== '-') $("d_truck").value = d.plate;
+  if (d && d.plate && d.plate !== '-') { $("d_truck").value = d.plate; qState.truckAutoVal = d.plate; }
 }
 /* ⚠️ ต้องกันเครื่องหมาย ' ด้วย (แก้ 25 ส.ค. 2569) — การ์ดใบขอราคาวางข้อมูลไว้ในแอตทริบิวต์ที่ครอบด้วย '...'
    ข้อมูลนี้มาจากฟอร์มขอราคาสาธารณะ (ลูกค้ากรอกเอง ไม่ต้องล็อกอิน) ถ้าไม่กัน ' จะหลุดออกนอกช่องแล้วฝังคำสั่งได้
@@ -6973,7 +6990,13 @@ async function qDoDispatch() {
     if (!reason) { flash('เปลี่ยนคนขับต้องบอกเหตุผลด้วย', 'err'); $("ovText").focus(); return; }
   }
   btn.disabled = true; btn.textContent = 'กำลังจ่ายงาน…';
-  const uid = 'B' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+  // V73.5: กดซ้ำงานเดิม (เน็ตช้า/ไม่แน่ใจว่าติด) = ใช้ uid เดิม → หลังบ้าน dedupe ด้วย uid ตอบ dr-dup
+  // และตัวตรวจ drlist เจอร่างเดิม = ขึ้น ✅ ถูกต้อง (เดิม uid ใหม่ทุกครั้ง — พ้น 2 นาทีได้ร่างซ้ำ 2 ใบ = เงินซ้ำ)
+  const dispatchSig = [$("q_cust").value, qState.pick, $("d_trans").value, $("d_date").value, $("d_cont").value].join('|');
+  const uid = (qState.lastDispatchSig === dispatchSig && qState.lastDispatchUid)
+    ? qState.lastDispatchUid
+    : 'B' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+  qState.lastDispatchSig = dispatchSig; qState.lastDispatchUid = uid;
   // V73: ส่งคีย์ร่วมไปด้วย — driverId (ไม่ใช่แค่ชื่อ) · เรทที่ใช้ · เลขใบเสนอราคา → ลงคอลัมน์ 41-44 ของแท็บบิล
   // (.gs เก่าที่ยังไม่รู้จักคีย์พวกนี้จะทิ้งเงียบ ไม่พัง — deploy เว็บก่อนได้)
   const pickObj = (qState.drv || []).find(x => x.name === qState.pick) || {};
@@ -7220,6 +7243,9 @@ $("dGo").addEventListener('click', qDoDispatch);
 document.querySelectorAll('#ovTags .ovtag').forEach(b => b.addEventListener('click', () => b.classList.toggle('on')));
 ['d_load', 'd_yardIn', 'd_yardOut'].forEach(id => { const e = $(id); if (e) e.addEventListener('change', qTripAuto); });
 $("d_trans").addEventListener('change', qDisWarnSync);   // V73 [sale_rates]: กรอกราคาต่างจากเรทแม่เกิน 10% → เตือน
+// V73.5: พิมพ์ลูกค้าเอง = งานใหม่ ไม่ใช่ใบขอราคาเดิม — ล้าง carry กันวันที่/สินค้า/จำนวนของลูกค้ารายก่อนติดไป
+// (rqGo เซ็ต q_cust ด้วยโค้ด ไม่ fire input event — carry ที่เพิ่งตั้งจึงไม่โดนล้างเอง)
+$("q_cust").addEventListener('input', () => { qState.carry = null; });
 $("d_trip").addEventListener('input', () => {
   const t = $("d_tpTag");
   if (t.className.indexOf('g') > -1) { t.className = 'qchip w'; t.textContent = '✏️ แก้เอง'; }
@@ -7329,13 +7355,18 @@ $("drBody").addEventListener('click', e => {
   else if (no) drAct(no.dataset.uid, 'cancel');
   else if (ed) drEditOpen(ed.dataset.uid);
 });
-/* V73 [draft_edit]: เปิดฟอร์มบิลเดิมมาแก้ร่าง — ฟอร์มอยู่ในการ์ดคิว ต้องสลับโหมดไปก่อน แล้วบันทึกเสร็จพากลับมาโหมดร่าง */
-let drEditReturn = false, ocrPickId = 0;
+/* V73 [draft_edit]: เปิดฟอร์มบิลเดิมมาแก้ร่าง — ฟอร์มอยู่ในการ์ดคิว ต้องสลับโหมดไปก่อน แล้วบันทึกเสร็จพากลับมาโหมดร่าง
+   V73.5 (รีวิวจับได้): สถานะโหมดแก้ร่างต้องไม่ค้างข้ามใบ/ข้ามโหมด — ตั้งธง "หลัง" billModeSync (ซึ่งเป็นคนล้างกลาง) */
+let drEditReturn = false, ocrPickId = 0, ocrPickNo = '';
+function drEditReset() {   // ล้างทุกร่องรอยของโหมดแก้ร่าง — เรียกจาก billModeSync/ล้างฟอร์ม/เปิดฟอร์มใหม่
+  drEditReturn = false; ocrPickId = 0; ocrPickNo = '';
+  try { const ob = $("b2OcrBtn"); if (ob) ob.style.display = 'none'; } catch (e) {}
+}
 function drEditOpen(uid) {
   const r = drRows.find(x => x.uid === uid); if (!r) return;
-  drEditReturn = true; ocrPickId = 0;
-  billMode = 'new'; billModeSync();
+  billMode = 'new'; billModeSync();       // billModeSync จะ drEditReset ให้ก่อน
   bill2FormOpen(r);
+  drEditReturn = true;                    // ตั้งธง "หลัง" ตัวล้างทั้งหมดทำงานแล้วเท่านั้น
   $("b2FormTitle").textContent = '✏️ แก้ร่าง — ' + (r.container || 'ยังไม่มีเบอร์ตู้') + ' · ' + (r.customer || '')
     + ' (ยังเป็นร่าง ไม่เข้าคิว/ไม่นับเงิน จนกว่าจะกดยืนยัน)';
   // [ocr_pull]: ปุ่มดึงเบอร์จากคนขับ — โผล่เฉพาะตอนแก้ร่าง + สวิตช์เปิด (บิลปกติไม่เกี่ยว)
@@ -7343,8 +7374,7 @@ function drEditOpen(uid) {
 }
 function drEditBack() {
   if (!drEditReturn) return false;
-  drEditReturn = false; billMode = 'draft'; billModeSync(); loadDrafts(true);
-  const ob = $("b2OcrBtn"); if (ob) ob.style.display = 'none';
+  drEditReset(); billMode = 'draft'; billModeSync(); loadDrafts(true);
   return true;
 }
 /* V73 [ocr_pull]: ดึงรายการเบอร์ตู้ที่คนขับยืนยันจาก LINE (ผ่าน proxy .gs — token ไม่อยู่ในเว็บ) */
@@ -7378,7 +7408,7 @@ async function drOcrOpen() {
   ov.onclick = e => { if (e.target === ov) ov.remove(); };
   document.getElementById('ocrClose').onclick = () => ov.remove();
   ov.querySelectorAll('.ocrPick').forEach(b => b.onclick = () => {
-    $("b2_container").value = b.dataset.c; ocrPickId = Number(b.dataset.id) || 0; ov.remove();
+    $("b2_container").value = b.dataset.c; ocrPickId = Number(b.dataset.id) || 0; ocrPickNo = b.dataset.c; ov.remove();
     flash('ใส่เบอร์ ' + b.dataset.c + ' แล้ว — กด "บันทึกบิล" เพื่อยืนยัน (แล้วระบบติดธงว่าใช้ผลนี้แล้ว)', 'ok');
   });
 }
