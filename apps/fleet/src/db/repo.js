@@ -168,6 +168,35 @@ export function makeD1Repo(db) {
       const rs = await db.prepare(`SELECT * FROM vehicles WHERE active = 1`).all();
       return rs.results || [];
     },
+
+    // ── V73: รับงานจากระบบจ่ายงาน (jobslip) — ตาราง vehicles/job_assignment เลิกว่างเปล่า ──
+    // เพิ่ม/อัปเดตรถจากทะเบียน — driver_name ใหม่ทับของเดิมเมื่อส่งมา (ไม่ส่ง = คงเดิม)
+    async upsertVehicle({ id, driver_name }) {
+      if (!id) return { ok: false, reason: 'no-id' };
+      await db.prepare(
+        `INSERT INTO vehicles (id, driver_name, active) VALUES (?, ?, 1)
+         ON CONFLICT(id) DO UPDATE SET
+           driver_name = COALESCE(excluded.driver_name, vehicles.driver_name), active = 1`
+      ).bind(id, driver_name || null).run();
+      return { ok: true };
+    },
+    // งาน 1 ใบมีแถวเดียว — job_id เดิมส่งซ้ำ = อัปเดตสถานะ/ข้อมูล (จ่ายงาน→ยกเลิก ไม่งอกแถวใหม่)
+    async assignJob(row) {
+      if (!row || !row.job_id || !row.vehicle_id) return { ok: false, reason: 'bad-assign' };
+      const upd = await db.prepare(
+        `UPDATE job_assignment SET vehicle_id = ?, container_no = ?, origin = ?, destination = ?, status = ?, assigned_at = ?
+         WHERE job_id = ?`
+      ).bind(row.vehicle_id, row.container_no || null, row.origin || null, row.destination || null,
+             row.status || 'assigned', row.assigned_at || null, row.job_id).run();
+      const changed = upd && upd.meta ? upd.meta.changes : 0;
+      if (changed > 0) return { ok: true, updated: true };
+      await db.prepare(
+        `INSERT INTO job_assignment (job_id, vehicle_id, container_no, origin, destination, status, assigned_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?)`
+      ).bind(row.job_id, row.vehicle_id, row.container_no || null, row.origin || null, row.destination || null,
+             row.status || 'assigned', row.assigned_at || null).run();
+      return { ok: true, updated: false };
+    },
   };
 }
 
@@ -179,6 +208,7 @@ export function makeMemoryRepo(seedVehicles = []) {
   const tripDaily = new Map();   // สรุปรายวัน (vehicle|day → แถว)
   const live = new Map();   // vehicle_id → แถวล่าสุด
   const track = [];         // ประวัติเส้นทาง
+  const jobs = [];          // V73: job_assignment (งาน 1 ใบ = 1 แถว คีย์ job_id)
   let nextId = 1;
 
   return {
@@ -250,6 +280,24 @@ export function makeMemoryRepo(seedVehicles = []) {
 
     async listVehicles() {
       return vehicles.filter((v) => v.active === 1).map((v) => ({ ...v }));
+    },
+
+    // ── V73: พฤติกรรมต้องเท่า D1 เป๊ะ (มีเทสเทียบ interface) ──
+    async upsertVehicle({ id, driver_name }) {
+      if (!id) return { ok: false, reason: 'no-id' };
+      const old = vehicles.find((v) => v.id === id);
+      if (old) { if (driver_name) old.driver_name = driver_name; old.active = 1; }
+      else vehicles.push({ id, driver_name: driver_name || null, active: 1 });
+      return { ok: true };
+    },
+    async assignJob(row) {
+      if (!row || !row.job_id || !row.vehicle_id) return { ok: false, reason: 'bad-assign' };
+      const shaped = { job_id: row.job_id, vehicle_id: row.vehicle_id, container_no: row.container_no || null,
+        origin: row.origin || null, destination: row.destination || null,
+        status: row.status || 'assigned', assigned_at: row.assigned_at || null };
+      const i = jobs.findIndex((j) => j.job_id === row.job_id);
+      if (i > -1) { jobs[i] = shaped; return { ok: true, updated: true }; }
+      jobs.push(shaped); return { ok: true, updated: false };
     },
   };
 }

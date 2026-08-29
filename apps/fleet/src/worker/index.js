@@ -8,7 +8,7 @@ import { processPing } from './ingest.js';
 import { makeInitialState, tick, toPings } from '../mock/feed.js';
 import { archiveOldTracks } from '../archive/r2Archive.js';
 import { computeTripDaily } from './tripDaily.js';
-import { ingestAuthorized, mapConfigOf } from './api.js';
+import { ingestAuthorized, mapConfigOf, handleAssign } from './api.js';
 
 // เก็บ track สดใน D1 กี่วันก่อน archive ขึ้น R2 (ตามสเปก 60 วัน)
 const TRACK_KEEP_DAYS = 60;
@@ -151,6 +151,14 @@ export default {
       }
       if (url.pathname === '/api/fleet/ingest' && request.method === 'POST') {
         return await ingestHandler(request, env);
+      }
+      // V73: รับงานจากระบบจ่ายงาน (jobslip → .gs fleetPush_ ยิงมา) — แผนที่รู้ว่ารถคันไหนวิ่งงานอะไร
+      if (url.pathname === '/api/fleet/assign' && request.method === 'POST') {
+        // โหมด mock: เดิน mock ให้ mockRepo เกิดก่อน แล้วเก็บงานลง memory repo ตัวเดียวกับแผนที่
+        const repo = env.DB ? makeD1Repo(env.DB)
+          : (await advanceMock(Date.now(), Number(env.MOVE_THRESHOLD_M || 20)), mockRepo);
+        const r = await handleAssign(request, env, repo);
+        return json(r.body, r.status);
       }
       return json({ ok: false, reason: 'not-found' }, 404);
     } catch (e) {

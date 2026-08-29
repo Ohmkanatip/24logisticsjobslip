@@ -22,6 +22,16 @@ const abs = (f) => join(ROOT, f);
 // ── รายการบั๊กที่จะแกล้งฝัง — เลือกเฉพาะ "หัวใจของความถูกต้อง" ──
 // find ต้องเจอ 1 ที่พอดี ไม่งั้นถือว่า mutation เสีย (MUTATION-BROKEN) ต้องมาแก้รายการนี้
 const MUTATIONS = [
+  // ── V73: สายรับงานจากระบบจ่ายงาน — ถูกตัดแล้วเทสต้องจับ ──
+  { name: 'assign: ไม่เช็ค token (ใครก็ยิงงานปลอมใส่แผนที่ได้)',
+    file: 'src/worker/api.js',
+    find: "  if (!assignAuthorized(request, env)) return { status: 401, body: { ok: false, reason: 'unauthorized' } };",
+    replace: '  // (ถูกตัดโดย mutation)' },
+  { name: 'assignJob memory: job เดิมงอกแถวใหม่แทนที่จะ update (ยกเลิกงานแล้วแผนที่ยังโชว์งานเก่า)',
+    file: 'src/db/repo.js',
+    find: '      if (i > -1) { jobs[i] = shaped; return { ok: true, updated: true }; }',
+    replace: '      if (false) { jobs[i] = shaped; return { ok: true, updated: true }; }' },
+
   // ── สูตรระยะทาง ──
   { name: 'haversine: ลืมคูณ 2 (ระยะทางเหลือครึ่งเดียว)',
     file: 'src/worker/haversine.js',

@@ -24,6 +24,9 @@ CARTRACK_API_KEY=
 # โทเคนกันคนนอกยิงปิงปลอมเข้า /api/fleet/ingest — ก่อนใช้จริงต้องตั้งเสมอ (ว่าง = โหมดทดลองในเครื่อง ไม่ตรวจ)
 INGEST_TOKEN=
 
+# V73: token ของ POST /api/fleet/assign (ระบบจ่ายงาน jobslip ยิงมาผ่าน .gs fleetPush_) — คนละตัวกับ INGEST_TOKEN โดยตั้งใจ
+ASSIGN_TOKEN=
+
 # ── หมายเหตุ: D1 กับ R2 ไม่ได้ตั้งที่นี่ ──
 # ทั้งคู่เป็น "binding" ตั้งใน wrangler.jsonc ไม่ใช่ตัวแปรลับ:
 #   binding "DB"      → ฐานข้อมูล D1  (env.DB)

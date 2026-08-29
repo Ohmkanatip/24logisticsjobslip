@@ -652,6 +652,40 @@ async function main() {
     ok(/ts\s*>=\s*\?\s*AND\s*ts\s*<\s*\?/.test(codeOnly), 'query นับ write ใช้ช่วง ts (ใช้ index ได้)');
   }
 
+  // ========== V73: /api/fleet/assign — รับงานจากระบบจ่ายงาน (jobslip) ==========
+  section('V73: assign — vehicles/job_assignment เลิกว่างเปล่า');
+  {
+    const { handleAssign, assignAuthorized } = await import('../src/worker/api.js');
+    ok(assignAuthorized({ headers: { get: () => '' } }, {}) === true, 'โหมดทดลอง (ไม่ตั้ง ASSIGN_TOKEN) = ผ่าน');
+    ok(assignAuthorized({ headers: { get: () => 'Bearer x' } }, { ASSIGN_TOKEN: 'tok' }) === false, 'token ผิด = ไม่ผ่าน');
+
+    const repo = makeMemoryRepo();
+    const env = { ASSIGN_TOKEN: 'tok' };
+    const req = (body, auth) => new Request('http://x/api/fleet/assign', {
+      method: 'POST', body: JSON.stringify(body), headers: auth ? { authorization: auth } : {} });
+    ok((await handleAssign(req({ jobId: 'B1', plate: '71-3760' }, 'Bearer wrong'), env, repo)).status === 401, 'endpoint: token ผิด = 401');
+    ok((await handleAssign(req({ jobId: 'B1' }, 'Bearer tok'), env, repo)).status === 400, 'ไม่มีทะเบียน = 400 (fleet ผูกด้วยทะเบียน)');
+    const r1 = await handleAssign(req({ jobId: 'B1', plate: '71-3760', driverName: 'สมชาย',
+      containerNo: 'CSQU3054383', origin: 'ลาดกระบัง', destination: 'แหลมฉบัง', assignedAt: 1000 }, 'Bearer tok'), env, repo);
+    ok(r1.status === 200 && r1.body.ok && r1.body.updated === false, 'จ่ายงานครั้งแรก = insert', r1.body);
+    const vs = await repo.listVehicles();
+    ok(vs.some((v) => v.id === '71-3760' && v.driver_name === 'สมชาย'),
+      '⭐ รถถูก upsert เข้า vehicles อัตโนมัติ (เดิมตารางนี้ไม่มีทางถูกเติมเลย — liveHandler join แล้ว null ตลอด)');
+    const r2 = await handleAssign(req({ jobId: 'B1', plate: '71-3760', status: 'cancelled' }, 'Bearer tok'), env, repo);
+    ok(r2.status === 200 && r2.body.updated === true, '⭐ job เดิมส่งซ้ำ = update ไม่งอกแถว (ยกเลิกงานเปลี่ยนสถานะแถวเดิม)');
+    await handleAssign(req({ jobId: 'B2', plate: '71-3760' }, 'Bearer tok'), env, repo);
+    ok((await repo.listVehicles()).find((v) => v.id === '71-3760').driver_name === 'สมชาย',
+      'งานใหม่ไม่ส่งชื่อคนขับ = คงชื่อเดิมไว้ (COALESCE — ไม่ลบข้อมูลด้วย null)');
+  }
+  {
+    // route ต่อสายใน worker จริง (index.js import map.html เป็น text — Node import ตรงไม่ได้ จึงเช็คที่ src)
+    const srcW = await readFile(new URL('../src/worker/index.js', import.meta.url), 'utf8');
+    ok(/\/api\/fleet\/assign/.test(srcW) && /handleAssign\(/.test(srcW), 'route /api/fleet/assign ต่อสายใน worker แล้ว (ไม่ใช่ฟังก์ชันลอย — บทเรียน suggestRepairs)');
+    // interface parity: repo ทั้งสองต้องมี assignJob/upsertVehicle คู่กัน (ด่านเดิมเทียบ Object.keys ครอบให้แล้ว แต่ล็อกชื่อไว้ชัดๆ)
+    ok(typeof makeMemoryRepo().assignJob === 'function' && typeof makeD1Repo({ prepare() { throw new Error('x'); } }).assignJob === 'function',
+      'assignJob มีทั้ง memory และ D1');
+  }
+
   // สรุป
   console.log('\n==============================');
   console.log(`ผ่าน ${pass} · ตก ${fail}`);

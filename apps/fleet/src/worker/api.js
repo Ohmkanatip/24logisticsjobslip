@@ -12,6 +12,38 @@ export function ingestAuthorized(request, env) {
   return h === 'Bearer ' + env.INGEST_TOKEN;
 }
 
+// V73: ด่านของ POST /api/fleet/assign — คนยิงคือ Apps Script (fleetPush_) ไม่ใช่ Cartrack
+// แยก token คนละตัวกับ INGEST_TOKEN: หลุดตัวหนึ่งไม่พาอีกตัวหลุดตาม
+export function assignAuthorized(request, env) {
+  if (!env.ASSIGN_TOKEN) return true;   // โหมดทดลองในเครื่อง — ก่อนใช้จริงต้องตั้งเสมอ (แพทเทิร์นเดียวกับ INGEST_TOKEN)
+  const h = (request && request.headers && request.headers.get('authorization')) || '';
+  return h === 'Bearer ' + env.ASSIGN_TOKEN;
+}
+
+// V73: รับงานจากระบบจ่ายงาน (jobslip) → upsert รถ + บันทึกงานลง job_assignment
+// แยกจาก worker/index.js เพื่อเทสด้วย Node ตรงๆ ได้ (ฉีด repo เอง) — body ที่ .gs fleetPush_ ส่งมา:
+//   { jobId, plate, driverName?, containerNo?, origin?, destination?, status?, assignedAt? }
+export async function handleAssign(request, env, repo) {
+  if (!assignAuthorized(request, env)) return { status: 401, body: { ok: false, reason: 'unauthorized' } };
+  let b = null;
+  try { b = await request.json(); } catch (_e) { b = null; }
+  if (!b || !b.jobId || !b.plate) {
+    return { status: 400, body: { ok: false, reason: 'bad-body', hint: 'ต้องมี {jobId, plate}' } };
+  }
+  const plate = String(b.plate).trim();
+  await repo.upsertVehicle({ id: plate, driver_name: b.driverName ? String(b.driverName) : null });
+  const r = await repo.assignJob({
+    job_id: String(b.jobId), vehicle_id: plate,
+    container_no: b.containerNo ? String(b.containerNo) : null,
+    origin: b.origin ? String(b.origin) : null,
+    destination: b.destination ? String(b.destination) : null,
+    status: b.status ? String(b.status) : 'assigned',
+    assigned_at: Number(b.assignedAt) || null,
+  });
+  if (!r.ok) return { status: 400, body: r };
+  return { status: 200, body: { ok: true, updated: !!r.updated } };
+}
+
 // GET /api/fleet/mapconfig — บอกหน้าเว็บว่า env เลือก provider อะไร
 // แก้ MAP_PROVIDER ตัวเดียว หน้าแผนที่รู้ทันที (เกณฑ์ "สลับ provider ด้วย env ตัวเดียว" ของสเปก)
 // ส่งเฉพาะของที่ปลอดภัยฝั่ง client — MAP_SERVER_KEY ไม่มีทางออกไปทางนี้

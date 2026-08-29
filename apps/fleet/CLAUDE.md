@@ -81,3 +81,8 @@ node tests/mutation.js     # หรือ npm run mutation
 - `src/map/provider.js` + `src/map/adapters/` (leaflet ใช้จริง · longdo/google/mapbox = stub ซื่อสัตย์)
 - `src/mock/feed.js` — GPS mock deterministic 4 คัน วิ่งแหลมฉบัง → บางนา → ลาดกระบัง ICD
 - `src/archive/r2Archive.js` · `src/public/map.html` · `demo-server.js` · `tests/run.js`
+
+## V73 (29 ส.ค. 2569): รับงานจากระบบจ่ายงาน — vehicles/job_assignment เลิกว่างเปล่า
+- `POST /api/fleet/assign` (Bearer `ASSIGN_TOKEN` — คนละตัวกับ INGEST_TOKEN โดยตั้งใจ) · ตัวยิงคือ .gs `fleetPush_` ท้าย drSave_/drCancel_ (หลังปล่อยคิว · สวิตช์ `fleet_push` · พังเงียบไม่กระทบจ่ายงาน)
+- `handleAssign` อยู่ `src/worker/api.js` (เทสตรงได้) → `upsertVehicle` (ทะเบียน+คนขับ · COALESCE ไม่ลบชื่อด้วย null) + `assignJob` (job 1 ใบ = 1 แถว คีย์ job_id · ส่งซ้ำ = update ไม่งอกแถว) ทั้ง memory และ D1
+- ผล: `liveHandler` join ได้ของจริง — หมุดรถโชว์งาน/เบอร์ตู้/เส้นทาง · เทส 211 เคส · mutation 27/27
